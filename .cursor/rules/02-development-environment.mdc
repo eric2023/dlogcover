@@ -1,0 +1,74 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 开发环境与代码组织
+
+## 项目结构
+```
+dlogcover/
+├── src/
+│   ├── __init__.py
+│   ├── parser/          # C++ 代码解析模块
+│   ├── analyzer/        # 日志分析模块
+│   └── reporter/        # 报告生成模块
+├── tests/               # 测试用例
+├── examples/            # 示例代码
+├── docs/               # 文档
+├── requirements.txt    # 依赖配置
+└── setup.py           # 安装配置
+```
+
+## 开发环境配置
+1. Python 环境要求
+   - Python 3.x
+   - pip 包管理器
+   - virtualenv（推荐）
+
+2. 依赖安装
+   ```bash
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. 开发工具
+   - IDE: VSCode/PyCharm
+   - 代码格式化: black
+   - 代码检查: pylint
+   - 测试框架: pytest
+
+## 代码规范
+1. Python 编码规范
+   - 遵循 PEP 8 规范
+   - 使用 Type Hints
+   - 编写完整的文档字符串
+
+2. 命名约定
+   - 类名：驼峰命名（ClassName）
+   - 函数名：下划线命名（function_name）
+   - 常量：大写下划线（CONSTANT_NAME）
+   - 私有成员：下划线前缀（_private_var）
+
+3. 注释规范
+   - 模块级文档
+   - 函数文档字符串
+   - 复杂逻辑说明
+   - TODO 标记规范
+
+## 版本控制
+1. Git 工作流
+   - 主分支：main
+   - 开发分支：develop
+   - 功能分支：feature/*
+   - 修复分支：bugfix/*
+
+2. 提交规范
+   - feat: 新功能
+   - fix: 错误修复
+   - docs: 文档更新
+   - style: 代码格式
+   - refactor: 代码重构
+   - test: 测试相关
+   - chore: 构建过程或辅助工具的变动
