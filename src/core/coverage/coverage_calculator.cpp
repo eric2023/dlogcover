@@ -140,23 +140,16 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
     for (const auto* funcNode : functionNodes) {
         bool isCovered = funcNode->hasLogging;
 
-        // 如果节点本身没有标记为有日志，检查它的子节点
-        if (!isCovered) {
-            for (const auto& child : funcNode->children) {
-                if (child->hasLogging) {
-                    isCovered = true;
-                    break;
-                }
-            }
-        }
-
         // 如果仍然未覆盖，检查是否在logCalls中有记录
         if (!isCovered) {
+            // 获取函数的起始和结束行
+            unsigned int funcStartLine = funcNode->location.line;
+
+            // 结束行需要推断，这里简单地搜索函数后的日志调用
+            unsigned int funcEndLine = funcStartLine + 100;  // 假设函数不超过100行
             for (const auto& logCall : logCalls) {
-                // 检查日志调用是否在函数的范围内
-                // 这是一个简化的检查，只比较行号
-                if (logCall.location.line >= funcNode->location.line &&
-                    logCall.location.line <= funcNode->location.line + 10) { // 假设函数不超过10行
+                if (logCall.location.line >= funcStartLine && logCall.location.line <= funcEndLine &&
+                    logCall.location.filePath == funcNode->location.filePath) {
                     isCovered = true;
                     break;
                 }
@@ -197,12 +190,10 @@ void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo
 
     // 遍历AST节点树，收集分支节点
     std::vector<const ast_analyzer::ASTNodeInfo*> branchNodes;
-    collectNodesByType(
-        node,
-        {ast_analyzer::NodeType::IF_STMT, ast_analyzer::NodeType::ELSE_STMT, ast_analyzer::NodeType::SWITCH_STMT,
-         ast_analyzer::NodeType::CASE_STMT, ast_analyzer::NodeType::FOR_STMT, ast_analyzer::NodeType::WHILE_STMT,
-         ast_analyzer::NodeType::DO_STMT},
-        branchNodes);
+    collectNodesByType(node,
+                       {ast_analyzer::NodeType::IF_STMT, ast_analyzer::NodeType::ELSE_STMT,
+                        ast_analyzer::NodeType::SWITCH_STMT, ast_analyzer::NodeType::CASE_STMT},
+                       branchNodes);
 
     LOG_DEBUG_FMT("文件 %s 中发现 %zu 个分支", filePath.c_str(), branchNodes.size());
 
@@ -212,34 +203,26 @@ void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo
     // 获取该文件的日志调用
     const auto& logCalls = logIdentifier_.getLogCalls(filePath);
 
-    // 创建日志行号区间集合，用于判断分支是否覆盖
-    std::vector<std::pair<unsigned int, unsigned int>> logLineRanges;
+    // 创建日志行号集合，用于快速查找
+    std::unordered_set<unsigned int> logLines;
     for (const auto& logCall : logCalls) {
-        // 为每个日志调用创建一个小范围的区间，±2行
-        unsigned int startLine = (logCall.location.line > 2) ? (logCall.location.line - 2) : 1;
-        unsigned int endLine = logCall.location.line + 2;
-        logLineRanges.push_back({startLine, endLine});
+        logLines.insert(logCall.location.line);
     }
 
     // 计算已覆盖的分支数量
     for (const auto* branchNode : branchNodes) {
         bool isCovered = branchNode->hasLogging;
 
-        // 如果节点本身没有标记为有日志，检查它的子节点
-        if (!isCovered) {
-            for (const auto& child : branchNode->children) {
-                if (child->hasLogging) {
-                    isCovered = true;
-                    break;
-                }
-            }
-        }
-
         // 如果仍然未覆盖，检查是否在logCalls中有记录
         if (!isCovered) {
-            for (const auto& range : logLineRanges) {
-                // 检查分支节点的行号是否在任何日志调用的范围内
-                if (branchNode->location.line >= range.first && branchNode->location.line <= range.second) {
+            // 获取分支的起始和结束行
+            unsigned int branchStartLine = branchNode->location.line;
+
+            // 结束行需要推断，这里假设分支语句不会太长
+            unsigned int branchEndLine = branchStartLine + 20;  // 假设分支代码块不超过20行
+            for (const auto& logCall : logCalls) {
+                if (logCall.location.line >= branchStartLine && logCall.location.line <= branchEndLine &&
+                    logCall.location.filePath == branchNode->location.filePath) {
                     isCovered = true;
                     break;
                 }
@@ -286,47 +269,29 @@ void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeI
     // 更新异常处理总数
     stats.totalExceptionHandlers += exceptionNodes.size();
 
-    // 获取该文件的日志调用，重点关注WARNING和ERROR级别的日志
+    // 获取该文件的日志调用
     const auto& logCalls = logIdentifier_.getLogCalls(filePath);
 
-    // 过滤出警告和错误级别的日志调用
-    std::vector<log_identifier::LogCallInfo> errorLogCalls;
+    // 创建日志行号集合，用于快速查找
+    std::unordered_set<unsigned int> logLines;
     for (const auto& logCall : logCalls) {
-        if (logCall.level == log_identifier::LogLevel::WARNING ||
-            logCall.level == log_identifier::LogLevel::CRITICAL ||
-            logCall.level == log_identifier::LogLevel::FATAL) {
-            errorLogCalls.push_back(logCall);
-        }
-    }
-
-    // 创建日志行号区间集合，用于判断异常处理是否覆盖
-    std::vector<std::pair<unsigned int, unsigned int>> logLineRanges;
-    for (const auto& logCall : errorLogCalls) {
-        // 为每个日志调用创建一个小范围的区间，±3行
-        unsigned int startLine = (logCall.location.line > 3) ? (logCall.location.line - 3) : 1;
-        unsigned int endLine = logCall.location.line + 3;
-        logLineRanges.push_back({startLine, endLine});
+        logLines.insert(logCall.location.line);
     }
 
     // 计算已覆盖的异常处理数量
     for (const auto* exceptionNode : exceptionNodes) {
         bool isCovered = exceptionNode->hasLogging;
 
-        // 对于catch节点，覆盖要求更严格，应该在其内部有警告或错误级别的日志
-        if (exceptionNode->type == ast_analyzer::NodeType::CATCH_STMT) {
-            isCovered = false; // 重置，更严格要求
+        // 如果仍然未覆盖，检查是否在logCalls中有记录
+        if (!isCovered) {
+            // 获取异常处理的起始和结束行
+            unsigned int exceptionStartLine = exceptionNode->location.line;
 
-            // 检查是否有严重级别的日志调用在catch块内
-            for (const auto& range : logLineRanges) {
-                if (exceptionNode->location.line >= range.first && exceptionNode->location.line <= range.second) {
-                    isCovered = true;
-                    break;
-                }
-            }
-
-            // 递归检查子节点
-            for (const auto& child : exceptionNode->children) {
-                if (child->hasLogging) {
+            // 结束行需要推断，这里假设异常处理代码块不会太长
+            unsigned int exceptionEndLine = exceptionStartLine + 20;  // 假设异常处理代码块不超过20行
+            for (const auto& logCall : logCalls) {
+                if (logCall.location.line >= exceptionStartLine && logCall.location.line <= exceptionEndLine &&
+                    logCall.location.filePath == exceptionNode->location.filePath) {
                     isCovered = true;
                     break;
                 }
@@ -339,8 +304,7 @@ void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeI
             uncoveredPath.type = CoverageType::EXCEPTION;
             uncoveredPath.nodeType = exceptionNode->type;
             uncoveredPath.location = exceptionNode->location;
-            uncoveredPath.name =
-                exceptionNode->type == ast_analyzer::NodeType::CATCH_STMT ? "catch " + exceptionNode->name : "try";
+            uncoveredPath.name = (exceptionNode->type == ast_analyzer::NodeType::TRY_STMT) ? "try" : "catch";
             uncoveredPath.text = exceptionNode->text.substr(0, 100) + (exceptionNode->text.length() > 100 ? "..." : "");
             uncoveredPath.suggestion = generateSuggestion(CoverageType::EXCEPTION, exceptionNode->type);
 
@@ -417,7 +381,7 @@ void CoverageCalculator::calculateKeyPathCoverage(const ast_analyzer::ASTNodeInf
                 // 检查日志调用是否在关键路径节点的范围内
                 // 这是一个简化的检查，只比较行号
                 if (logCall.location.line >= keyPathNode->location.line &&
-                    logCall.location.line <= keyPathNode->location.line + 5) { // 假设关键路径节点不超过5行
+                    logCall.location.line <= keyPathNode->location.line + 5) {  // 假设关键路径节点不超过5行
                     isCovered = true;
                     break;
                 }
@@ -451,25 +415,19 @@ void CoverageCalculator::calculateKeyPathCoverage(const ast_analyzer::ASTNodeInf
 }
 
 void CoverageCalculator::identifyKeyBranches(const ast_analyzer::ASTNodeInfo* node,
-                                            std::vector<const ast_analyzer::ASTNodeInfo*>& keyBranches) {
+                                             std::vector<const ast_analyzer::ASTNodeInfo*>& keyBranches) {
     if (!node) {
         return;
     }
 
     // 识别可能是关键分支的条件语句
     // 这里使用一些启发式规则来判断分支是否关键
-    if (node->type == ast_analyzer::NodeType::IF_STMT ||
-        node->type == ast_analyzer::NodeType::ELSE_STMT) {
-
+    if (node->type == ast_analyzer::NodeType::IF_STMT || node->type == ast_analyzer::NodeType::ELSE_STMT) {
         // 通过文本内容判断是否为关键分支
         // 比如检查是否包含错误处理相关的关键词
-        if (node->text.find("error") != std::string::npos ||
-            node->text.find("fail") != std::string::npos ||
-            node->text.find("exception") != std::string::npos ||
-            node->text.find("return false") != std::string::npos ||
-            node->text.find("return -1") != std::string::npos ||
-            node->text.find("throw") != std::string::npos) {
-
+        if (node->text.find("error") != std::string::npos || node->text.find("fail") != std::string::npos ||
+            node->text.find("exception") != std::string::npos || node->text.find("return false") != std::string::npos ||
+            node->text.find("return -1") != std::string::npos || node->text.find("throw") != std::string::npos) {
             keyBranches.push_back(node);
         }
     }
@@ -481,24 +439,49 @@ void CoverageCalculator::identifyKeyBranches(const ast_analyzer::ASTNodeInfo* no
 }
 
 void CoverageCalculator::mergeCoverageStats(CoverageStats& overall) {
-    // 重置总体统计信息
-    overall = CoverageStats();
+    // 重置总体统计数据
+    overall.totalFunctions = 0;
+    overall.totalBranches = 0;
+    overall.totalExceptionHandlers = 0;
+    overall.totalKeyPaths = 0;
+    overall.coveredFunctions = 0;
+    overall.coveredBranches = 0;
+    overall.coveredExceptionHandlers = 0;
+    overall.coveredKeyPaths = 0;
+    overall.uncoveredPaths.clear();
 
-    // 累加各文件的统计数据
+    // 合并所有文件的覆盖率统计
     for (const auto& [filePath, stats] : coverageStats_) {
         overall.totalFunctions += stats.totalFunctions;
         overall.totalBranches += stats.totalBranches;
         overall.totalExceptionHandlers += stats.totalExceptionHandlers;
         overall.totalKeyPaths += stats.totalKeyPaths;
-
         overall.coveredFunctions += stats.coveredFunctions;
         overall.coveredBranches += stats.coveredBranches;
         overall.coveredExceptionHandlers += stats.coveredExceptionHandlers;
         overall.coveredKeyPaths += stats.coveredKeyPaths;
 
-        // 合并未覆盖路径
+        // 合并未覆盖路径列表
         overall.uncoveredPaths.insert(overall.uncoveredPaths.end(), stats.uncoveredPaths.begin(),
                                       stats.uncoveredPaths.end());
+    }
+
+    // 计算总体覆盖率
+    if (overall.totalFunctions > 0) {
+        overall.functionCoverage = static_cast<double>(overall.coveredFunctions) / overall.totalFunctions;
+    }
+
+    if (overall.totalBranches > 0) {
+        overall.branchCoverage = static_cast<double>(overall.coveredBranches) / overall.totalBranches;
+    }
+
+    if (overall.totalExceptionHandlers > 0) {
+        overall.exceptionCoverage =
+            static_cast<double>(overall.coveredExceptionHandlers) / overall.totalExceptionHandlers;
+    }
+
+    if (overall.totalKeyPaths > 0) {
+        overall.keyPathCoverage = static_cast<double>(overall.coveredKeyPaths) / overall.totalKeyPaths;
     }
 
     // 计算总体覆盖率
@@ -549,90 +532,89 @@ std::string CoverageCalculator::getBranchName(const ast_analyzer::ASTNodeInfo* n
 }
 
 void CoverageCalculator::calculateOverallCoverage(CoverageStats& stats) {
-    // 计算综合覆盖率，各类型覆盖率的加权平均
+    // 计算总体覆盖率，考虑各种类型覆盖率的权重
     double totalWeight = 0.0;
     double weightedSum = 0.0;
 
-    // 函数覆盖率（权重：1.0）
+    // 函数覆盖率权重
     if (stats.totalFunctions > 0) {
-        weightedSum += stats.functionCoverage * 1.0;
-        totalWeight += 1.0;
+        weightedSum += stats.functionCoverage * 0.4;
+        totalWeight += 0.4;
     }
 
-    // 分支覆盖率（权重：1.5）
+    // 分支覆盖率权重
     if (stats.totalBranches > 0) {
-        weightedSum += stats.branchCoverage * 1.5;
-        totalWeight += 1.5;
+        weightedSum += stats.branchCoverage * 0.3;
+        totalWeight += 0.3;
     }
 
-    // 异常覆盖率（权重：1.2）
+    // 异常覆盖率权重
     if (stats.totalExceptionHandlers > 0) {
-        weightedSum += stats.exceptionCoverage * 1.2;
-        totalWeight += 1.2;
+        weightedSum += stats.exceptionCoverage * 0.15;
+        totalWeight += 0.15;
     }
 
-    // 关键路径覆盖率（权重：2.0）
+    // 关键路径覆盖率权重
     if (stats.totalKeyPaths > 0) {
-        weightedSum += stats.keyPathCoverage * 2.0;
-        totalWeight += 2.0;
+        weightedSum += stats.keyPathCoverage * 0.15;
+        totalWeight += 0.15;
     }
 
-    // 计算加权平均
+    // 计算加权平均覆盖率
     if (totalWeight > 0) {
         stats.overallCoverage = weightedSum / totalWeight;
     } else {
         stats.overallCoverage = 0.0;
     }
+
+    LOG_DEBUG_FMT("总体覆盖率: %.2f%%", stats.overallCoverage * 100);
 }
 
 std::string CoverageCalculator::generateSuggestion(CoverageType type, ast_analyzer::NodeType nodeType) const {
-    std::stringstream suggestion;
-
+    // 根据覆盖率类型和节点类型生成建议
     switch (type) {
         case CoverageType::FUNCTION:
-            suggestion << "在函数入口添加调试级别日志，记录函数调用及其参数。";
-            break;
+            return "在函数入口添加日志记录，记录参数和调用上下文信息";
 
         case CoverageType::BRANCH:
             switch (nodeType) {
                 case ast_analyzer::NodeType::IF_STMT:
-                    suggestion << "在if分支中添加适当级别的日志，记录条件判断结果和执行路径。";
-                    break;
+                    return "在if条件分支中添加日志记录，记录条件判断结果和关键变量值";
                 case ast_analyzer::NodeType::ELSE_STMT:
-                    suggestion << "在else分支中添加适当级别的日志，记录执行路径。";
-                    break;
+                    return "在else分支中添加日志记录，记录进入else分支的信息和关键变量值";
                 case ast_analyzer::NodeType::SWITCH_STMT:
-                    suggestion << "在switch语句的各个case中添加适当级别的日志，记录匹配的情况。";
-                    break;
-                case ast_analyzer::NodeType::FOR_STMT:
-                case ast_analyzer::NodeType::WHILE_STMT:
-                case ast_analyzer::NodeType::DO_STMT:
-                    suggestion << "在循环开始、关键迭代点和结束时添加日志，记录循环状态和进度。";
-                    break;
+                    return "在switch语句中添加日志记录，记录switch变量的值";
+                case ast_analyzer::NodeType::CASE_STMT:
+                    return "在case分支中添加日志记录，记录进入该case分支的信息";
                 default:
-                    suggestion << "在此分支添加适当级别的日志，记录执行路径和关键状态。";
-                    break;
+                    return "在分支中添加适当的日志记录";
             }
-            break;
 
         case CoverageType::EXCEPTION:
-            if (nodeType == ast_analyzer::NodeType::CATCH_STMT) {
-                suggestion << "在catch块中添加警告或错误级别日志，记录异常信息和处理方式。";
-            } else {
-                suggestion << "在try块中添加适当级别的日志，记录可能发生异常的操作。";
+            switch (nodeType) {
+                case ast_analyzer::NodeType::TRY_STMT:
+                    return "在try块中关键位置添加日志记录，记录可能导致异常的操作";
+                case ast_analyzer::NodeType::CATCH_STMT:
+                    return "在catch块中添加日志记录，记录捕获到的异常信息和相关上下文";
+                default:
+                    return "在异常处理中添加适当的日志记录";
             }
-            break;
 
         case CoverageType::KEY_PATH:
-            suggestion << "这是关键执行路径，应添加适当级别的日志，记录重要操作和状态变化。";
-            break;
+            switch (nodeType) {
+                case ast_analyzer::NodeType::IF_STMT:
+                    return "此if语句被识别为关键路径，应添加日志记录异常状态和处理过程";
+                case ast_analyzer::NodeType::ELSE_STMT:
+                    return "此else语句被识别为关键路径，应添加日志记录异常状态和处理过程";
+                case ast_analyzer::NodeType::CATCH_STMT:
+                    return "此catch块是关键异常处理路径，应详细记录异常信息和处理步骤";
+                default:
+                    return "在此关键路径中添加详细的日志记录，记录状态和处理过程";
+            }
 
         default:
-            suggestion << "添加适当级别的日志，记录执行情况和重要状态。";
-            break;
+            return "添加适当的日志记录，提高代码可观测性";
     }
-
-    return suggestion.str();
 }
 
 }  // namespace coverage

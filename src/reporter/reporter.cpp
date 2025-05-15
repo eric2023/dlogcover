@@ -266,19 +266,27 @@ bool Reporter::generateJsonReport(const std::string& outputPath) {
 std::string Reporter::generateOverallStatsText(const core::coverage::CoverageStats& stats) const {
     std::stringstream ss;
 
-    ss << "函数覆盖率: " << std::fixed << std::setprecision(2) << (stats.functionCoverage * 100) << "% ("
+    // 函数级覆盖率
+    ss << "函数级覆盖率: " << std::fixed << std::setprecision(2) << stats.functionCoverage * 100 << "% ("
        << stats.coveredFunctions << "/" << stats.totalFunctions << ")" << std::endl;
 
-    ss << "分支覆盖率: " << std::fixed << std::setprecision(2) << (stats.branchCoverage * 100) << "% ("
+    // 分支级覆盖率
+    ss << "分支级覆盖率: " << std::fixed << std::setprecision(2) << stats.branchCoverage * 100 << "% ("
        << stats.coveredBranches << "/" << stats.totalBranches << ")" << std::endl;
 
-    ss << "异常覆盖率: " << std::fixed << std::setprecision(2) << (stats.exceptionCoverage * 100) << "% ("
+    // 异常级覆盖率
+    ss << "异常级覆盖率: " << std::fixed << std::setprecision(2) << stats.exceptionCoverage * 100 << "% ("
        << stats.coveredExceptionHandlers << "/" << stats.totalExceptionHandlers << ")" << std::endl;
 
-    ss << "关键路径覆盖率: " << std::fixed << std::setprecision(2) << (stats.keyPathCoverage * 100) << "% ("
+    // 关键路径覆盖率
+    ss << "关键路径覆盖率: " << std::fixed << std::setprecision(2) << stats.keyPathCoverage * 100 << "% ("
        << stats.coveredKeyPaths << "/" << stats.totalKeyPaths << ")" << std::endl;
 
-    ss << "总体覆盖率: " << std::fixed << std::setprecision(2) << (stats.overallCoverage * 100) << "%";
+    // 总体覆盖率
+    ss << "总体覆盖率: " << std::fixed << std::setprecision(2) << stats.overallCoverage * 100 << "%" << std::endl;
+
+    // 未覆盖路径总数
+    ss << "未覆盖路径: " << stats.uncoveredPaths.size() << " 个" << std::endl;
 
     return ss.str();
 }
@@ -287,15 +295,10 @@ std::string Reporter::generateFileStatsText(const std::string& filePath,
                                             const core::coverage::CoverageStats& stats) const {
     std::stringstream ss;
 
-    // 提取短文件名
-    std::string shortFilePath = filePath;
-    size_t lastSlash = filePath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        shortFilePath = filePath.substr(lastSlash + 1);
-    }
-
+    // 显示文件路径
     ss << "文件: " << filePath << std::endl;
 
+    // 函数覆盖率
     if (stats.totalFunctions > 0) {
         ss << "  函数覆盖率: " << std::fixed << std::setprecision(2) << (stats.functionCoverage * 100) << "% ("
            << stats.coveredFunctions << "/" << stats.totalFunctions << ")" << std::endl;
@@ -303,6 +306,7 @@ std::string Reporter::generateFileStatsText(const std::string& filePath,
         ss << "  函数覆盖率: N/A (0/0)" << std::endl;
     }
 
+    // 分支覆盖率
     if (stats.totalBranches > 0) {
         ss << "  分支覆盖率: " << std::fixed << std::setprecision(2) << (stats.branchCoverage * 100) << "% ("
            << stats.coveredBranches << "/" << stats.totalBranches << ")" << std::endl;
@@ -310,6 +314,7 @@ std::string Reporter::generateFileStatsText(const std::string& filePath,
         ss << "  分支覆盖率: N/A (0/0)" << std::endl;
     }
 
+    // 异常覆盖率
     if (stats.totalExceptionHandlers > 0) {
         ss << "  异常覆盖率: " << std::fixed << std::setprecision(2) << (stats.exceptionCoverage * 100) << "% ("
            << stats.coveredExceptionHandlers << "/" << stats.totalExceptionHandlers << ")" << std::endl;
@@ -317,6 +322,7 @@ std::string Reporter::generateFileStatsText(const std::string& filePath,
         ss << "  异常覆盖率: N/A (0/0)" << std::endl;
     }
 
+    // 关键路径覆盖率
     if (stats.totalKeyPaths > 0) {
         ss << "  关键路径覆盖率: " << std::fixed << std::setprecision(2) << (stats.keyPathCoverage * 100) << "% ("
            << stats.coveredKeyPaths << "/" << stats.totalKeyPaths << ")" << std::endl;
@@ -324,6 +330,7 @@ std::string Reporter::generateFileStatsText(const std::string& filePath,
         ss << "  关键路径覆盖率: N/A (0/0)" << std::endl;
     }
 
+    // 总体覆盖率
     ss << "  总体覆盖率: " << std::fixed << std::setprecision(2) << (stats.overallCoverage * 100) << "%";
 
     // 添加未覆盖路径摘要

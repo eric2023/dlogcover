@@ -208,6 +208,27 @@ LogLevel LogIdentifier::getLogLevel(const std::string& functionName) const {
     if (it != functionNameToLevel_.end()) {
         return it->second;
     }
+
+    // 如果在映射表中没有找到，基于函数名进行判断
+    if (functionName.find("Debug") != std::string::npos ||
+        functionName.find("debug") != std::string::npos) {
+        return LogLevel::DEBUG;
+    } else if (functionName.find("Info") != std::string::npos ||
+               functionName.find("info") != std::string::npos) {
+        return LogLevel::INFO;
+    } else if (functionName.find("Warning") != std::string::npos ||
+               functionName.find("warning") != std::string::npos) {
+        return LogLevel::WARNING;
+    } else if (functionName.find("Critical") != std::string::npos ||
+               functionName.find("critical") != std::string::npos ||
+               functionName.find("Error") != std::string::npos ||
+               functionName.find("error") != std::string::npos) {
+        return LogLevel::CRITICAL;
+    } else if (functionName.find("Fatal") != std::string::npos ||
+               functionName.find("fatal") != std::string::npos) {
+        return LogLevel::FATAL;
+    }
+
     return LogLevel::UNKNOWN;
 }
 
@@ -216,32 +237,58 @@ LogType LogIdentifier::getLogType(const std::string& functionName) const {
     if (it != functionNameToType_.end()) {
         return it->second;
     }
+
+    // 如果在映射表中没有找到，基于函数名进行判断
+    if (functionName.find('q') == 0 && isupper(functionName[1])) { // 以q开头后跟大写字母
+        return LogType::QT;
+    }
+
     return LogType::UNKNOWN;
 }
 
 std::string LogIdentifier::extractLogMessage(const ast_analyzer::ASTNodeInfo* callExpr) const {
-    if (!callExpr || callExpr->text.empty()) {
+    if (!callExpr) {
         return "";
     }
 
-    // 简化实现
-    // 在实际场景中，我们需要更复杂的解析来提取日志消息
+    LOG_DEBUG_FMT("尝试从日志调用中提取消息: %s", callExpr->text.c_str());
 
-    std::string text = callExpr->text;
+    std::string message;
 
-    // 对于Qt日志，简单地查找第一个双引号之间的内容
-    size_t firstQuote = text.find("\"");
-    if (firstQuote != std::string::npos) {
-        size_t secondQuote = text.find("\"", firstQuote + 1);
-        if (secondQuote != std::string::npos) {
-            return text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+    // 尝试从Qt风格日志调用中提取消息，如：qDebug() << "message" << var;
+    if (callExpr->type == ast_analyzer::NodeType::LOG_CALL_EXPR &&
+        callExpr->text.find("<<") != std::string::npos) {
+
+        // 查找第一个字符串字面量
+        size_t firstQuote = callExpr->text.find('"', callExpr->text.find("<<"));
+        if (firstQuote != std::string::npos) {
+            size_t secondQuote = callExpr->text.find('"', firstQuote + 1);
+            if (secondQuote != std::string::npos) {
+                message = callExpr->text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+            }
+        }
+    }
+    // 尝试从传统风格日志调用中提取消息，如：qDebug("message", var);
+    else if (callExpr->type == ast_analyzer::NodeType::LOG_CALL_EXPR &&
+             callExpr->text.find('(') != std::string::npos) {
+
+        // 查找第一个字符串字面量
+        size_t firstQuote = callExpr->text.find('"', callExpr->text.find('('));
+        if (firstQuote != std::string::npos) {
+            size_t secondQuote = callExpr->text.find('"', firstQuote + 1);
+            if (secondQuote != std::string::npos) {
+                message = callExpr->text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+            }
         }
     }
 
-    // 对于自定义日志格式，可以添加其他解析逻辑
-    // 例如解析日志级别、类别等信息
+    // 如果没有找到有效消息，返回节点的完整文本
+    if (message.empty()) {
+        message = callExpr->text;
+    }
 
-    return "";
+    LOG_DEBUG_FMT("提取的日志消息: %s", message.c_str());
+    return message;
 }
 
 }  // namespace log_identifier
