@@ -11,8 +11,7 @@ namespace dlogcover {
 namespace core {
 namespace log_identifier {
 
-LogIdentifier::LogIdentifier(const config::Config& config,
-                           const ast_analyzer::ASTAnalyzer& astAnalyzer)
+LogIdentifier::LogIdentifier(const config::Config& config, const ast_analyzer::ASTAnalyzer& astAnalyzer)
     : config_(config), astAnalyzer_(astAnalyzer) {
     LOG_DEBUG("日志识别器初始化");
     buildLogFunctionNameSet();
@@ -39,10 +38,19 @@ bool LogIdentifier::identifyLogCalls() {
 
         // 递归识别节点中的日志调用
         identifyLogCallsInNode(nodeInfo.get(), filePath);
+
+        LOG_INFO_FMT("文件 %s 中识别到 %zu 个日志调用", filePath.c_str(), logCalls_[filePath].size());
     }
 
-    LOG_INFO("日志调用识别完成");
-    return true;
+    // 输出日志识别统计信息
+    size_t totalLogCalls = 0;
+    for (const auto& [filePath, calls] : logCalls_) {
+        totalLogCalls += calls.size();
+    }
+
+    LOG_INFO_FMT("日志调用识别完成，共识别 %zu 个文件中的 %zu 个日志调用", logCalls_.size(), totalLogCalls);
+
+    return !logCalls_.empty();
 }
 
 const std::vector<LogCallInfo>& LogIdentifier::getLogCalls(const std::string& filePath) const {
@@ -56,8 +64,7 @@ const std::vector<LogCallInfo>& LogIdentifier::getLogCalls(const std::string& fi
     return emptyLogCalls;
 }
 
-const std::unordered_map<std::string, std::vector<LogCallInfo>>&
-LogIdentifier::getAllLogCalls() const {
+const std::unordered_map<std::string, std::vector<LogCallInfo>>& LogIdentifier::getAllLogCalls() const {
     return logCalls_;
 }
 
@@ -142,28 +149,46 @@ void LogIdentifier::buildLogFunctionNameSet() {
         }
     }
 
-    LOG_INFO_FMT("共构建了 %lu 个日志函数名", logFunctionNames_.size());
+    LOG_INFO_FMT("共构建了 %zu 个日志函数名", logFunctionNames_.size());
 }
 
-void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node,
-                                          const std::string& filePath) {
+void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node, const std::string& filePath) {
     if (!node) {
         return;
     }
 
     // 检查当前节点是否为日志函数调用
-    if (node->type == ast_analyzer::NodeType::CALL_EXPR ||
-        node->type == ast_analyzer::NodeType::LOG_CALL_EXPR) {
-        // 这里是空实现，实际情况需要检查函数名是否在日志函数名集合中
+    if (node->type == ast_analyzer::NodeType::LOG_CALL_EXPR) {
+        LOG_DEBUG_FMT("找到日志函数调用: %s, 位置: %s:%d:%d", node->name.c_str(), node->location.filePath.c_str(),
+                      node->location.line, node->location.column);
 
-        // 如果是日志调用，创建日志调用信息
-        if (node->type == ast_analyzer::NodeType::LOG_CALL_EXPR) {
+        // 创建日志调用信息
+        LogCallInfo logCallInfo;
+        logCallInfo.functionName = node->name;
+        logCallInfo.location = node->location;
+
+        // 提取日志消息
+        logCallInfo.message = extractLogMessage(node);
+
+        // 设置日志级别和类型
+        logCallInfo.level = getLogLevel(node->name);
+        logCallInfo.type = getLogType(node->name);
+
+        // 添加到日志调用列表
+        logCalls_[filePath].push_back(logCallInfo);
+    }
+    // 检查常规函数调用，判断是否为日志函数
+    else if (node->type == ast_analyzer::NodeType::CALL_EXPR) {
+        // 检查函数名是否在已知日志函数名集合中
+        if (logFunctionNames_.find(node->name) != logFunctionNames_.end()) {
+            LOG_DEBUG_FMT("在函数调用中识别到日志函数: %s, 位置: %s:%d:%d", node->name.c_str(),
+                          node->location.filePath.c_str(), node->location.line, node->location.column);
+
+            // 创建日志调用信息
             LogCallInfo logCallInfo;
             logCallInfo.functionName = node->name;
             logCallInfo.location = node->location;
-            logCallInfo.message = node->text;
-
-            // 设置日志级别和类型
+            logCallInfo.message = extractLogMessage(node);
             logCallInfo.level = getLogLevel(node->name);
             logCallInfo.type = getLogType(node->name);
 
@@ -195,10 +220,30 @@ LogType LogIdentifier::getLogType(const std::string& functionName) const {
 }
 
 std::string LogIdentifier::extractLogMessage(const ast_analyzer::ASTNodeInfo* callExpr) const {
-    // 空实现，稍后完善
+    if (!callExpr || callExpr->text.empty()) {
+        return "";
+    }
+
+    // 简化实现
+    // 在实际场景中，我们需要更复杂的解析来提取日志消息
+
+    std::string text = callExpr->text;
+
+    // 对于Qt日志，简单地查找第一个双引号之间的内容
+    size_t firstQuote = text.find("\"");
+    if (firstQuote != std::string::npos) {
+        size_t secondQuote = text.find("\"", firstQuote + 1);
+        if (secondQuote != std::string::npos) {
+            return text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+        }
+    }
+
+    // 对于自定义日志格式，可以添加其他解析逻辑
+    // 例如解析日志级别、类别等信息
+
     return "";
 }
 
-} // namespace log_identifier
-} // namespace core
-} // namespace dlogcover
+}  // namespace log_identifier
+}  // namespace core
+}  // namespace dlogcover
