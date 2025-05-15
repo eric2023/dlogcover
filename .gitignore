@@ -38,3 +38,5 @@ dlogcover
 
 # 生成的报告
 *_report_* 
+# SpecStory explanation file
+.specstory/.what-is-this.md
