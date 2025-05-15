@@ -17,11 +17,21 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
+# 添加代码覆盖率选项
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+
 # 设置编译选项
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+
+    # 添加覆盖率标志（如果启用）
+    if(ENABLE_COVERAGE)
+        message(STATUS "Enabling code coverage support")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage -lgcov")
+    endif()
 endif()
 
 # 检查LLVM依赖

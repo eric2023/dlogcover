@@ -83,6 +83,10 @@ CommandLineParser::CommandLineParser() {
     options_.configPath = "./dlogcover.json";
     options_.logLevel = LogLevel::ALL;
     options_.reportFormat = ReportFormat::TEXT;
+
+    // 初始化帮助和版本请求标志
+    isHelpRequest_ = false;
+    isVersionRequest_ = false;
 }
 
 CommandLineParser::~CommandLineParser() {}
@@ -101,9 +105,11 @@ bool CommandLineParser::parse(int argc, char** argv) {
         const std::string& arg = args[i];
 
         if (arg == "-h" || arg == "--help") {
+            isHelpRequest_ = true;
             showHelp();
             return false;
         } else if (arg == "-v" || arg == "--version") {
+            isVersionRequest_ = true;
             showVersion();
             return false;
         } else if (arg == "-d" || arg == "--directory") {
@@ -168,6 +174,10 @@ void CommandLineParser::showVersion() const {
 
 const Options& CommandLineParser::getOptions() const {
     return options_;
+}
+
+bool CommandLineParser::isHelpOrVersionRequest() const {
+    return isHelpRequest_ || isVersionRequest_;
 }
 
 }  // namespace cli

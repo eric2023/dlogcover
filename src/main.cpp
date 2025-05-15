@@ -4,18 +4,19 @@
  * @copyright Copyright (c) 2023 DLogCover Team
  */
 
-#include <iostream>
-#include <string>
-#include <chrono>
-#include <filesystem>
 #include <dlogcover/cli/command_line_parser.h>
 #include <dlogcover/config/config_manager.h>
-#include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
-#include <dlogcover/core/log_identifier/log_identifier.h>
 #include <dlogcover/core/coverage/coverage_calculator.h>
+#include <dlogcover/core/log_identifier/log_identifier.h>
 #include <dlogcover/reporter/reporter.h>
+#include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/log_utils.h>
+
+#include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <string>
 
 using namespace dlogcover;
 
@@ -29,7 +30,11 @@ int main(int argc, char* argv[]) {
         // 解析命令行参数
         cli::CommandLineParser commandLineParser;
         if (!commandLineParser.parse(argc, argv)) {
-            return 1;
+            // 检查是否是帮助或版本请求
+            if (commandLineParser.isHelpOrVersionRequest()) {
+                return 0;  // 帮助或版本请求，正常退出
+            }
+            return 1;  // 其他解析错误
         }
 
         // 获取命令行选项
