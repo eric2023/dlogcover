@@ -1,0 +1,78 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+---
+description: DTK和Qt框架使用规范
+globs: **/*.cpp, **/*.h, **/*.hpp
+alwaysApply: true
+---
+# DLogCover 框架使用指南
+
+## DTK 框架使用规范
+
+### DTK 控件使用
+- 优先使用DTK提供的控件，而非Qt原生控件
+- 遵循DTK控件的设计风格和使用方式
+- 参考DTK模板项目的结构: [dtk-template](https://github.com/linuxdeepin/dtk-template)
+
+### DTK 主题与样式
+- 使用DTK提供的调色板和主题系统
+- 适配浅色主题和深色主题
+- 遵循Deepin设计规范
+
+### DTK 项目结构
+- 遵循DTK项目标准结构
+- 使用DTK推荐的CMake配置方式
+- 合理组织DTK相关的源代码和资源文件
+
+## Qt5 框架使用规范
+
+### Qt 模块使用
+- 明确声明项目依赖的Qt模块（如QtCore, QtWidgets等）
+- 避免不必要的模块依赖
+- 使用Qt5兼容的API和特性
+
+### Qt 信号槽
+- 优先使用新式信号槽连接语法
+```cpp
+// 推荐
+connect(sender, &Sender::valueChanged, receiver, &Receiver::updateValue);
+// 不推荐
+connect(sender, SIGNAL(valueChanged(int)), receiver, SLOT(updateValue(int)));
+```
+- 正确处理信号槽的参数类型匹配
+- 合理使用Qt::ConnectionType参数
+
+### Qt 资源管理
+- 使用Qt资源系统(.qrc)管理静态资源
+- 遵循Qt的内存管理规则，正确处理QObject对象的所有权
+- 使用Qt提供的智能指针类（如QSharedPointer）
+
+### Qt 国际化
+- 使用Qt的国际化机制
+- 使用tr()函数包装所有面向用户的字符串
+- 避免硬编码字符串
+
+## C++ 与 Qt/DTK 结合
+
+### 内存管理
+- 正确理解QObject的对象树和内存管理机制
+- 不要对具有父对象的QObject使用delete操作
+- 合理使用Qt的parent-child机制管理对象生命周期
+
+### 线程安全
+- 遵循Qt的线程安全规则
+- 使用Qt提供的线程和并发工具（如QThread, QtConcurrent）
+- 避免在不同线程间直接访问共享数据，使用信号槽或其他同步机制
+
+### 调试与日志
+- 使用Qt的日志系统（qDebug, qInfo, qWarning, qCritical, qFatal）
+- 合理设置日志级别和日志分类
+- 在适当的场景使用Qt的断言机制（Q_ASSERT）
+
+## 示例与参考
+- DTK控件示例: [DTK示例](https://github.com/linuxdeepin/dtkwidget/tree/master/examples)
+- Qt最佳实践: [Qt官方文档](https://doc.qt.io/qt-5/best-practices.html)
+- 深度风格指南: [Deepin Style Guide](https://github.com/linuxdeepin/deepin-styleguide)

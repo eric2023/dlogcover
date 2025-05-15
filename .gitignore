@@ -1,0 +1,40 @@
+# 构建目录
+/build/
+/bin/
+/lib/
+
+# CMake生成文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile
+CTestTestfile.cmake
+Testing/
+
+# IDE相关文件
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+
+# 操作系统生成的文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.log
+*.tmp
+*.temp
+*.gch
+*.pch
+
+# 可执行文件
+*.exe
+*.out
+*.app
+dlogcover
+
+# 生成的报告
+*_report_* 

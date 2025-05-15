@@ -1,0 +1,229 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+---
+description: 日志分析模块实现指南
+globs: **/core/log_analyzer/**, **/core/coverage/**
+alwaysApply: true
+---
+# DLogCover 日志分析模块指南
+
+## 日志函数识别
+
+### 支持的日志类型
+- Qt日志系统：qDebug, qInfo, qWarning, qCritical, qFatal
+- Qt分类日志：qCDebug, qCInfo, qCWarning, qCCritical
+- 自定义日志函数（可通过配置文件定义）
+
+### 日志函数识别策略
+- 基于函数名称识别日志函数调用
+- 支持命名空间限定的日志函数
+- 支持宏定义的日志函数
+- 排除系统头文件中的日志调用
+
+```cpp
+// 检查函数调用是否为日志函数
+bool LogAnalyzer::isLogFunction(const std::string &FuncName) const {
+    // 检查Qt日志函数
+    static const std::set<std::string> QtLogFuncs = {
+        "qDebug", "qInfo", "qWarning", "qCritical", "qFatal",
+        "qCDebug", "qCInfo", "qCWarning", "qCCritical"
+    };
+    
+    if (QtLogFuncs.find(FuncName) != QtLogFuncs.end()) {
+        return true;
+    }
+    
+    // 检查自定义日志函数
+    for (const auto &func : mCustomLogFunctions) {
+        if (FuncName == func) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+```
+
+### 日志调用信息收集
+- 记录日志函数的名称、位置、所在函数等信息
+- 识别日志的级别（调试、信息、警告、错误等）
+- 收集日志调用的上下文信息
+
+## 覆盖率计算
+
+### 函数级日志覆盖率
+- 检查函数是否包含入口日志
+- 检查函数是否包含返回前的日志
+- 计算函数体中的日志密度
+
+```cpp
+// 计算函数的日志覆盖率
+double CoverageCalculator::calculateFunctionCoverage(
+    const FunctionInfo &FuncInfo,
+    const std::vector<LogCallInfo> &LogCalls) {
+    
+    bool hasEntryLog = false;
+    bool hasExitLog = false;
+    int logCount = 0;
+    
+    // 分析日志调用
+    for (const auto &LogCall : LogCalls) {
+        if (isInFunction(LogCall, FuncInfo)) {
+            logCount++;
+            
+            // 检查是否为入口日志
+            if (isEntryLog(LogCall, FuncInfo)) {
+                hasEntryLog = true;
+            }
+            
+            // 检查是否为退出日志
+            if (isExitLog(LogCall, FuncInfo)) {
+                hasExitLog = true;
+            }
+        }
+    }
+    
+    // 计算覆盖率
+    double coverage = 0.0;
+    if (FuncInfo.complexity > 0) {
+        // 基于函数复杂度和日志分布计算覆盖率
+        // ...
+    }
+    
+    return coverage;
+}
+```
+
+### 分支覆盖率
+- 识别条件分支语句（if-else, switch-case等）
+- 检查每个分支中是否包含日志
+- 计算带日志的分支占总分支的比例
+
+```cpp
+// 计算分支的日志覆盖率
+double CoverageCalculator::calculateBranchCoverage(
+    const std::vector<BranchInfo> &Branches,
+    const std::vector<LogCallInfo> &LogCalls) {
+    
+    if (Branches.empty()) {
+        return 1.0; // 没有分支视为100%覆盖
+    }
+    
+    int coveredBranches = 0;
+    
+    for (const auto &Branch : Branches) {
+        bool isCovered = false;
+        
+        // 检查分支内是否有日志调用
+        for (const auto &LogCall : LogCalls) {
+            if (isInBranch(LogCall, Branch)) {
+                isCovered = true;
+                break;
+            }
+        }
+        
+        if (isCovered) {
+            coveredBranches++;
+        }
+    }
+    
+    return static_cast<double>(coveredBranches) / Branches.size();
+}
+```
+
+### 异常处理覆盖率
+- 识别异常处理代码（try-catch块）
+- 检查catch块中是否包含日志
+- 计算带日志的catch块占总catch块的比例
+
+```cpp
+// 计算异常处理的日志覆盖率
+double CoverageCalculator::calculateExceptionCoverage(
+    const std::vector<ExceptionInfo> &Exceptions,
+    const std::vector<LogCallInfo> &LogCalls) {
+    
+    if (Exceptions.empty()) {
+        return 1.0; // 没有异常处理视为100%覆盖
+    }
+    
+    int coveredExceptions = 0;
+    
+    for (const auto &Exception : Exceptions) {
+        bool isCovered = false;
+        
+        // 检查catch块内是否有日志调用
+        for (const auto &LogCall : LogCalls) {
+            if (isInException(LogCall, Exception)) {
+                isCovered = true;
+                break;
+            }
+        }
+        
+        if (isCovered) {
+            coveredExceptions++;
+        }
+    }
+    
+    return static_cast<double>(coveredExceptions) / Exceptions.size();
+}
+```
+
+### 关键路径覆盖率
+- 识别程序的关键执行路径
+- 检查关键路径上是否有足够的日志点
+- 计算关键路径上带日志的节点占比
+
+## 覆盖率评估
+
+### 覆盖率等级
+- 优秀（90%以上）：几乎所有重要代码路径都有日志覆盖
+- 良好（75%-90%）：大多数重要代码路径有日志覆盖
+- 一般（50%-75%）：主要代码路径有日志覆盖，但有改进空间
+- 不足（50%以下）：日志覆盖率低，难以进行问题定位
+
+### 覆盖率报告
+- 生成覆盖率总体统计
+- 按文件和函数列出覆盖率详情
+- 标识未覆盖或覆盖率低的关键区域
+- 提供改进建议
+
+```cpp
+// 生成覆盖率报告
+void ReportGenerator::generateCoverageReport(
+    const std::string &outputPath,
+    const CoverageResult &coverageResult) {
+    
+    std::ofstream outFile(outputPath);
+    if (!outFile) {
+        llvm::errs() << "Error: Cannot open output file: " << outputPath << "\n";
+        return;
+    }
+    
+    // 生成报告头部
+    outFile << "# DLogCover 日志覆盖率报告\n\n";
+    outFile << "生成时间: " << getCurrentTimestamp() << "\n\n";
+    
+    // 生成总体统计
+    outFile << "## 总体覆盖率\n\n";
+    outFile << "- 函数日志覆盖率: " << formatPercentage(coverageResult.functionCoverage) << "\n";
+    outFile << "- 分支日志覆盖率: " << formatPercentage(coverageResult.branchCoverage) << "\n";
+    outFile << "- 异常日志覆盖率: " << formatPercentage(coverageResult.exceptionCoverage) << "\n";
+    outFile << "- 关键路径覆盖率: " << formatPercentage(coverageResult.keyPathCoverage) << "\n";
+    outFile << "- 总体覆盖率: " << formatPercentage(coverageResult.totalCoverage) << "\n\n";
+    
+    // 生成文件级别统计
+    // ...
+    
+    // 生成函数级别统计
+    // ...
+    
+    // 生成未覆盖关键区域列表
+    // ...
+    
+    // 生成改进建议
+    // ...
+}
+```

@@ -1,0 +1,33 @@
+{
+  "scan": {
+    "directories": ["./"],
+    "excludes": ["build/", "test/", "third_party/"],
+    "file_types": [".cpp", ".cc", ".cxx", ".h", ".hpp"]
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+      "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["fmDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"],
+        "info": ["fmInfo", "LOG_INFO", "LOG_INFO_FMT"],
+        "warning": ["fmWarning", "LOG_WARNING", "LOG_WARNING_FMT"],
+        "critical": ["fmCritical", "LOG_ERROR", "LOG_ERROR_FMT", "LOG_FATAL", "LOG_FATAL_FMT"]
+      }
+    }
+  },
+  "analysis": {
+    "function_coverage": true,
+    "branch_coverage": true,
+    "exception_coverage": true,
+    "key_path_coverage": true
+  },
+  "report": {
+    "format": "text",
+    "timestamp_format": "YYYYMMDD_HHMMSS"
+  }
+} 

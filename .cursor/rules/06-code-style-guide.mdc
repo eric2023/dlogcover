@@ -1,0 +1,93 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+---
+description: 代码风格和编码规范
+globs: **/*.cpp, **/*.h, **/*.hpp
+alwaysApply: true
+---
+# DLogCover 代码风格指南
+
+## C++代码规范
+
+### 基本规范
+- 使用 Modern C++ (C++17) 标准
+- 严格遵循 [深度风格指南](https://github.com/linuxdeepin/deepin-styleguide/tree/master/qt/) 中定义的代码规范
+- 使用空格缩进（4个空格），不使用Tab
+- 行宽限制在120字符以内
+- 文件使用UTF-8编码，不带BOM头
+
+### 命名规范
+- 类名：使用大驼峰命名法（如 `LogAnalyzer`）
+- 函数名和变量名：使用小驼峰命名法（如 `analyzeFunction`）
+- 成员变量：使用小驼峰命名法，并以字母m开头（如 `mLogLevel`）
+- 静态变量：使用小驼峰命名法，并以字母s开头（如 `sInstance`）
+- 常量：使用全大写和下划线分隔（如 `MAX_LOG_LEVEL`）
+- 枚举成员：使用全大写和下划线分隔
+
+### 文件组织
+- 头文件使用 `.h` 扩展名，源文件使用 `.cpp` 扩展名
+- 头文件应使用 `#pragma once` 或传统的include guards
+- 相关的头文件和源文件应放在同一目录下
+- 目录名和文件名使用小写字母和下划线分隔（如 `log_analyzer`）
+
+## 注释规范
+
+### 文档注释
+- 所有公共API（类、函数、枚举等）必须有文档注释
+- 使用Doxygen风格的文档注释
+- 文档注释应描述函数的目的、参数、返回值和异常
+
+```cpp
+/**
+ * @brief 分析函数的日志覆盖率
+ * @param funcDecl 函数声明的AST节点
+ * @param logCalls 已识别的日志调用列表
+ * @return 函数的日志覆盖率（0.0到1.0之间）
+ * @throws std::invalid_argument 如果函数声明无效
+ */
+double analyzeFunctionCoverage(const FunctionDecl *funcDecl, const std::vector<LogCall> &logCalls);
+```
+
+### 代码注释
+- 复杂的算法或逻辑必须有详细的注释说明
+- 临时性代码、待改进的代码或特殊处理应有明确的注释（如 `// TODO: 优化这个算法`）
+- 避免不必要的注释，代码本身应该是自解释的
+
+## 日志规范
+
+- 对所有函数入口添加调试级别日志
+- 对所有重要的逻辑分支添加适当级别的日志
+- 对所有异常处理添加警告或错误级别的日志
+- 日志内容应包含足够的上下文信息，便于定位问题
+
+```cpp
+// 函数入口日志示例
+qDebug() << "Entering function analyzeCoverage with file:" << fileName;
+
+// 重要逻辑分支日志示例
+if (coverage < threshold) {
+    qWarning() << "Coverage below threshold:" << coverage << ", threshold:" << threshold;
+    // 处理低覆盖率情况
+}
+
+// 异常处理日志示例
+try {
+    // 代码可能抛出异常
+} catch (const std::exception &e) {
+    qCritical() << "Exception caught in analyzeFile:" << e.what();
+    // 处理异常
+}
+```
+
+## 最佳实践
+
+- 使用智能指针而非原始指针
+- 优先使用STL算法而非手写循环
+- 正确处理资源的获取和释放，遵循RAII原则
+- 避免在头文件中使用using namespace
+- 避免全局变量和函数
+- 使用显式类型转换（如static_cast）而非C风格转换
+- 多使用const和constexpr提高代码安全性和性能

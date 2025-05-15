@@ -1,0 +1,230 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: LLVM/Clang使用规范和AST分析技术
+globs: **/*.cpp, **/*.h, **/core/**
+alwaysApply: true
+---
+# DLogCover LLVM/Clang 使用指南
+
+## Clang/LLVM LibTooling 基础
+
+### 环境设置
+- 正确安装和配置LLVM/Clang开发库
+- 在CMake中正确链接LLVM/Clang库
+- 设置适当的编译选项以支持Clang工具链
+
+```cmake
+# 查找LLVM/Clang包
+find_package(LLVM REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
+
+# 添加包含目录
+include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${CLANG_INCLUDE_DIRS})
+
+# 添加链接库
+target_link_libraries(dlogcover
+  PRIVATE
+  clangTooling
+  clangBasic
+  clangASTMatchers
+  clangAST
+  clangFrontend
+  # 其他必要的库...
+)
+```
+
+### 编译数据库
+- 使用CMake生成编译数据库 (compile_commands.json)
+- 使用编译数据库提供准确的编译参数
+- 处理多个编译数据库合并的情况
+
+```cpp
+// 从编译数据库创建编译数据库
+std::string ErrorMessage;
+auto CompilationDB = 
+    tooling::CompilationDatabase::loadFromDirectory(CompilationDBPath, ErrorMessage);
+if (!CompilationDB) {
+    llvm::errs() << "Error loading compilation database: " << ErrorMessage << "\n";
+    return 1;
+}
+```
+
+## AST分析技术
+
+### AST匹配器
+- 使用`ASTMatcher`定义要查找的代码模式
+- 组合多个匹配器创建复杂的查询
+- 使用绑定名称（bind name）标识需要处理的AST节点
+
+```cpp
+// 匹配日志函数调用
+auto LogCallMatcher = callExpr(
+    callee(functionDecl(hasName("qDebug"))),
+    unless(isExpansionInSystemHeader())
+).bind("logCall");
+
+// 匹配函数定义
+auto FuncDeclMatcher = functionDecl(
+    isDefinition(),
+    unless(isExpansionInSystemHeader())
+).bind("funcDecl");
+```
+
+### 访问者模式
+- 实现RecursiveASTVisitor遍历AST节点
+- 重写相应的Visit*方法处理感兴趣的节点
+- 在访问者中收集和处理节点信息
+
+```cpp
+class LogCallVisitor : public RecursiveASTVisitor<LogCallVisitor> {
+public:
+    explicit LogCallVisitor(ASTContext *Context) : Context(Context) {}
+    
+    bool VisitCallExpr(CallExpr *Call) {
+        // 检查是否是日志函数调用
+        if (auto *CalleeFD = Call->getDirectCallee()) {
+            if (isLogFunction(CalleeFD->getNameAsString())) {
+                // 处理日志调用
+                LogCalls.push_back(Call);
+            }
+        }
+        return true;
+    }
+    
+private:
+    ASTContext *Context;
+    std::vector<CallExpr*> LogCalls;
+    
+    bool isLogFunction(const std::string &Name) {
+        // 检查是否是已知的日志函数
+        static const std::set<std::string> LogFuncs = {
+            "qDebug", "qInfo", "qWarning", "qCritical", "qFatal"
+            // 添加其他日志函数...
+        };
+        return LogFuncs.find(Name) != LogFuncs.end();
+    }
+};
+```
+
+### FrontendAction实现
+- 创建自定义的FrontendAction子类
+- 实现CreateASTConsumer方法返回AST消费者
+- 在AST消费者中使用匹配器或访问者处理AST
+
+```cpp
+class LogAnalyzerAction : public ASTFrontendAction {
+public:
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(
+        CompilerInstance &CI, StringRef File) override {
+        return std::make_unique<LogAnalyzerConsumer>(&CI.getASTContext());
+    }
+};
+
+class LogAnalyzerConsumer : public ASTConsumer {
+public:
+    explicit LogAnalyzerConsumer(ASTContext *Context) : Context(Context) {}
+    
+    void HandleTranslationUnit(ASTContext &Context) override {
+        // 使用AST匹配器查找日志调用
+        auto LogCallMatcher = callExpr(/* 匹配器规则 */).bind("logCall");
+        auto FuncDeclMatcher = functionDecl(/* 匹配器规则 */).bind("funcDecl");
+        
+        // 创建匹配回调处理器
+        LogCallMatchHandler Handler(Context);
+        
+        // 运行匹配器
+        MatchFinder Finder;
+        Finder.addMatcher(LogCallMatcher, &Handler);
+        Finder.addMatcher(FuncDeclMatcher, &Handler);
+        Finder.matchAST(Context);
+    }
+    
+private:
+    ASTContext *Context;
+};
+```
+
+## 源代码位置与诊断
+
+### 源位置处理
+- 使用`SourceLocation`和`SourceRange`表示代码位置
+- 正确处理宏展开和包含文件
+- 使用`SourceManager`查询位置信息
+
+```cpp
+bool isInUserFile(const SourceLocation &Loc, const SourceManager &SM) {
+    if (Loc.isInvalid() || SM.isInSystemHeader(Loc) || SM.isInExternCSystemHeader(Loc)) {
+        return false;
+    }
+    
+    // 可选：排除第三方库文件
+    std::string Filename = SM.getFilename(Loc).str();
+    // 检查文件名是否为用户代码...
+    
+    return true;
+}
+```
+
+### 诊断输出
+- 使用`DiagnosticsEngine`报告问题
+- 设置适当的诊断级别
+- 提供有用的诊断信息和修复建议
+
+```cpp
+void reportMissingLog(const FunctionDecl *FD, DiagnosticsEngine &Diag) {
+    auto ID = Diag.getCustomDiagID(
+        DiagnosticsEngine::Warning,
+        "函数 %0 缺少入口日志记录");
+    Diag.Report(FD->getLocation(), ID)
+        << FD->getNameAsString();
+}
+```
+
+## 性能考虑
+
+### 内存管理
+- 避免在AST分析过程中不必要的内存分配
+- 使用LLVM的内存管理工具（如`StringRef`代替`std::string`）
+- 注意AST节点的生命周期和所有权
+
+### 并行处理
+- 使用`tooling::ClangTool`的并行模式处理多个文件
+- 正确处理并行处理中的线程安全问题
+- 合并来自多个文件的分析结果
+
+```cpp
+int main(int argc, const char **argv) {
+    // 创建编译数据库和源文件列表
+    std::unique_ptr<tooling::CompilationDatabase> Compilations(
+        tooling::FixedCompilationDatabase::loadFromCommandLine(argc, argv));
+    tooling::ClangTool Tool(*Compilations, SourcePathList);
+    
+    // 设置线程数
+    Tool.setThreadCount(std::thread::hardware_concurrency());
+    
+    // 运行工具
+    return Tool.run(tooling::newFrontendActionFactory<LogAnalyzerAction>().get());
+}
+```
+
+## 常见问题与解决方案
+
+### 头文件处理
+- 正确处理头文件包含和查找路径
+- 区分系统头文件和用户头文件
+- 处理预编译头文件(PCH)的影响
+
+### 宏与预处理
+- 处理宏展开对AST分析的影响
+- 考虑条件编译对代码覆盖分析的影响
+- 跟踪宏定义的日志函数
+
+### 复杂语言特性
+- 处理模板和模板实例化
+- 分析lambda表达式和嵌套函数
+- 处理C++异常和RAII模式
