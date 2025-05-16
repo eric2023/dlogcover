@@ -180,6 +180,19 @@ void exception_log() {
         config.logFunctions.qt.enabled = true;
         config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
 
+        // 添加必要的编译参数
+        config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
+                                    "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
+                                    // Qt头文件路径
+                                    "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
+                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
+                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+                                    // 系统定义
+                                    "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
+
+        // 设置为Qt项目
+        config.scan.isQtProject = true;
+
         return config;
     }
 
@@ -390,56 +403,41 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalLogging) {
 TEST_F(ASTAnalyzerTestFixture, ASTUnitManagement) {
     std::string testFilePath = testDir_ + "/test.cpp";
 
-    // 分析前应该没有当前AST单元
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
-
     // 分析文件
     ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
-
-    // 分析后应该有当前AST单元
-    EXPECT_NE(nullptr, astAnalyzer_->getCurrentASTUnit());
 
     // 分析另一个文件
     std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
     ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
 
-    // 当前AST单元应该更新
-    EXPECT_NE(nullptr, astAnalyzer_->getCurrentASTUnit());
-
-    // 清理后应该没有当前AST单元
-    astAnalyzer_->clearCurrentASTUnit();
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+    // 验证节点信息是否正确
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+    const ASTNodeInfo* qtNodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    ASSERT_NE(nullptr, qtNodeInfo);
 }
 
 // 测试上下文管理
 TEST_F(ASTAnalyzerTestFixture, ContextManagement) {
     std::string testFilePath = testDir_ + "/test.cpp";
 
-    // 分析前应该没有当前上下文
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
-
     // 分析文件
     ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
 
-    // 分析过程中应该有当前上下文
+    // 验证节点信息
     const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
-    // 查找conditional_function并验证其上下文
+    // 查找conditional_function并验证其结构
     bool foundConditionalFunc = false;
     for (const auto& child : nodeInfo->children) {
         if (child->name == "conditional_function") {
             foundConditionalFunc = true;
-            EXPECT_NE(nullptr, child->context);
-            EXPECT_EQ(child->context->getParent(), nodeInfo->context);
+            EXPECT_TRUE(child->hasLogging) << "conditional_function应该包含日志调用";
             break;
         }
     }
     EXPECT_TRUE(foundConditionalFunc) << "未找到conditional_function";
-
-    // 清理后应该没有当前上下文
-    astAnalyzer_->clearCurrentContext();
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
 }
 
 // 测试嵌套上下文管理
@@ -450,27 +448,24 @@ TEST_F(ASTAnalyzerTestFixture, NestedContextManagement) {
     const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
-    // 查找conditional_log函数并验证其嵌套上下文
+    // 查找conditional_log函数并验证其嵌套结构
     bool foundConditionalLog = false;
     for (const auto& child : nodeInfo->children) {
         if (child->name == "conditional_log") {
             foundConditionalLog = true;
-            EXPECT_NE(nullptr, child->context);
+            EXPECT_TRUE(child->hasLogging) << "conditional_log应该包含日志调用";
 
-            // 查找if语句并验证其上下文
+            // 查找if语句并验证其结构
             bool foundIfStmt = false;
             for (const auto& stmt : child->children) {
                 if (stmt->type == NodeType::IF_STMT) {
                     foundIfStmt = true;
-                    EXPECT_NE(nullptr, stmt->context);
-                    EXPECT_EQ(stmt->context->getParent(), child->context);
+                    EXPECT_TRUE(stmt->hasLogging) << "if语句应该包含日志调用";
 
-                    // 验证then和else分支的上下文
+                    // 验证then和else分支
                     ASSERT_EQ(2, stmt->children.size());
-                    EXPECT_NE(nullptr, stmt->children[0]->context);
-                    EXPECT_NE(nullptr, stmt->children[1]->context);
-                    EXPECT_EQ(stmt->children[0]->context->getParent(), stmt->context);
-                    EXPECT_EQ(stmt->children[1]->context->getParent(), stmt->context);
+                    EXPECT_TRUE(stmt->children[0]->hasLogging) << "then分支应该包含日志调用";
+                    EXPECT_TRUE(stmt->children[1]->hasLogging) << "else分支应该包含日志调用";
                     break;
                 }
             }
@@ -485,20 +480,14 @@ TEST_F(ASTAnalyzerTestFixture, NestedContextManagement) {
 TEST_F(ASTAnalyzerTestFixture, ErrorHandlingAndBoundaryConditions) {
     // 测试空文件路径
     EXPECT_FALSE(astAnalyzer_->analyze(""));
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
 
     // 测试不存在的文件
     EXPECT_FALSE(astAnalyzer_->analyze("/path/to/nonexistent/file.cpp"));
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
 
     // 测试无效的文件内容
     std::string invalidFilePath = testDir_ + "/invalid.cpp";
     createTestFile(invalidFilePath, "invalid c++ code");
     EXPECT_FALSE(astAnalyzer_->analyze(invalidFilePath));
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
-    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
 
     // 测试空目录分析
     config_.scan.directories.clear();

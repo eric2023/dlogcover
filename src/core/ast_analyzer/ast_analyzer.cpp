@@ -28,6 +28,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 
 namespace dlogcover {
 namespace core {
@@ -122,13 +123,21 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
     LOG_DEBUG_FMT("创建文件的AST单元: %s", filePath.c_str());
 
     // 准备命令行参数，指定C++语言和标准
-    std::vector<std::string> args = {"-std=c++17", "-xc++", "-Wall", "-Wextra", "-I" + config_.scan.includePathsStr};
+    std::vector<std::string> args = {"-std=c++17",
+                                     "-xc++",
+                                     "-Wall",
+                                     "-Wextra",
+                                     "-fPIC",  // 添加 PIC 支持
+                                     "-I" + config_.scan.includePathsStr};
 
-    // 为Qt项目添加常用的定义
+    // 为Qt项目添加常用的定义和选项
     if (config_.scan.isQtProject) {
         args.push_back("-DQT_CORE_LIB");
         args.push_back("-DQT_GUI_LIB");
         args.push_back("-DQT_WIDGETS_LIB");
+        args.push_back("-DQT_SHARED");
+        args.push_back("-DQ_CREATOR_RUN");
+        args.push_back("-D_REENTRANT");
     }
 
     // 添加用户自定义的编译参数
@@ -826,68 +835,106 @@ std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeCallExpr(clang::CallExpr* expr,
         return nullptr;
     }
 
-    // 获取被调用的函数名称
+    LOG_DEBUG("开始分析函数调用表达式");
+
+    auto node = std::make_unique<ASTNodeInfo>();
+    node->type = NodeType::CALL_EXPR;
+
+    // 获取函数名和完整的调用表达式
     std::string funcName;
-    if (auto* callee = expr->getCalleeDecl()) {
-        if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(callee)) {
-            funcName = funcDecl->getNameAsString();
+    bool isQtLog = false;
+
+    if (const auto* callee = expr->getDirectCallee()) {
+        funcName = callee->getNameAsString();
+        LOG_DEBUG_FMT("直接调用函数名: %s", funcName.c_str());
+    } else if (const auto* calleeExpr = expr->getCallee()) {
+        // 处理更复杂的调用表达式
+        if (const auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(calleeExpr->IgnoreParenImpCasts())) {
+            funcName = declRef->getNameInfo().getAsString();
+            LOG_DEBUG_FMT("通过DeclRefExpr获取函数名: %s", funcName.c_str());
+        } else if (const auto* memberExpr = llvm::dyn_cast<clang::MemberExpr>(calleeExpr->IgnoreParenImpCasts())) {
+            funcName = memberExpr->getMemberNameInfo().getAsString();
+            LOG_DEBUG_FMT("通过MemberExpr获取函数名: %s", funcName.c_str());
         }
-    } else if (auto* callee = expr->getCallee()) {
-        if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(callee->IgnoreParenCasts())) {
-            if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(declRef->getDecl())) {
-                funcName = funcDecl->getNameAsString();
-            }
-        } else if (auto* memberExpr = llvm::dyn_cast<clang::MemberExpr>(callee->IgnoreParenCasts())) {
-            if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(memberExpr->getMemberDecl())) {
-                funcName = funcDecl->getNameAsString();
+    }
+
+    node->name = funcName;
+
+    // 设置位置信息
+    auto loc = expr->getBeginLoc();
+    if (loc.isValid()) {
+        auto& srcMgr = currentContext_->getSourceManager();
+        node->location.filePath = filePath;
+        node->location.line = srcMgr.getSpellingLineNumber(loc);
+        node->location.column = srcMgr.getSpellingColumnNumber(loc);
+
+        // 获取完整的调用文本，用于调试
+        auto endLoc = expr->getEndLoc();
+        if (endLoc.isValid()) {
+            unsigned length = srcMgr.getFileOffset(endLoc) - srcMgr.getFileOffset(loc);
+            llvm::StringRef fileData = srcMgr.getBufferData(srcMgr.getFileID(loc));
+            if (srcMgr.getFileOffset(loc) + length <= fileData.size()) {
+                node->text = fileData.substr(srcMgr.getFileOffset(loc), length).str();
+                LOG_DEBUG_FMT("调用表达式文本: %s", node->text.c_str());
             }
         }
     }
 
-    LOG_DEBUG_FMT("分析函数调用: %s", funcName.c_str());
+    // 检查是否是 Qt 日志调用
+    if (config_.scan.isQtProject) {
+        const static std::unordered_set<std::string> qtLogFuncs = {
+            "qDebug", "qInfo", "qWarning", "qCritical", "qFatal",
+            "qCDebug", "qCInfo", "qCWarning", "qCCritical"
+        };
 
-    // 检查是否是日志函数调用
-    bool isLog = isLogFunctionCall(expr);
+        // 检查基本的Qt日志函数
+        isQtLog = qtLogFuncs.find(funcName) != qtLogFuncs.end();
 
-    // 创建函数调用节点
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = isLog ? NodeType::LOG_CALL_EXPR : NodeType::CALL_EXPR;
-    nodeInfo->name = funcName;
-    nodeInfo->hasLogging = isLog;
+        // 检查是否是流式操作符形式的Qt日志调用
+        if (!isQtLog && expr->getNumArgs() > 0) {
+            const auto* firstArg = expr->getArg(0);
+            if (firstArg) {
+                std::string argStr;
+                llvm::raw_string_ostream rso(argStr);
+                firstArg->printPretty(rso, nullptr, clang::PrintingPolicy(currentContext_->getLangOpts()));
+                LOG_DEBUG_FMT("检查第一个参数: %s", argStr.c_str());
 
-    // 获取函数调用位置信息
-    clang::SourceLocation loc = expr->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取函数调用文本表示
-        clang::SourceLocation endLoc = expr->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
+                // 检查是否包含Qt日志函数名
+                for (const auto& logFunc : qtLogFuncs) {
+                    if (argStr.find(logFunc) != std::string::npos) {
+                        isQtLog = true;
+                        break;
+                    }
                 }
             }
-        } else {
-            nodeInfo->text = funcName + "(...)";
         }
     }
 
-    // 分析函数调用参数
-    // 这部分我们简化处理，不递归分析参数中的表达式
-
-    if (isLog) {
-        LOG_DEBUG_FMT("识别到日志函数调用: %s", funcName.c_str());
+    // 如果是 Qt 日志调用，设置为 LOG_CALL_EXPR 类型
+    if (isQtLog) {
+        LOG_DEBUG_FMT("识别到Qt日志调用: %s", node->name.c_str());
+        node->type = NodeType::LOG_CALL_EXPR;
+        node->hasLogging = true;
     }
 
-    return nodeInfo;
+    // 分析参数
+    for (unsigned i = 0; i < expr->getNumArgs(); ++i) {
+        if (auto* arg = expr->getArg(i)) {
+            auto argNode = analyzeStmt(const_cast<clang::Stmt*>(static_cast<const clang::Stmt*>(arg)), filePath);
+            if (argNode) {
+                // 如果参数中包含日志调用，设置hasLogging标记
+                if (argNode->hasLogging) {
+                    node->hasLogging = true;
+                }
+                node->children.push_back(std::move(argNode));
+            }
+        }
+    }
+
+    LOG_DEBUG_FMT("函数调用分析完成: %s, %s日志调用", node->name.c_str(),
+                  node->hasLogging ? "包含" : "不包含");
+
+    return node;
 }
 
 bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {

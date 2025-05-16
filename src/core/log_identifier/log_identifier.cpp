@@ -158,43 +158,22 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
     }
 
     // 检查当前节点是否为日志函数调用
-    if (node->type == ast_analyzer::NodeType::LOG_CALL_EXPR) {
-        LOG_DEBUG_FMT("找到日志函数调用: %s, 位置: %s:%d:%d", node->name.c_str(), node->location.filePath.c_str(),
-                      node->location.line, node->location.column);
+    if (node->type == ast_analyzer::NodeType::LOG_CALL_EXPR ||
+        (node->type == ast_analyzer::NodeType::CALL_EXPR && logFunctionNames_.find(node->name) != logFunctionNames_.end())) {
+
+        LOG_DEBUG_FMT("找到日志函数调用: %s, 位置: %s:%d:%d", node->name.c_str(),
+                      node->location.filePath.c_str(), node->location.line, node->location.column);
 
         // 创建日志调用信息
         LogCallInfo logCallInfo;
         logCallInfo.functionName = node->name;
         logCallInfo.location = node->location;
-
-        // 提取日志消息
         logCallInfo.message = extractLogMessage(node);
-
-        // 设置日志级别和类型
         logCallInfo.level = getLogLevel(node->name);
         logCallInfo.type = getLogType(node->name);
 
         // 添加到日志调用列表
         logCalls_[filePath].push_back(logCallInfo);
-    }
-    // 检查常规函数调用，判断是否为日志函数
-    else if (node->type == ast_analyzer::NodeType::CALL_EXPR) {
-        // 检查函数名是否在已知日志函数名集合中
-        if (logFunctionNames_.find(node->name) != logFunctionNames_.end()) {
-            LOG_DEBUG_FMT("在函数调用中识别到日志函数: %s, 位置: %s:%d:%d", node->name.c_str(),
-                          node->location.filePath.c_str(), node->location.line, node->location.column);
-
-            // 创建日志调用信息
-            LogCallInfo logCallInfo;
-            logCallInfo.functionName = node->name;
-            logCallInfo.location = node->location;
-            logCallInfo.message = extractLogMessage(node);
-            logCallInfo.level = getLogLevel(node->name);
-            logCallInfo.type = getLogType(node->name);
-
-            // 添加到日志调用列表
-            logCalls_[filePath].push_back(logCallInfo);
-        }
     }
 
     // 递归处理子节点
@@ -203,29 +182,48 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
     }
 }
 
+std::string LogIdentifier::extractLogMessage(const ast_analyzer::ASTNodeInfo* node) const {
+    if (!node) {
+        return "";
+    }
+
+    std::string message;
+
+    // 处理节点的文本内容
+    if (!node->text.empty()) {
+        message = node->text;
+    }
+
+    // 递归处理子节点的文本内容
+    for (const auto& child : node->children) {
+        std::string childMessage = extractLogMessage(child.get());
+        if (!childMessage.empty()) {
+            if (!message.empty()) {
+                message += " ";
+            }
+            message += childMessage;
+        }
+    }
+
+    return message;
+}
+
 LogLevel LogIdentifier::getLogLevel(const std::string& functionName) const {
     auto it = functionNameToLevel_.find(functionName);
     if (it != functionNameToLevel_.end()) {
         return it->second;
     }
 
-    // 如果在映射表中没有找到，基于函数名进行判断
-    if (functionName.find("Debug") != std::string::npos ||
-        functionName.find("debug") != std::string::npos) {
+    // 根据函数名推断日志级别
+    if (functionName.find("Debug") != std::string::npos || functionName.find("debug") != std::string::npos) {
         return LogLevel::DEBUG;
-    } else if (functionName.find("Info") != std::string::npos ||
-               functionName.find("info") != std::string::npos) {
+    } else if (functionName.find("Info") != std::string::npos || functionName.find("info") != std::string::npos) {
         return LogLevel::INFO;
-    } else if (functionName.find("Warning") != std::string::npos ||
-               functionName.find("warning") != std::string::npos) {
+    } else if (functionName.find("Warning") != std::string::npos || functionName.find("warning") != std::string::npos) {
         return LogLevel::WARNING;
-    } else if (functionName.find("Critical") != std::string::npos ||
-               functionName.find("critical") != std::string::npos ||
-               functionName.find("Error") != std::string::npos ||
-               functionName.find("error") != std::string::npos) {
+    } else if (functionName.find("Critical") != std::string::npos || functionName.find("critical") != std::string::npos) {
         return LogLevel::CRITICAL;
-    } else if (functionName.find("Fatal") != std::string::npos ||
-               functionName.find("fatal") != std::string::npos) {
+    } else if (functionName.find("Fatal") != std::string::npos || functionName.find("fatal") != std::string::npos) {
         return LogLevel::FATAL;
     }
 
@@ -244,51 +242,6 @@ LogType LogIdentifier::getLogType(const std::string& functionName) const {
     }
 
     return LogType::UNKNOWN;
-}
-
-std::string LogIdentifier::extractLogMessage(const ast_analyzer::ASTNodeInfo* callExpr) const {
-    if (!callExpr) {
-        return "";
-    }
-
-    LOG_DEBUG_FMT("尝试从日志调用中提取消息: %s", callExpr->text.c_str());
-
-    std::string message;
-
-    // 尝试从Qt风格日志调用中提取消息，如：qDebug() << "message" << var;
-    if (callExpr->type == ast_analyzer::NodeType::LOG_CALL_EXPR &&
-        callExpr->text.find("<<") != std::string::npos) {
-
-        // 查找第一个字符串字面量
-        size_t firstQuote = callExpr->text.find('"', callExpr->text.find("<<"));
-        if (firstQuote != std::string::npos) {
-            size_t secondQuote = callExpr->text.find('"', firstQuote + 1);
-            if (secondQuote != std::string::npos) {
-                message = callExpr->text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
-            }
-        }
-    }
-    // 尝试从传统风格日志调用中提取消息，如：qDebug("message", var);
-    else if (callExpr->type == ast_analyzer::NodeType::LOG_CALL_EXPR &&
-             callExpr->text.find('(') != std::string::npos) {
-
-        // 查找第一个字符串字面量
-        size_t firstQuote = callExpr->text.find('"', callExpr->text.find('('));
-        if (firstQuote != std::string::npos) {
-            size_t secondQuote = callExpr->text.find('"', firstQuote + 1);
-            if (secondQuote != std::string::npos) {
-                message = callExpr->text.substr(firstQuote + 1, secondQuote - firstQuote - 1);
-            }
-        }
-    }
-
-    // 如果没有找到有效消息，返回节点的完整文本
-    if (message.empty()) {
-        message = callExpr->text;
-    }
-
-    LOG_DEBUG_FMT("提取的日志消息: %s", message.c_str());
-    return message;
 }
 
 }  // namespace log_identifier

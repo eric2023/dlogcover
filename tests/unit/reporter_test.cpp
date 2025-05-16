@@ -144,10 +144,22 @@ int main() {
         // 设置文件类型
         config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
 
-        // 设置Qt日志函数
+        // 设置日志函数
         config.logFunctions.qt.enabled = true;
         config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
-        config.logFunctions.qt.categoryFunctions = {"qCDebug", "qCInfo", "qCWarning", "qCCritical"};
+
+        // 添加必要的编译参数
+        config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
+                                    "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
+                                    // Qt头文件路径
+                                    "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
+                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
+                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+                                    // 系统定义
+                                    "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
+
+        // 设置为Qt项目
+        config.scan.isQtProject = true;
 
         // 设置分析选项
         config.analysis.functionCoverage = true;
