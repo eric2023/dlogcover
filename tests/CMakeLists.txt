@@ -14,11 +14,11 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration)
     add_subdirectory(integration)
 endif()
 
-# 添加测试指令
+# 添加测试指令，确保依赖于主项目
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --verbose
-    DEPENDS unit_tests integration_tests
-    COMMENT "Running all tests")
+    DEPENDS dlogcover unit_tests integration_tests
+    COMMENT "运行所有测试")
 
 # 添加覆盖率目标
 if(ENABLE_COVERAGE)
@@ -41,7 +41,7 @@ if(ENABLE_COVERAGE)
             COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --capture --output-file ${CMAKE_BINARY_DIR}/coverage.info
 
             # 过滤掉系统文件和测试文件
-            COMMAND ${LCOV_PATH} --remove ${CMAKE_BINARY_DIR}/coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
+            COMMAND ${LCOV_PATH} --remove ${CMAKE_BINARY_DIR}/coverage.info '/usr/*' '*/tests/*' --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
 
             # 生成HTML报告
             COMMAND ${GENHTML_PATH} ${CMAKE_BINARY_DIR}/coverage.filtered.info --output-directory ${CMAKE_BINARY_DIR}/coverage_report
@@ -49,15 +49,15 @@ if(ENABLE_COVERAGE)
             # 显示报告摘要
             COMMAND ${LCOV_PATH} --summary ${CMAKE_BINARY_DIR}/coverage.filtered.info
 
-            DEPENDS unit_tests
-            COMMENT "Generating code coverage report"
+            DEPENDS dlogcover unit_tests
+            COMMENT "生成代码覆盖率报告"
         )
 
         # 打印覆盖率报告位置
         add_custom_command(TARGET coverage POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Coverage report generated at ${CMAKE_BINARY_DIR}/coverage_report/index.html"
+            COMMAND ${CMAKE_COMMAND} -E echo "覆盖率报告生成在 ${CMAKE_BINARY_DIR}/coverage_report/index.html"
         )
     else()
-        message(WARNING "lcov or genhtml not found, cannot generate coverage reports")
+        message(WARNING "lcov或genhtml未找到，无法生成覆盖率报告")
     endif()
 endif()

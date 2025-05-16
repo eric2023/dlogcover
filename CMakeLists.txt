@@ -14,11 +14,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # 包含目录
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
-# 添加代码覆盖率选项
-option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+# 添加代码覆盖率选项 - 默认开启
+option(ENABLE_COVERAGE "Enable coverage reporting" ON)
 
 # 设置编译选项
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -110,10 +109,10 @@ else()
     set(NLOHMANN_JSON_FOUND TRUE)
 endif()
 
-# 检查GoogleTest依赖
+# 检查GoogleTest依赖 - 始终设置构建测试为ON
 find_package(GTest QUIET)
 if(NOT GTEST_FOUND)
-    message(WARNING "GoogleTest not found, tests will not be built")
+    message(WARNING "GoogleTest not found, please install libgtest-dev package")
     set(BUILD_TESTS OFF)
 else()
     message(STATUS "Found GoogleTest: ${GTEST_VERSION}")
@@ -152,10 +151,48 @@ elseif(NLOHMANN_JSON_FOUND)
     # Header-only版本无需链接
 endif()
 
-# 构建单元测试
+# 构建单元测试 - 确保主项目完成后构建测试
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# 创建一个按顺序执行构建、测试和覆盖率报告的目标
+if(BUILD_TESTS AND ENABLE_COVERAGE)
+    find_program(LCOV_PATH lcov)
+    find_program(GENHTML_PATH genhtml)
+
+    if(LCOV_PATH AND GENHTML_PATH)
+        # 添加一个按步骤执行的目标
+        add_custom_target(build_test_coverage
+            # 首先确保主项目编译成功
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target dlogcover
+            # 构建测试项目
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target unit_tests
+            # 清除之前的覆盖率数据
+            COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --zerocounters
+            # 运行测试
+            COMMAND ${CMAKE_CTEST_COMMAND} --verbose
+            # 收集覆盖率数据
+            COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --capture --output-file ${CMAKE_BINARY_DIR}/coverage.info
+            # 过滤掉系统文件和测试文件
+            COMMAND ${LCOV_PATH} --remove ${CMAKE_BINARY_DIR}/coverage.info '/usr/*' '*/tests/*' --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
+            # 生成HTML报告
+            COMMAND ${GENHTML_PATH} ${CMAKE_BINARY_DIR}/coverage.filtered.info --output-directory ${CMAKE_BINARY_DIR}/coverage_report
+            # 显示报告摘要
+            COMMAND ${LCOV_PATH} --summary ${CMAKE_BINARY_DIR}/coverage.filtered.info
+
+            DEPENDS dlogcover
+            COMMENT "1. 编译项目源码 -> 2. 运行单元测试 -> 3. 生成覆盖率报告"
+        )
+
+        # 打印覆盖率报告位置
+        add_custom_command(TARGET build_test_coverage POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "覆盖率报告生成在 ${CMAKE_BINARY_DIR}/coverage_report/index.html"
+        )
+    else()
+        message(WARNING "lcov或genhtml未找到，无法生成覆盖率报告。请安装lcov包。")
+    endif()
 endif()
 
 # 安装目标

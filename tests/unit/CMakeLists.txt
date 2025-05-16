@@ -47,5 +47,13 @@ if(nlohmann_json_FOUND)
     target_link_libraries(unit_tests PRIVATE nlohmann_json::nlohmann_json)
 endif()
 
+# 添加依赖关系，确保先构建主项目
+add_dependencies(unit_tests dlogcover)
+
 # 添加测试
 add_test(NAME unit_tests COMMAND unit_tests)
+
+# 设置测试属性，确保测试报告输出
+set_tests_properties(unit_tests PROPERTIES
+    ENVIRONMENT "GTEST_COLOR=1"
+    TIMEOUT 300)

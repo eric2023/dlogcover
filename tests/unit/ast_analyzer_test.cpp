@@ -39,9 +39,48 @@ void test_function() {
 // 带条件分支的函数
 int conditional_function(int value) {
     if (value > 0) {
+        std::cout << "正数: " << value << std::endl;
         return value * 2;
     } else {
+        std::cerr << "负数: " << value << std::endl;
         return value * -1;
+    }
+}
+
+// 带循环的函数
+void loop_function(int count) {
+    // for循环
+    for (int i = 0; i < count; ++i) {
+        std::cout << "for循环: " << i << std::endl;
+    }
+
+    // while循环
+    int j = 0;
+    while (j < count) {
+        std::cout << "while循环: " << j << std::endl;
+        ++j;
+    }
+
+    // do-while循环
+    int k = 0;
+    do {
+        std::cout << "do-while循环: " << k << std::endl;
+        ++k;
+    } while (k < count);
+}
+
+// 带switch语句的函数
+void switch_function(int value) {
+    switch (value) {
+        case 1:
+            std::cout << "选项1" << std::endl;
+            break;
+        case 2:
+            std::cout << "选项2" << std::endl;
+            break;
+        default:
+            std::cout << "默认选项" << std::endl;
+            break;
     }
 }
 
@@ -51,14 +90,54 @@ void exception_function() {
         throw std::runtime_error("测试异常");
     } catch (const std::exception& e) {
         std::cerr << "捕获异常: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "捕获未知异常" << std::endl;
     }
 }
 
 int main() {
     test_function();
     conditional_function(10);
+    loop_function(3);
+    switch_function(1);
     exception_function();
     return 0;
+}
+)");
+
+        // 创建带Qt日志的测试文件
+        createTestFile(testDir_ + "/qt_log_test.cpp", R"(
+#include <QDebug>
+#include <QString>
+
+void qt_log_function() {
+    qDebug() << "调试信息";
+    qInfo() << "普通信息";
+    qWarning() << "警告信息";
+    qCritical() << "严重错误";
+}
+
+void conditional_log() {
+    bool condition = true;
+    if (condition) {
+        qDebug() << "条件为真";
+    } else {
+        qWarning() << "条件为假";
+    }
+}
+
+void loop_log() {
+    for (int i = 0; i < 3; ++i) {
+        qDebug() << "循环次数:" << i;
+    }
+}
+
+void exception_log() {
+    try {
+        throw std::runtime_error("错误");
+    } catch (const std::exception& e) {
+        qCritical() << "异常:" << e.what();
+    }
 }
 )");
 
@@ -112,35 +191,327 @@ int main() {
 
 // 测试初始化和销毁
 TEST_F(ASTAnalyzerTestFixture, InitializeAndDestroy) {
-    // 这里主要测试构造和析构是否会导致崩溃
     SUCCEED();
 }
 
 // 测试分析单个文件
 TEST_F(ASTAnalyzerTestFixture, AnalyzeSingleFile) {
-    // 获取测试文件路径
     std::string testFilePath = testDir_ + "/test.cpp";
-
-    // 分析单个文件
     EXPECT_TRUE(astAnalyzer_->analyze(testFilePath)) << "分析文件失败";
 
-    // 验证AST节点信息
     const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo) << "未生成AST节点信息";
+
+    // 验证根节点
+    EXPECT_EQ(NodeType::FUNCTION, nodeInfo->type);
+    EXPECT_FALSE(nodeInfo->hasLogging);  // 标准输出不算作日志
+    EXPECT_GT(nodeInfo->children.size(), 0) << "根节点应该有子节点";
 }
 
 // 测试分析所有文件
 TEST_F(ASTAnalyzerTestFixture, AnalyzeAllFiles) {
-    // 分析所有文件
     EXPECT_TRUE(astAnalyzer_->analyzeAll()) << "分析所有文件失败";
 
-    // 验证是否分析了所有文件
     const auto& allASTNodeInfo = astAnalyzer_->getAllASTNodeInfo();
-    EXPECT_EQ(1, allASTNodeInfo.size()) << "分析文件数量不符";
+    EXPECT_EQ(2, allASTNodeInfo.size()) << "分析文件数量不符";
 
-    // 验证是否包含测试文件
     std::string testFilePath = testDir_ + "/test.cpp";
-    EXPECT_NE(allASTNodeInfo.find(testFilePath), allASTNodeInfo.end()) << "未找到测试文件的AST节点";
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+
+    EXPECT_NE(allASTNodeInfo.find(testFilePath), allASTNodeInfo.end()) << "未找到test.cpp的AST节点";
+    EXPECT_NE(allASTNodeInfo.find(qtTestFilePath), allASTNodeInfo.end()) << "未找到qt_log_test.cpp的AST节点";
+}
+
+// 测试条件语句分析
+TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalStatements) {
+    std::string testFilePath = testDir_ + "/test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找conditional_function
+    bool foundConditionalFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "conditional_function") {
+            foundConditionalFunc = true;
+            // 验证if语句
+            bool foundIfStmt = false;
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::IF_STMT) {
+                    foundIfStmt = true;
+                    EXPECT_EQ(2, stmt->children.size()) << "if语句应该有then和else两个分支";
+                    break;
+                }
+            }
+            EXPECT_TRUE(foundIfStmt) << "未找到if语句";
+            break;
+        }
+    }
+    EXPECT_TRUE(foundConditionalFunc) << "未找到conditional_function";
+}
+
+// 测试循环语句分析
+TEST_F(ASTAnalyzerTestFixture, AnalyzeLoopStatements) {
+    std::string testFilePath = testDir_ + "/test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找loop_function
+    bool foundLoopFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "loop_function") {
+            foundLoopFunc = true;
+            bool foundForStmt = false;
+            bool foundWhileStmt = false;
+            bool foundDoStmt = false;
+
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::FOR_STMT)
+                    foundForStmt = true;
+                if (stmt->type == NodeType::WHILE_STMT)
+                    foundWhileStmt = true;
+                if (stmt->type == NodeType::DO_STMT)
+                    foundDoStmt = true;
+            }
+
+            EXPECT_TRUE(foundForStmt) << "未找到for循环";
+            EXPECT_TRUE(foundWhileStmt) << "未找到while循环";
+            EXPECT_TRUE(foundDoStmt) << "未找到do-while循环";
+            break;
+        }
+    }
+    EXPECT_TRUE(foundLoopFunc) << "未找到loop_function";
+}
+
+// 测试异常处理语句分析
+TEST_F(ASTAnalyzerTestFixture, AnalyzeExceptionHandling) {
+    std::string testFilePath = testDir_ + "/test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找exception_function
+    bool foundExceptionFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "exception_function") {
+            foundExceptionFunc = true;
+            bool foundTryStmt = false;
+            bool foundCatchStmt = false;
+
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::TRY_STMT) {
+                    foundTryStmt = true;
+                    // 验证catch语句是try的子节点
+                    for (const auto& catchStmt : stmt->children) {
+                        if (catchStmt->type == NodeType::CATCH_STMT) {
+                            foundCatchStmt = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            EXPECT_TRUE(foundTryStmt) << "未找到try语句";
+            EXPECT_TRUE(foundCatchStmt) << "未找到catch语句";
+            break;
+        }
+    }
+    EXPECT_TRUE(foundExceptionFunc) << "未找到exception_function";
+}
+
+// 测试Qt日志函数识别
+TEST_F(ASTAnalyzerTestFixture, AnalyzeQtLogging) {
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找qt_log_function
+    bool foundQtLogFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "qt_log_function") {
+            foundQtLogFunc = true;
+            EXPECT_TRUE(child->hasLogging) << "未识别出Qt日志调用";
+
+            // 验证是否识别出所有日志调用
+            int logCallCount = 0;
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::LOG_CALL_EXPR) {
+                    logCallCount++;
+                }
+            }
+            EXPECT_EQ(4, logCallCount) << "Qt日志调用数量不符";
+            break;
+        }
+    }
+    EXPECT_TRUE(foundQtLogFunc) << "未找到qt_log_function";
+}
+
+// 测试条件分支中的日志识别
+TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalLogging) {
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找conditional_log
+    bool foundCondLogFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "conditional_log") {
+            foundCondLogFunc = true;
+            EXPECT_TRUE(child->hasLogging) << "未识别出条件分支中的日志调用";
+
+            // 验证if语句中的日志
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::IF_STMT) {
+                    EXPECT_TRUE(stmt->hasLogging) << "if语句中未识别出日志调用";
+                    // 验证两个分支都有日志
+                    EXPECT_EQ(2, stmt->children.size()) << "if语句应该有两个分支";
+                    if (stmt->children.size() == 2) {
+                        EXPECT_TRUE(stmt->children[0]->hasLogging) << "then分支未识别出日志调用";
+                        EXPECT_TRUE(stmt->children[1]->hasLogging) << "else分支未识别出日志调用";
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    EXPECT_TRUE(foundCondLogFunc) << "未找到conditional_log函数";
+}
+
+// 测试AST单元管理
+TEST_F(ASTAnalyzerTestFixture, ASTUnitManagement) {
+    std::string testFilePath = testDir_ + "/test.cpp";
+
+    // 分析前应该没有当前AST单元
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+
+    // 分析文件
+    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+
+    // 分析后应该有当前AST单元
+    EXPECT_NE(nullptr, astAnalyzer_->getCurrentASTUnit());
+
+    // 分析另一个文件
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+
+    // 当前AST单元应该更新
+    EXPECT_NE(nullptr, astAnalyzer_->getCurrentASTUnit());
+
+    // 清理后应该没有当前AST单元
+    astAnalyzer_->clearCurrentASTUnit();
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+}
+
+// 测试上下文管理
+TEST_F(ASTAnalyzerTestFixture, ContextManagement) {
+    std::string testFilePath = testDir_ + "/test.cpp";
+
+    // 分析前应该没有当前上下文
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
+
+    // 分析文件
+    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+
+    // 分析过程中应该有当前上下文
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找conditional_function并验证其上下文
+    bool foundConditionalFunc = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "conditional_function") {
+            foundConditionalFunc = true;
+            EXPECT_NE(nullptr, child->context);
+            EXPECT_EQ(child->context->getParent(), nodeInfo->context);
+            break;
+        }
+    }
+    EXPECT_TRUE(foundConditionalFunc) << "未找到conditional_function";
+
+    // 清理后应该没有当前上下文
+    astAnalyzer_->clearCurrentContext();
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
+}
+
+// 测试嵌套上下文管理
+TEST_F(ASTAnalyzerTestFixture, NestedContextManagement) {
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+
+    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    ASSERT_NE(nullptr, nodeInfo);
+
+    // 查找conditional_log函数并验证其嵌套上下文
+    bool foundConditionalLog = false;
+    for (const auto& child : nodeInfo->children) {
+        if (child->name == "conditional_log") {
+            foundConditionalLog = true;
+            EXPECT_NE(nullptr, child->context);
+
+            // 查找if语句并验证其上下文
+            bool foundIfStmt = false;
+            for (const auto& stmt : child->children) {
+                if (stmt->type == NodeType::IF_STMT) {
+                    foundIfStmt = true;
+                    EXPECT_NE(nullptr, stmt->context);
+                    EXPECT_EQ(stmt->context->getParent(), child->context);
+
+                    // 验证then和else分支的上下文
+                    ASSERT_EQ(2, stmt->children.size());
+                    EXPECT_NE(nullptr, stmt->children[0]->context);
+                    EXPECT_NE(nullptr, stmt->children[1]->context);
+                    EXPECT_EQ(stmt->children[0]->context->getParent(), stmt->context);
+                    EXPECT_EQ(stmt->children[1]->context->getParent(), stmt->context);
+                    break;
+                }
+            }
+            EXPECT_TRUE(foundIfStmt) << "未找到if语句";
+            break;
+        }
+    }
+    EXPECT_TRUE(foundConditionalLog) << "未找到conditional_log函数";
+}
+
+// 测试错误处理和边界条件
+TEST_F(ASTAnalyzerTestFixture, ErrorHandlingAndBoundaryConditions) {
+    // 测试空文件路径
+    EXPECT_FALSE(astAnalyzer_->analyze(""));
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
+
+    // 测试不存在的文件
+    EXPECT_FALSE(astAnalyzer_->analyze("/path/to/nonexistent/file.cpp"));
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
+
+    // 测试无效的文件内容
+    std::string invalidFilePath = testDir_ + "/invalid.cpp";
+    createTestFile(invalidFilePath, "invalid c++ code");
+    EXPECT_FALSE(astAnalyzer_->analyze(invalidFilePath));
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentASTUnit());
+    EXPECT_EQ(nullptr, astAnalyzer_->getCurrentContext());
+
+    // 测试空目录分析
+    config_.scan.directories.clear();
+    EXPECT_FALSE(astAnalyzer_->analyzeAll());
+
+    // 测试重复分析同一文件
+    std::string testFilePath = testDir_ + "/test.cpp";
+    EXPECT_TRUE(astAnalyzer_->analyze(testFilePath));
+    const ASTNodeInfo* firstAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
+    EXPECT_TRUE(astAnalyzer_->analyze(testFilePath));
+    const ASTNodeInfo* secondAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
+    EXPECT_NE(nullptr, firstAnalysis);
+    EXPECT_NE(nullptr, secondAnalysis);
 }
 
 }  // namespace test

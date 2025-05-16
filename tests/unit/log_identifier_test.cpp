@@ -196,6 +196,239 @@ TEST_F(LogIdentifierTestFixture, IdentifyLogCalls) {
     EXPECT_TRUE(allLogCalls.count(testFilePath) > 0);
 }
 
+// 测试Qt日志函数识别
+TEST_F(LogIdentifierTestFixture, QtLogFunctionIdentification) {
+    // 创建带有各种Qt日志函数的测试文件
+    createTestFile(testDir_ + "/qt_log_test.cpp", R"(
+#include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(TestCategory, "test.category")
+
+void qt_log_test() {
+    // 基本日志函数
+    qDebug() << "调试信息";
+    qInfo() << "普通信息";
+    qWarning() << "警告信息";
+    qCritical() << "严重错误";
+
+    // 分类日志函数
+    qCDebug(TestCategory) << "分类调试信息";
+    qCInfo(TestCategory) << "分类普通信息";
+    qCWarning(TestCategory) << "分类警告信息";
+    qCCritical(TestCategory) << "分类严重错误";
+
+    // 条件日志
+    if (true) {
+        qDebug() << "条件日志";
+    }
+
+    // 循环中的日志
+    for (int i = 0; i < 3; ++i) {
+        qDebug() << "循环日志" << i;
+    }
+
+    // 嵌套日志
+    try {
+        qDebug() << "外层日志";
+        try {
+            qWarning() << "内层日志";
+            throw std::runtime_error("测试异常");
+        } catch (const std::exception& e) {
+            qCritical() << "内层异常:" << e.what();
+        }
+    } catch (...) {
+        qFatal() << "外层异常";
+    }
+}
+)");
+
+    // 重新初始化和分析
+    sourceManager_->collectSourceFiles();
+    astAnalyzer_->analyzeAll();
+    EXPECT_TRUE(logIdentifier_->identifyLogCalls()) << "识别日志调用失败";
+
+    // 获取Qt日志测试文件的日志调用信息
+    std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
+    const auto& logCalls = logIdentifier_->getLogCalls(qtTestFilePath);
+
+    // 验证基本日志函数识别
+    EXPECT_TRUE(hasLogCall(logCalls, "qDebug", "调试信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qInfo", "普通信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qWarning", "警告信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qCritical", "严重错误"));
+
+    // 验证分类日志函数识别
+    EXPECT_TRUE(hasLogCall(logCalls, "qCDebug", "分类调试信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qCInfo", "分类普通信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qCWarning", "分类警告信息"));
+    EXPECT_TRUE(hasLogCall(logCalls, "qCCritical", "分类严重错误"));
+}
+
+// 测试上下文感知的日志识别
+TEST_F(LogIdentifierTestFixture, ContextAwareLogIdentification) {
+    // 创建带有复杂上下文的测试文件
+    createTestFile(testDir_ + "/context_log_test.cpp", R"(
+#include <QDebug>
+
+class TestClass {
+public:
+    void methodWithLogs() {
+        qDebug() << "类方法中的日志";
+
+        auto lambda = []() {
+            qInfo() << "Lambda中的日志";
+        };
+        lambda();
+    }
+
+    static void staticMethodWithLogs() {
+        qWarning() << "静态方法中的日志";
+    }
+};
+
+namespace test_ns {
+void namespaceFunction() {
+    qDebug() << "命名空间中的日志";
+
+    class LocalClass {
+    public:
+        void localMethod() {
+            qInfo() << "局部类中的日志";
+        }
+    };
+
+    LocalClass().localMethod();
+}
+}
+
+template<typename T>
+void templateFunction() {
+    qDebug() << "模板函数中的日志";
+}
+
+void nestedContextTest() {
+    if (true) {
+        for (int i = 0; i < 2; ++i) {
+            try {
+                qDebug() << "嵌套上下文中的日志";
+            } catch (...) {
+                qCritical() << "异常处理中的日志";
+            }
+        }
+    }
+}
+)");
+
+    // 重新初始化和分析
+    sourceManager_->collectSourceFiles();
+    astAnalyzer_->analyzeAll();
+    EXPECT_TRUE(logIdentifier_->identifyLogCalls()) << "识别日志调用失败";
+
+    // 获取上下文测试文件的日志调用信息
+    std::string contextTestFilePath = testDir_ + "/context_log_test.cpp";
+    const auto& logCalls = logIdentifier_->getLogCalls(contextTestFilePath);
+
+    // 验证类方法中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qDebug", "类方法中的日志", "TestClass::methodWithLogs"));
+
+    // 验证Lambda中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qInfo", "Lambda中的日志", "TestClass::methodWithLogs"));
+
+    // 验证静态方法中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qWarning", "静态方法中的日志", "TestClass::staticMethodWithLogs"));
+
+    // 验证命名空间中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qDebug", "命名空间中的日志", "test_ns::namespaceFunction"));
+
+    // 验证局部类中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qInfo", "局部类中的日志", "test_ns::namespaceFunction"));
+
+    // 验证模板函数中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qDebug", "模板函数中的日志", "templateFunction"));
+
+    // 验证嵌套上下文中的日志
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qDebug", "嵌套上下文中的日志", "nestedContextTest"));
+    EXPECT_TRUE(hasLogCallInContext(logCalls, "qCritical", "异常处理中的日志", "nestedContextTest"));
+}
+
+// 测试日志级别和分类
+TEST_F(LogIdentifierTestFixture, LogLevelAndCategoryIdentification) {
+    // 创建带有不同日志级别和分类的测试文件
+    createTestFile(testDir_ + "/log_level_test.cpp", R"(
+#include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(NetworkCategory, "network")
+Q_LOGGING_CATEGORY(DatabaseCategory, "database")
+
+void testLogLevels() {
+    // 基本日志级别
+    qDebug() << "调试级别";
+    qInfo() << "信息级别";
+    qWarning() << "警告级别";
+    qCritical() << "严重级别";
+
+    // 带分类的日志级别
+    qCDebug(NetworkCategory) << "网络调试";
+    qCInfo(NetworkCategory) << "网络信息";
+    qCWarning(DatabaseCategory) << "数据库警告";
+    qCCritical(DatabaseCategory) << "数据库错误";
+}
+)");
+
+    // 重新初始化和分析
+    sourceManager_->collectSourceFiles();
+    astAnalyzer_->analyzeAll();
+    EXPECT_TRUE(logIdentifier_->identifyLogCalls()) << "识别日志调用失败";
+
+    // 获取日志级别测试文件的日志调用信息
+    std::string levelTestFilePath = testDir_ + "/log_level_test.cpp";
+    const auto& logCalls = logIdentifier_->getLogCalls(levelTestFilePath);
+
+    // 验证基本日志级别
+    EXPECT_TRUE(hasLogCallWithLevel(logCalls, "qDebug", LogLevel::Debug));
+    EXPECT_TRUE(hasLogCallWithLevel(logCalls, "qInfo", LogLevel::Info));
+    EXPECT_TRUE(hasLogCallWithLevel(logCalls, "qWarning", LogLevel::Warning));
+    EXPECT_TRUE(hasLogCallWithLevel(logCalls, "qCritical", LogLevel::Critical));
+
+    // 验证带分类的日志级别
+    EXPECT_TRUE(hasLogCallWithCategory(logCalls, "qCDebug", "network", LogLevel::Debug));
+    EXPECT_TRUE(hasLogCallWithCategory(logCalls, "qCInfo", "network", LogLevel::Info));
+    EXPECT_TRUE(hasLogCallWithCategory(logCalls, "qCWarning", "database", LogLevel::Warning));
+    EXPECT_TRUE(hasLogCallWithCategory(logCalls, "qCCritical", "database", LogLevel::Critical));
+}
+
+private:
+// 辅助函数：检查是否存在特定的日志调用
+bool hasLogCall(const std::vector<LogCall>& calls, const std::string& funcName, const std::string& message) {
+    return std::any_of(calls.begin(), calls.end(), [&](const LogCall& call) {
+        return call.functionName == funcName && call.message.find(message) != std::string::npos;
+    });
+}
+
+// 辅助函数：检查是否存在特定上下文中的日志调用
+bool hasLogCallInContext(const std::vector<LogCall>& calls, const std::string& funcName, const std::string& message,
+                         const std::string& context) {
+    return std::any_of(calls.begin(), calls.end(), [&](const LogCall& call) {
+        return call.functionName == funcName && call.message.find(message) != std::string::npos &&
+               call.context.find(context) != std::string::npos;
+    });
+}
+
+// 辅助函数：检查是否存在特定级别的日志调用
+bool hasLogCallWithLevel(const std::vector<LogCall>& calls, const std::string& funcName, LogLevel level) {
+    return std::any_of(calls.begin(), calls.end(),
+                       [&](const LogCall& call) { return call.functionName == funcName && call.level == level; });
+}
+
+// 辅助函数：检查是否存在特定分类和级别的日志调用
+bool hasLogCallWithCategory(const std::vector<LogCall>& calls, const std::string& funcName, const std::string& category,
+                            LogLevel level) {
+    return std::any_of(calls.begin(), calls.end(), [&](const LogCall& call) {
+        return call.functionName == funcName && call.category == category && call.level == level;
+    });
+}
 }  // namespace test
 }  // namespace log_identifier
 }  // namespace core
