@@ -1,0 +1,80 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# C++ Programming Guidelines
+
+## Modern C++ Standards
+
+- Use C++17 features and standards
+- Prefer modern C++ features over legacy approaches
+- Follow the "Rule of Five" for resource management
+
+## Code Organization
+
+### Class Design
+- Follow SOLID principles
+- Keep classes focused and single-responsibility
+- Use inheritance only when necessary
+- Prefer composition over inheritance
+- Limit class size to 500 lines maximum
+
+### Function Design
+- Keep functions short and focused
+- Maximum function length: 50 lines
+- Use meaningful parameter names
+- Document function parameters and return values
+- Add logging at function entry points
+
+## Memory Management
+
+- Use smart pointers (std::unique_ptr, std::shared_ptr)
+- Avoid raw pointers except in specific performance-critical cases
+- Follow RAII principles
+- Use std::vector and other STL containers
+
+## Error Handling
+
+- Use exceptions for error handling
+- Document all exceptions that can be thrown
+- Use std::optional for nullable values
+- Add appropriate logging for error conditions
+
+## Performance Considerations
+
+- Use const wherever possible
+- Pass large objects by const reference
+- Use move semantics for transferring ownership
+- Consider cache coherency in data structures
+
+## Testing Requirements
+
+- Write unit tests for all new code
+- Maintain >80% code coverage
+- Test edge cases and error conditions
+- Use mock objects for external dependencies
+
+## Logging Guidelines
+
+- Log function entry with parameters
+- Log important state changes
+- Log error conditions with stack traces
+- Use appropriate log levels (DEBUG, INFO, WARNING, ERROR)
+
+## Documentation
+
+- Document all public APIs
+- Include usage examples in comments
+- Document non-obvious implementations
+- Keep documentation up-to-date with code changes
+
+## Code Review Checklist
+
+- [ ] Follows SOLID principles
+- [ ] Proper error handling
+- [ ] Appropriate logging
+- [ ] Unit tests included
+- [ ] Documentation complete
+- [ ] No memory leaks
+- [ ] Performance considerations addressed

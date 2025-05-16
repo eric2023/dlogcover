@@ -89,7 +89,8 @@ if [ $BUILD_TESTS -eq 1 ]; then
     # 对于测试和完整流程，启用覆盖率
     cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} ..
 else
-    cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} ..
+    # 只构建项目，不构建测试
+    cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_TESTS=OFF -DENABLE_COVERAGE=OFF -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} ..
 fi
 
 # 如果是完整流程，使用build_test_coverage目标
@@ -117,14 +118,20 @@ if [ $FULL_PROCESS -eq 1 ]; then
     echo "3. 覆盖率报告生成完成"
     echo "覆盖率报告位置: ${PWD}/coverage_report/index.html"
 else
-# 构建项目
-echo "构建项目..."
-cmake --build . -- -j$(nproc)
+    # 构建项目
+    echo "构建项目..."
+    if [ $BUILD_TESTS -eq 1 ]; then
+        # 构建项目和测试
+        cmake --build . -- -j$(nproc)
+    else
+        # 只构建主项目
+        cmake --build . --target dlogcover -- -j$(nproc)
+    fi
 
-# 运行测试
-if [ $BUILD_TESTS -eq 1 ]; then
-    echo "运行测试..."
-    ctest --verbose
+    # 运行测试
+    if [ $BUILD_TESTS -eq 1 ]; then
+        echo "运行测试..."
+        ctest --verbose
     fi
 fi
 

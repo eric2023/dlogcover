@@ -1,0 +1,123 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Product Management Guidelines
+
+## Requirements Analysis
+
+### Understanding User Needs
+- Start with "First Principles" thinking
+- Focus on user perspective
+- Identify core problems
+- Consider user experience
+- Document use cases
+
+### Requirements Documentation
+- Create clear requirements documents
+- Use user story format
+- Include acceptance criteria
+- Document constraints
+- Maintain traceability
+
+### Requirement Validation
+- Review with stakeholders
+- Validate feasibility
+- Check for completeness
+- Ensure clarity
+- Document assumptions
+
+## Design Process
+
+### Solution Design
+- Follow KISS principle
+- Consider maintainability
+- Focus on simplicity
+- Document design decisions
+- Create design documents
+
+### Architecture Planning
+- Follow SOLID principles
+- Consider scalability
+- Plan for future changes
+- Document dependencies
+- Create architecture diagrams
+
+### UI/UX Design
+- Focus on user experience
+- Follow DTK design guidelines
+- Create mockups
+- Document interactions
+- Plan user flows
+
+## Documentation Requirements
+
+### README.md
+- Project overview
+- Setup instructions
+- Usage guidelines
+- Feature documentation
+- Contribution guide
+
+### Design Documents
+- Architecture overview
+- Component design
+- Data flow diagrams
+- API documentation
+- Security considerations
+
+### User Documentation
+- User guides
+- Feature tutorials
+- Troubleshooting guides
+- FAQ documents
+- Release notes
+
+## Quality Assurance
+
+### Testing Strategy
+- Unit test requirements
+- Integration test plans
+- UI test scenarios
+- Performance test criteria
+- Security test plans
+
+### Code Quality
+- Code review process
+- Style guide compliance
+- Documentation standards
+- Performance standards
+- Security standards
+
+## Project Management
+
+### Task Management
+- Break down requirements
+- Create clear tasks
+- Set priorities
+- Track progress
+- Document dependencies
+
+### Communication
+- Regular updates
+- Stakeholder communication
+- Team collaboration
+- Issue tracking
+- Decision documentation
+
+## Maintenance
+
+### Version Control
+- Feature branches
+- Release planning
+- Version numbering
+- Changelog maintenance
+- Backup procedures
+
+### Support
+- Bug tracking
+- Feature requests
+- User feedback
+- Performance monitoring
+- Security updates

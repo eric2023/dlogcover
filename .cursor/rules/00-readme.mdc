@@ -1,0 +1,42 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Cursor Rules Overview
+
+This directory contains all the rules and guidelines for the project. The rules are organized in a hierarchical structure, with each file focusing on a specific aspect of the project.
+
+## Rule Files Organization
+
+### Core Project Rules (01-05)
+- [01-project-overview.mdc](mdc:01-project-overview.mdc) - Project goals and vision
+- [02-features.mdc](mdc:02-features.mdc) - Feature specifications
+- [03-architecture.mdc](mdc:03-architecture.mdc) - System architecture
+- [04-dev-guidelines.mdc](mdc:04-dev-guidelines.mdc) - Development guidelines
+- [05-project-structure.mdc](mdc:05-project-structure.mdc) - Project structure and organization
+
+### Development Standards (06-10)
+- [06-code-style-guide.mdc](mdc:06-code-style-guide.mdc) - Code style and formatting
+- [07-framework-usage.mdc](mdc:07-framework-usage.mdc) - Framework usage guidelines
+- [08-testing-and-qa.mdc](mdc:08-testing-and-qa.mdc) - Testing and QA procedures
+- [09-development-workflow.mdc](mdc:09-development-workflow.mdc) - Development workflow
+- [10-llvm-clang-usage.mdc](mdc:10-llvm-clang-usage.mdc) - LLVM and Clang usage
+
+### Technical Guidelines (11-14)
+- [11-log-analysis.mdc](mdc:11-log-analysis.mdc) - Logging and analysis
+- [12-cpp-guidelines.mdc](mdc:12-cpp-guidelines.mdc) - C++ programming guidelines
+- [13-dtk-qt-usage.mdc](mdc:13-dtk-qt-usage.mdc) - DTK and Qt framework usage
+- [14-product-management.mdc](mdc:14-product-management.mdc) - Product management
+
+### System Rules
+- [memery-bank.mdc](mdc:memery-bank.mdc) - Memory management system
+- [mode-rules.mdc](mdc:mode-rules.mdc) - Operation mode rules
+
+## Usage Guidelines
+
+1. All rules must be followed during development
+2. Rules are automatically applied based on their metadata
+3. Rules can reference other files using `[filename.ext](mdc:filename.ext)`
+4. Rules are written in Markdown with Cursor-specific extensions
+5. Each rule file should focus on a specific aspect of the project

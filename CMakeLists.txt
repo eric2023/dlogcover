@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(dlogcover VERSION 0.1.0 LANGUAGES CXX)
 
+# 添加cmake模块路径
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +43,19 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "LLVM_LIBRARY_DIRS: ${LLVM_LIBRARY_DIRS}")
 message(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
 message(STATUS "LLVM_DEFINITIONS: ${LLVM_DEFINITIONS}")
+# 映射必要的 LLVM 组件到库名
+llvm_map_components_to_libnames(LLVM_LIB_LIST
+    support
+    core
+    option
+    irreader
+    bitreader
+    bitwriter
+    nativecodegen
+)
+# 将组件库列表赋值给 LLVM_LIBRARIES
+set(LLVM_LIBRARIES ${LLVM_LIB_LIST})
+message(STATUS "LLVM component libraries: ${LLVM_LIBRARIES}")
 
 # 添加LLVM定义和包含目录
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -56,6 +72,19 @@ find_library(CLANG_LEX_LIB clangLex PATHS ${LLVM_LIBRARY_DIRS})
 find_library(CLANG_PARSE_LIB clangParse PATHS ${LLVM_LIBRARY_DIRS})
 find_library(CLANG_SEMA_LIB clangSema PATHS ${LLVM_LIBRARY_DIRS})
 
+# 查找新增的Clang库
+find_library(CLANG_ANALYSIS_LIB clangAnalysis PATHS ${LLVM_LIBRARY_DIRS})
+find_library(CLANG_DRIVER_LIB clangDriver PATHS ${LLVM_LIBRARY_DIRS})
+find_library(CLANG_EDIT_LIB clangEdit PATHS ${LLVM_LIBRARY_DIRS})
+find_library(CLANG_REWRITE_LIB clangRewrite PATHS ${LLVM_LIBRARY_DIRS})
+find_library(CLANG_SERIALIZATION_LIB clangSerialization PATHS ${LLVM_LIBRARY_DIRS})
+
+# 将clangOpenMP设置为可选库
+find_library(CLANG_OPENMP_LIB clangOpenMP PATHS ${LLVM_LIBRARY_DIRS})
+if(NOT CLANG_OPENMP_LIB)
+    message(STATUS "clangOpenMP library not found - OpenMP support will be disabled")
+endif()
+
 # 显示找到的Clang库路径
 message(STATUS "CLANG_TOOLING_LIB: ${CLANG_TOOLING_LIB}")
 message(STATUS "CLANG_BASIC_LIB: ${CLANG_BASIC_LIB}")
@@ -65,6 +94,12 @@ message(STATUS "CLANG_FRONTEND_LIB: ${CLANG_FRONTEND_LIB}")
 message(STATUS "CLANG_LEX_LIB: ${CLANG_LEX_LIB}")
 message(STATUS "CLANG_PARSE_LIB: ${CLANG_PARSE_LIB}")
 message(STATUS "CLANG_SEMA_LIB: ${CLANG_SEMA_LIB}")
+message(STATUS "CLANG_ANALYSIS_LIB: ${CLANG_ANALYSIS_LIB}")
+message(STATUS "CLANG_DRIVER_LIB: ${CLANG_DRIVER_LIB}")
+message(STATUS "CLANG_EDIT_LIB: ${CLANG_EDIT_LIB}")
+message(STATUS "CLANG_REWRITE_LIB: ${CLANG_REWRITE_LIB}")
+message(STATUS "CLANG_SERIALIZATION_LIB: ${CLANG_SERIALIZATION_LIB}")
+message(STATUS "CLANG_OPENMP_LIB: ${CLANG_OPENMP_LIB}")
 
 # 如果没有找到Clang库，尝试在系统路径搜索
 if(NOT CLANG_TOOLING_LIB)
@@ -77,6 +112,12 @@ if(NOT CLANG_TOOLING_LIB)
     find_library(CLANG_LEX_LIB NAMES clangLex libclangLex)
     find_library(CLANG_PARSE_LIB NAMES clangParse libclangParse)
     find_library(CLANG_SEMA_LIB NAMES clangSema libclangSema)
+    find_library(CLANG_ANALYSIS_LIB NAMES clangAnalysis libclangAnalysis)
+    find_library(CLANG_DRIVER_LIB NAMES clangDriver libclangDriver)
+    find_library(CLANG_EDIT_LIB NAMES clangEdit libclangEdit)
+    find_library(CLANG_REWRITE_LIB NAMES clangRewrite libclangRewrite)
+    find_library(CLANG_SERIALIZATION_LIB NAMES clangSerialization libclangSerialization)
+    find_library(CLANG_OPENMP_LIB NAMES clangOpenMP libclangOpenMP)
 endif()
 
 # 再次检查是否找到了必要的库
@@ -110,14 +151,24 @@ else()
 endif()
 
 # 检查GoogleTest依赖 - 始终设置构建测试为ON
-find_package(GTest QUIET)
+find_package(GTest REQUIRED)
 if(NOT GTEST_FOUND)
-    message(WARNING "GoogleTest not found, please install libgtest-dev package")
-    set(BUILD_TESTS OFF)
-else()
-    message(STATUS "Found GoogleTest: ${GTEST_VERSION}")
-    set(BUILD_TESTS ON)
+    message(FATAL_ERROR "GoogleTest not found, please install libgtest-dev package. Testing is required for this project.")
 endif()
+message(STATUS "Found GoogleTest: ${GTEST_VERSION}")
+set(BUILD_TESTS ON)
+
+# 设置测试覆盖率目标
+set(TEST_SOURCES
+    source_manager_test
+    log_identifier_test
+    ast_analyzer_test
+    file_utils_test
+    command_line_parser_test
+    reporter_test
+    coverage_calculator_test
+    config_manager_test
+)
 
 # 设置源文件
 file(GLOB_RECURSE SOURCES
@@ -127,19 +178,19 @@ file(GLOB_RECURSE SOURCES
 # 创建可执行文件
 add_executable(dlogcover ${SOURCES})
 
+# 查找Clang依赖
+find_package(Clang REQUIRED CONFIG)
+message(STATUS "Found Clang ${CLANG_VERSION}")
+message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
+
 # 链接依赖库
 target_link_libraries(dlogcover
     PRIVATE
-    # 使用找到的Clang库
-    ${CLANG_TOOLING_LIB}
-    ${CLANG_BASIC_LIB}
-    ${CLANG_AST_MATCHERS_LIB}
-    ${CLANG_AST_LIB}
-    ${CLANG_FRONTEND_LIB}
-    ${CLANG_LEX_LIB}
-    ${CLANG_PARSE_LIB}
-    ${CLANG_SEMA_LIB}
-    LLVM
+    clangTooling
+    clangAST
+    clangSema
+    clangBasic
+    LLVMSupport
     # 添加对filesystem库的支持
     stdc++fs
 )
@@ -155,6 +206,13 @@ endif()
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+
+    # 添加一个运行所有测试的目标
+    add_custom_target(run_all_tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS ${TEST_SOURCES}
+        COMMENT "Running all tests"
+    )
 endif()
 
 # 创建一个按顺序执行构建、测试和覆盖率报告的目标
@@ -163,12 +221,17 @@ if(BUILD_TESTS AND ENABLE_COVERAGE)
     find_program(GENHTML_PATH genhtml)
 
     if(LCOV_PATH AND GENHTML_PATH)
+        # 确保CheckCoverage.cmake存在
+        if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckCoverage.cmake")
+            message(FATAL_ERROR "CheckCoverage.cmake not found in ${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+        endif()
+
         # 添加一个按步骤执行的目标
         add_custom_target(build_test_coverage
             # 首先确保主项目编译成功
             COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target dlogcover
             # 构建测试项目
-            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target unit_tests
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target run_all_tests
             # 清除之前的覆盖率数据
             COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --zerocounters
             # 运行测试
@@ -181,17 +244,23 @@ if(BUILD_TESTS AND ENABLE_COVERAGE)
             COMMAND ${GENHTML_PATH} ${CMAKE_BINARY_DIR}/coverage.filtered.info --output-directory ${CMAKE_BINARY_DIR}/coverage_report
             # 显示报告摘要
             COMMAND ${LCOV_PATH} --summary ${CMAKE_BINARY_DIR}/coverage.filtered.info
+            # 检查覆盖率是否达到要求
+            COMMAND ${CMAKE_COMMAND} -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR} -DCMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckCoverage.cmake
 
-            DEPENDS dlogcover
-            COMMENT "1. 编译项目源码 -> 2. 运行单元测试 -> 3. 生成覆盖率报告"
+            DEPENDS dlogcover ${TEST_SOURCES}
+            COMMENT "执行完整的测试流程：1.编译项目 -> 2.运行测试 -> 3.生成覆盖率报告 -> 4.检查覆盖率要求"
         )
 
         # 打印覆盖率报告位置
         add_custom_command(TARGET build_test_coverage POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "覆盖率报告生成在 ${CMAKE_BINARY_DIR}/coverage_report/index.html"
+            COMMAND ${CMAKE_COMMAND} -E echo "覆盖率报告已生成：${CMAKE_BINARY_DIR}/coverage_report/index.html"
+            COMMAND ${CMAKE_COMMAND} -E echo "请确保覆盖率满足以下要求："
+            COMMAND ${CMAKE_COMMAND} -E echo "  - 单元测试覆盖率 > 80%"
+            COMMAND ${CMAKE_COMMAND} -E echo "  - 关键模块覆盖率 > 90%"
+            COMMAND ${CMAKE_COMMAND} -E echo "  - 集成测试场景覆盖率 > 85%"
         )
     else()
-        message(WARNING "lcov或genhtml未找到，无法生成覆盖率报告。请安装lcov包。")
+        message(FATAL_ERROR "lcov或genhtml未找到，无法生成覆盖率报告。请安装lcov包。")
     endif()
 endif()
 

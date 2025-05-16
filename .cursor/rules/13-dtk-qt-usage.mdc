@@ -1,0 +1,101 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# DTK and Qt Framework Usage Guidelines
+
+## DTK Framework
+
+### Component Selection
+- Prefer DTK widgets over Qt widgets when available
+- Use DTK's theme system for consistent look and feel
+- Follow DTK's design guidelines for UI layout
+
+### DTK Best Practices
+- Use DTK's dialog and window classes
+- Implement DTK's window effects
+- Follow DTK's color scheme and styling
+- Use DTK's built-in animations
+
+### DTK Components
+- DMainWindow for main application window
+- DDialog for dialogs
+- DWidget for custom widgets
+- DSettings for application settings
+
+## Qt Framework
+
+### Qt Best Practices
+- Use Qt's signal/slot mechanism
+- Follow Qt's parent-child ownership model
+- Use Qt's resource system
+- Implement proper event handling
+
+### Memory Management
+- Use QObject's parent-child mechanism
+- Avoid manual deletion of Qt objects
+- Use Qt's smart pointers when needed
+- Clean up connections properly
+
+### UI Design
+- Use Qt Designer for UI layout
+- Follow Qt's layout management system
+- Implement responsive design
+- Support high DPI displays
+
+## Project Structure
+
+### File Organization
+- Separate UI files (.ui) from implementation
+- Use consistent naming conventions
+- Organize resources properly
+- Follow Qt's project structure
+
+### Build System
+- Use CMake for build configuration
+- Handle dependencies properly
+- Set up proper installation paths
+- Configure deployment settings
+
+## Testing
+
+### Qt Test Framework
+- Use QtTest for unit testing
+- Test UI interactions
+- Mock Qt components when needed
+- Test signal/slot connections
+
+### Performance Testing
+- Profile UI performance
+- Test memory usage
+- Monitor event loop
+- Check rendering performance
+
+## Documentation
+
+### Code Documentation
+- Document widget hierarchy
+- Document signal/slot connections
+- Document custom events
+- Document style customizations
+
+### API Documentation
+- Document public interfaces
+- Include usage examples
+- Document widget behaviors
+- Document custom properties
+
+## Debugging
+
+### Qt Debug Tools
+- Use Qt Creator's debugger
+- Use Qt's logging system
+- Monitor widget hierarchy
+- Debug signal/slot connections
+
+### Common Issues
+- Handle memory leaks
+- Debug event propagation
+- Fix layout issues
+- Resolve styling problems

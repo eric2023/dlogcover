@@ -5,8 +5,6 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 # 配置单元测试
-
-# 添加单元测试
 add_subdirectory(unit)
 
 # 添加集成测试（如果有）
@@ -17,7 +15,7 @@ endif()
 # 添加测试指令，确保依赖于主项目
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --verbose
-    DEPENDS dlogcover unit_tests integration_tests
+    DEPENDS dlogcover ${TEST_SOURCES}
     COMMENT "运行所有测试")
 
 # 添加覆盖率目标
@@ -49,7 +47,7 @@ if(ENABLE_COVERAGE)
             # 显示报告摘要
             COMMAND ${LCOV_PATH} --summary ${CMAKE_BINARY_DIR}/coverage.filtered.info
 
-            DEPENDS dlogcover unit_tests
+            DEPENDS dlogcover ${TEST_SOURCES}
             COMMENT "生成代码覆盖率报告"
         )
 

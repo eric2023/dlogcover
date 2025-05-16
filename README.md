@@ -169,6 +169,41 @@ dlogcover -e "build/*" -e "test/*"
 }
 ```
 
+## 测试框架
+项目使用分层的测试策略，确保代码质量和功能正确性：
+
+### 单元测试
+位于 `tests/unit/` 目录，包含以下测试模块：
+- source_manager_test.cpp - 源文件管理模块测试
+- log_identifier_test.cpp - 日志识别模块测试
+- ast_analyzer_test.cpp - AST分析模块测试
+- file_utils_test.cpp - 文件工具模块测试
+- command_line_parser_test.cpp - 命令行解析模块测试
+- reporter_test.cpp - 报告生成模块测试
+- coverage_calculator_test.cpp - 覆盖率计算模块测试
+- config_manager_test.cpp - 配置管理模块测试
+
+### 集成测试
+位于 `tests/integration/` 目录，测试模块间的交互和完整功能流程。
+
+### 运行测试
+```bash
+# 使用构建脚本运行所有测试
+./build.sh --test
+
+# 或者手动运行测试
+cd build
+make test
+
+# 生成测试覆盖率报告
+make build_test_coverage
+```
+
+### 测试覆盖率要求
+- 单元测试覆盖率要求：>80%
+- 关键模块覆盖率要求：>90%
+- 集成测试场景覆盖率：>85%
+
 ## 开发指南
 
 ### 代码风格
@@ -178,7 +213,14 @@ dlogcover -e "build/*" -e "test/*"
 clang-format -i src/*.cpp include/dlogcover/*.h
 ```
 
-或使用支持clang-format的IDE（如VS Code）进行自动格式化。
+### 测试规范
+1. 所有新功能必须包含单元测试
+2. 修改现有功能时必须更新相应的测试
+3. 测试文件命名规则：`*_test.cpp`
+4. 每个测试文件应专注于一个模块的功能测试
+5. 测试应该是独立的，不依赖于其他测试的执行顺序
+6. 测试应该包含正常情况和异常情况的验证
+7. 使用 GoogleTest 的高级特性（如参数化测试）提高测试效率
 
 ### 编辑器配置
 我们提供了VS Code的配置文件，位于`.vscode/`目录下，包括：
