@@ -175,8 +175,8 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                     if (funcNode && funcNode->hasLogging) {
                         rootNode->hasLogging = true;
                     }
-                    if (funcNode) {
-                        rootNode->children.push_back(std::move(funcNode));
+                if (funcNode) {
+                    rootNode->children.push_back(std::move(funcNode));
                     }
                 }
             }
@@ -194,8 +194,8 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                             if (methodNode && methodNode->hasLogging) {
                                 rootNode->hasLogging = true;
                             }
-                            if (methodNode) {
-                                rootNode->children.push_back(std::move(methodNode));
+                        if (methodNode) {
+                            rootNode->children.push_back(std::move(methodNode));
                             }
                         }
                     }

@@ -95,14 +95,7 @@ ErrorResult validateFilePath(std::string_view path, bool checkParentDir) {
     return ErrorResult();
 }
 
-/**
- * @brief 将string_view转换为string
- * @param view 要转换的string_view
- * @return 转换后的string
- */
-std::string toStdString(std::string_view view) {
-    return std::string(view.data(), view.size());
-}
+// 移除未使用的 toStdString 函数
 }  // namespace
 
 std::string_view toString(LogLevel level) {

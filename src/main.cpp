@@ -97,8 +97,16 @@ int main(int argc, char* argv[]) {
         // 生成报告
         LOG_INFO("开始生成报告");
         reporter::Reporter reporter(config, coverageCalculator);
-        if (!reporter.generateReport(options.outputPath)) {
-            LOG_ERROR("报告生成失败");
+
+        // 定义进度回调函数
+        reporter::ProgressCallback progressCallback = [](float progress, const std::string& message) {
+            LOG_DEBUG_FMT("报告生成进度: %.1f%% - %s", progress * 100, message.c_str());
+        };
+
+        // 使用新的接口生成报告
+        auto result = reporter.generateReport(options.outputPath, progressCallback);
+        if (result.hasError()) {
+            LOG_ERROR_FMT("报告生成失败: %s", result.errorMessage().c_str());
             return 1;
         }
         LOG_INFO("报告生成完成: " + options.outputPath);

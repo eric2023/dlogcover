@@ -6,12 +6,13 @@
 
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
+
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <regex>
 #include <random>
+#include <regex>
+#include <sstream>
 #include <system_error>
 
 namespace fs = std::filesystem;
@@ -21,9 +22,9 @@ namespace utils {
 
 // 用于临时文件管理的静态变量
 namespace {
-    std::vector<std::string> tempFilesToCleanup;
-    std::mutex tempFilesMutex;
-}
+std::vector<std::string> tempFilesToCleanup;
+std::mutex tempFilesMutex;
+}  // namespace
 
 bool FileUtils::fileExists(const std::string& path) {
     try {
@@ -175,16 +176,12 @@ std::string FileUtils::getDirectoryName(const std::string& path) {
     }
 }
 
-std::vector<std::string> FileUtils::listFiles(const std::string& path,
-                                              const std::string& pattern,
-                                              bool recursive) {
+std::vector<std::string> FileUtils::listFiles(const std::string& path, const std::string& pattern, bool recursive) {
     std::vector<std::string> files;
 
     try {
-        LOG_DEBUG_FMT("列出文件: 目录: %s, 模式: %s, 递归: %s",
-                     path.c_str(),
-                     pattern.empty() ? "<无>" : pattern.c_str(),
-                     recursive ? "是" : "否");
+        LOG_DEBUG_FMT("列出文件: 目录: %s, 模式: %s, 递归: %s", path.c_str(),
+                      pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
 
         if (!directoryExists(path)) {
             LOG_WARNING_FMT("目录不存在: %s", path.c_str());
@@ -232,14 +229,11 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path,
 
 std::vector<std::string> FileUtils::listFiles(const std::string& path,
                                               const std::function<bool(const std::string&)>& filter,
-                                              const std::string& pattern,
-                                              bool recursive) {
+                                              const std::string& pattern, bool recursive) {
     std::vector<std::string> result;
     try {
-        LOG_DEBUG_FMT("列出文件(带过滤器): 目录: %s, 模式: %s, 递归: %s",
-                     path.c_str(),
-                     pattern.empty() ? "<无>" : pattern.c_str(),
-                     recursive ? "是" : "否");
+        LOG_DEBUG_FMT("列出文件(带过滤器): 目录: %s, 模式: %s, 递归: %s", path.c_str(),
+                      pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
 
         if (!directoryExists(path)) {
             LOG_WARNING_FMT("目录不存在: %s", path.c_str());
@@ -299,8 +293,8 @@ std::string FileUtils::joinPaths(const std::string& path1, const std::string& pa
 bool FileUtils::hasExtension(const std::string& filePath, const std::string& extension) {
     try {
         bool has = fs::path(filePath).extension() == extension;
-        LOG_DEBUG_FMT("检查文件扩展名: %s, 目标扩展名: %s, 结果: %s",
-                     filePath.c_str(), extension.c_str(), has ? "匹配" : "不匹配");
+        LOG_DEBUG_FMT("检查文件扩展名: %s, 目标扩展名: %s, 结果: %s", filePath.c_str(), extension.c_str(),
+                      has ? "匹配" : "不匹配");
         return has;
     } catch (const std::exception& e) {
         LOG_ERROR_FMT("检查文件扩展名失败: %s, 错误: %s", filePath.c_str(), e.what());
@@ -315,7 +309,7 @@ std::string FileUtils::createTempFile(const std::string& content) {
         // 生成随机文件名
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 35); // 0-9, a-z
+        std::uniform_int_distribution<> dis(0, 35);  // 0-9, a-z
 
         std::string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         std::string randomStr;
@@ -350,7 +344,7 @@ std::string FileUtils::createTempFile(const std::string& prefix, TempFileType ty
         // 生成随机文件名
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 35); // 0-9, a-z
+        std::uniform_int_distribution<> dis(0, 35);  // 0-9, a-z
 
         std::string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         std::string randomStr;
@@ -433,5 +427,15 @@ std::string FileUtils::getRelativePath(const std::string& path, const std::strin
     }
 }
 
-} // namespace utils
-} // namespace dlogcover
+bool FileUtils::createDirectoryIfNotExists(const std::string& path) {
+    // 如果目录已存在，直接返回true
+    if (directoryExists(path)) {
+        return true;
+    }
+
+    // 否则创建目录
+    return createDirectory(path);
+}
+
+}  // namespace utils
+}  // namespace dlogcover
