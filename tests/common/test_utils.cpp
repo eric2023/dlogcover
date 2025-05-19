@@ -60,18 +60,118 @@ bool TestUtils::cleanupTestTempDir(const std::string& path, std::chrono::seconds
     return cleanup_task.get() > 0;
 }
 
-config::Config TestUtils::createTestConfig() {
+config::Config TestUtils::createTestConfig(const std::string& testDir) {
     config::Config config;
-    // 设置基本的测试配置
+
+    // 设置扫描目录
+    config.scan.directories = {testDir};
+
+    // 设置文件类型
+    config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
+
+    // 设置日志函数
+    config.logFunctions.qt.enabled = true;
+    config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
+
+    // 设置分类日志函数
+    config.logFunctions.custom.enabled = true;
+    config.logFunctions.custom.functions["debug"] = {"LogDebug", "LOG_DEBUG", "log_debug"};
+    config.logFunctions.custom.functions["info"] = {"LogInfo", "LOG_INFO", "log_info"};
+    config.logFunctions.custom.functions["warning"] = {"LogWarning", "LOG_WARNING", "log_warning"};
+    config.logFunctions.custom.functions["error"] = {"LogError", "LOG_ERROR", "log_error"};
+    config.logFunctions.custom.functions["critical"] = {"LogCritical", "LOG_CRITICAL", "log_critical"};
+
+    // 设置分析参数
+    config.analysis.functionCoverage = true;
+    config.analysis.branchCoverage = true;
+    config.analysis.exceptionCoverage = true;
+    config.analysis.keyPathCoverage = true;
+
+    // 添加必要的编译参数
+    config.scan.compilerArgs = {
+        "-std=c++17",
+        "-I/usr/include",
+        "-I/usr/include/c++/8",
+        "-I/usr/include/x86_64-linux-gnu/c++/8",
+        "-I/usr/include/x86_64-linux-gnu",
+        "-I/usr/local/include",
+        // Qt头文件路径
+        "-I/usr/include/x86_64-linux-gnu/qt5",
+        "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
+        "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
+        "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+        // 系统定义
+        "-D__GNUG__", "-D__linux__", "-D__x86_64__"
+    };
+
+    // 设置为Qt项目
     config.scan.isQtProject = true;
-    config.scan.includePathsStr = "/usr/include";
-    config.scan.compilerArgs = {"-std=c++17"};
 
     return config;
 }
 
-source_manager::SourceManager TestUtils::createTestSourceManager() {
-    return source_manager::SourceManager();
+std::unique_ptr<source_manager::SourceManager> TestUtils::createTestSourceManager(const config::Config& config) {
+    return std::make_unique<source_manager::SourceManager>(config);
+}
+
+bool TestUtils::collectAndAnalyzeSource(
+    source_manager::SourceManager& sourceManager,
+    core::ast_analyzer::ASTAnalyzer& astAnalyzer) {
+
+    // 收集源文件
+    auto collectResult = sourceManager.collectSourceFiles();
+    if (collectResult.hasError()) {
+        return false;
+    }
+
+    // 分析所有文件
+    auto analyzeResult = astAnalyzer.analyzeAll();
+    if (analyzeResult.hasError()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool TestUtils::identifyLogs(
+    core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+    core::log_identifier::LogIdentifier& logIdentifier) {
+
+    // 识别日志调用
+    auto identifyResult = logIdentifier.identifyLogCalls();
+    if (identifyResult.hasError()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool TestUtils::calculateCoverage(
+    core::log_identifier::LogIdentifier& logIdentifier,
+    core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+    core::coverage::CoverageCalculator& coverageCalculator) {
+
+    // 计算覆盖率
+    auto calculateResult = coverageCalculator.calculate();
+    if (calculateResult.hasError()) {
+        return false;
+    }
+
+    return true;
+}
+
+std::string TestUtils::createTestSourceFile(const std::string& dirPath, const std::string& filename,
+                                           const std::string& content) {
+    std::string filePath = dirPath + "/" + filename;
+    std::ofstream file(filePath);
+    if (!file.is_open()) {
+        throw std::runtime_error("无法创建测试源文件: " + filePath);
+    }
+
+    file << content;
+    file.close();
+
+    return filePath;
 }
 
 }  // namespace test

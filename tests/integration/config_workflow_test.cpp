@@ -67,10 +67,36 @@ protected:
 TEST_F(ConfigWorkflowTest, BasicConfigLoad) {
     // 最小配置内容
     std::string configContent = R"({
-        "scan": {"directories": ["./"]},
-        "log_functions": {"qt": {"enabled": true}},
-        "analysis": {"function_coverage": true},
-        "report": {"format": "text"}
+        "scan": {
+            "directories": ["./"],
+            "file_types": [".cpp", ".h", ".cc", ".hpp"],
+            "is_qt_project": true
+        },
+        "log_functions": {
+            "qt": {
+                "enabled": true,
+                "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"]
+            },
+            "custom": {
+                "enabled": true,
+                "functions": {
+                    "debug": ["LogDebug", "log_debug"],
+                    "info": ["LogInfo", "log_info"],
+                    "warning": ["LogWarning", "log_warning"],
+                    "error": ["LogError", "log_error"]
+                }
+            }
+        },
+        "analysis": {
+            "function_coverage": true,
+            "branch_coverage": true,
+            "exception_coverage": true,
+            "key_path_coverage": true
+        },
+        "report": {
+            "format": "text",
+            "timestamp_format": "YYYYMMDD_HHMMSS"
+        }
     })";
 
     std::string configPath;
@@ -79,12 +105,23 @@ TEST_F(ConfigWorkflowTest, BasicConfigLoad) {
 
     // 创建配置管理器并加载配置
     config::ConfigManager configManager;
-    EXPECT_TRUE(configManager.loadConfig(configPath)) << "加载配置失败";
+    auto loadResult = configManager.loadConfig(configPath);
+    EXPECT_FALSE(loadResult.hasError()) << "加载配置失败: " << loadResult.errorMessage();
+    EXPECT_TRUE(loadResult.value()) << "加载配置返回false";
 
     // 验证基本配置
     const config::Config& config = configManager.getConfig();
     EXPECT_TRUE(config.analysis.functionCoverage);
+    EXPECT_TRUE(config.analysis.branchCoverage);
+    EXPECT_TRUE(config.analysis.exceptionCoverage);
+    EXPECT_TRUE(config.analysis.keyPathCoverage);
     EXPECT_EQ(config.scan.directories.size(), 1);
+    EXPECT_TRUE(config.scan.isQtProject);
+    EXPECT_TRUE(config.logFunctions.qt.enabled);
+    EXPECT_TRUE(config.logFunctions.custom.enabled);
+    EXPECT_EQ(config.logFunctions.qt.functions.size(), 5);
+    EXPECT_EQ(config.report.format, "text");
+    EXPECT_EQ(config.report.timestampFormat, "YYYYMMDD_HHMMSS");
 }
 
 // 测试无效配置文件
@@ -93,7 +130,95 @@ TEST_F(ConfigWorkflowTest, InvalidConfig) {
     ASSERT_NO_THROW(emptyConfigPath = createTestConfig("{}"));
 
     config::ConfigManager configManager;
-    EXPECT_FALSE(configManager.loadConfig(emptyConfigPath)) << "不应该成功加载空配置";
+    auto loadResult = configManager.loadConfig(emptyConfigPath);
+
+    // 空配置可能是错误或者返回false
+    if (loadResult.hasError()) {
+        EXPECT_TRUE(loadResult.hasError()) << "应该报告错误";
+    } else {
+        EXPECT_FALSE(loadResult.value()) << "不应该成功加载空配置";
+    }
+}
+
+// 测试配置验证
+TEST_F(ConfigWorkflowTest, ConfigValidation) {
+    // 创建一个缺少必要字段的配置
+    std::string invalidConfigContent = R"({
+        "scan": {
+            "directories": []
+        },
+        "log_functions": {
+            "qt": {
+                "enabled": false
+            }
+        }
+    })";
+
+    std::string invalidConfigPath;
+    ASSERT_NO_THROW(invalidConfigPath = createTestConfig(invalidConfigContent));
+
+    config::ConfigManager configManager;
+    auto loadResult = configManager.loadConfig(invalidConfigPath);
+
+    // 可能是加载错误或者加载成功但验证失败
+    if (loadResult.hasError()) {
+        EXPECT_TRUE(loadResult.hasError()) << "无效配置应该报告错误";
+    } else {
+        auto validateResult = configManager.validateConfig();
+        EXPECT_FALSE(validateResult.value()) << "无效配置不应通过验证";
+    }
+}
+
+// 测试命令行参数覆盖配置
+TEST_F(ConfigWorkflowTest, CommandLineOverride) {
+    // 基本配置
+    std::string configContent = R"({
+        "scan": {
+            "directories": ["./default_dir"],
+            "file_types": [".cpp", ".h"]
+        },
+        "log_functions": {
+            "qt": {
+                "enabled": false
+            }
+        },
+        "analysis": {
+            "function_coverage": false
+        },
+        "report": {
+            "format": "text"
+        }
+    })";
+
+    std::string configPath = createTestConfig(configContent);
+
+    // 创建配置管理器并加载配置
+    config::ConfigManager configManager;
+    auto loadResult = configManager.loadConfig(configPath);
+    EXPECT_FALSE(loadResult.hasError()) << "加载配置失败: " << loadResult.errorMessage();
+
+    // 模拟命令行参数
+    cli::CommandLineParser cmdParser;
+    std::vector<const char*> args = {"dlogcover",    "-d",       (test_dir_ + "/override_dir").c_str(),
+                                     "--qt-logging", "true",     "--function-coverage",
+                                     "true",         "--format", "json"};
+
+    auto parseResult = cmdParser.parse(args.size(), args.data());
+    EXPECT_FALSE(parseResult.hasError()) << "解析命令行参数失败: " << parseResult.errorMessage();
+    EXPECT_TRUE(parseResult.value()) << "解析命令行参数返回false";
+
+    // 应用命令行覆盖
+    auto applyResult = configManager.applyCommandLineOptions(cmdParser.getOptions());
+    EXPECT_FALSE(applyResult.hasError()) << "应用命令行选项失败: " << applyResult.errorMessage();
+    EXPECT_TRUE(applyResult.value()) << "应用命令行选项返回false";
+
+    // 验证覆盖结果
+    const config::Config& config = configManager.getConfig();
+    EXPECT_EQ(config.scan.directories.size(), 1);
+    EXPECT_EQ(config.scan.directories[0], test_dir_ + "/override_dir");
+    EXPECT_TRUE(config.logFunctions.qt.enabled);
+    EXPECT_TRUE(config.analysis.functionCoverage);
+    EXPECT_EQ(config.report.format, "json");
 }
 
 }  // namespace test

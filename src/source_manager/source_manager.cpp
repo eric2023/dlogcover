@@ -24,58 +24,66 @@ SourceManager::~SourceManager() {
     LOG_DEBUG("源文件管理器销毁");
 }
 
-bool SourceManager::collectSourceFiles() {
+core::ast_analyzer::Result<bool> SourceManager::collectSourceFiles() {
     LOG_INFO("开始收集源文件");
 
-    sourceFiles_.clear();
-    pathToIndex_.clear();
+    try {
+        sourceFiles_.clear();
+        pathToIndex_.clear();
 
-    // 遍历所有扫描目录
-    for (const auto& directory : config_.scan.directories) {
-        LOG_INFO_FMT("扫描目录: %s", directory.c_str());
+        // 遍历所有扫描目录
+        for (const auto& directory : config_.scan.directories) {
+            LOG_INFO_FMT("扫描目录: %s", directory.c_str());
 
-        // 检查目录是否存在
-        if (!utils::FileUtils::directoryExists(directory)) {
-            LOG_ERROR_FMT("目录不存在: %s", directory.c_str());
-            continue;
-        }
-
-        // 收集该目录下所有源文件
-        std::vector<std::string> files = utils::FileUtils::listFiles(
-            directory, [this](const std::string& path) { return isSupportedFileType(path) && !shouldExclude(path); },
-            "", true);
-
-        LOG_INFO_FMT("在目录 %s 中找到 %lu 个源文件", directory.c_str(), files.size());
-
-        // 处理找到的源文件
-        for (const auto& filePath : files) {
-            // 构建源文件信息
-            SourceFileInfo fileInfo;
-            fileInfo.path = filePath;
-            fileInfo.relativePath = utils::FileUtils::getRelativePath(filePath, directory);
-            fileInfo.size = utils::FileUtils::getFileSize(filePath);
-            fileInfo.isHeader = utils::FileUtils::hasExtension(filePath, ".h") ||
-                                utils::FileUtils::hasExtension(filePath, ".hpp") ||
-                                utils::FileUtils::hasExtension(filePath, ".hxx");
-
-            // 读取文件内容
-            if (!readFileContent(filePath, fileInfo.content)) {
-                LOG_WARNING_FMT("无法读取文件内容: %s", filePath.c_str());
-                continue;
+            // 检查目录是否存在
+            if (!utils::FileUtils::directoryExists(directory)) {
+                LOG_ERROR_FMT("目录不存在: %s", directory.c_str());
+                return core::ast_analyzer::makeError<bool>(core::ast_analyzer::ASTAnalyzerError::FILE_NOT_FOUND,
+                                                           "目录不存在: " + directory);
             }
 
-            // 添加到源文件列表
-            sourceFiles_.push_back(fileInfo);
+            // 收集该目录下所有源文件
+            std::vector<std::string> files = utils::FileUtils::listFiles(
+                directory,
+                [this](const std::string& path) { return isSupportedFileType(path) && !shouldExclude(path); }, "",
+                true);
 
-            // 更新路径到索引的映射
-            pathToIndex_[filePath] = sourceFiles_.size() - 1;
+            LOG_INFO_FMT("在目录 %s 中找到 %lu 个源文件", directory.c_str(), files.size());
 
-            LOG_DEBUG_FMT("添加源文件: %s, 大小: %lu bytes", filePath.c_str(), fileInfo.size);
+            // 处理找到的源文件
+            for (const auto& filePath : files) {
+                // 构建源文件信息
+                SourceFileInfo fileInfo;
+                fileInfo.path = filePath;
+                fileInfo.relativePath = utils::FileUtils::getRelativePath(filePath, directory);
+                fileInfo.size = utils::FileUtils::getFileSize(filePath);
+                fileInfo.isHeader = utils::FileUtils::hasExtension(filePath, ".h") ||
+                                    utils::FileUtils::hasExtension(filePath, ".hpp") ||
+                                    utils::FileUtils::hasExtension(filePath, ".hxx");
+
+                // 读取文件内容
+                if (!readFileContent(filePath, fileInfo.content)) {
+                    LOG_WARNING_FMT("无法读取文件内容: %s", filePath.c_str());
+                    continue;
+                }
+
+                // 添加到源文件列表
+                sourceFiles_.push_back(fileInfo);
+
+                // 更新路径到索引的映射
+                pathToIndex_[filePath] = sourceFiles_.size() - 1;
+
+                LOG_DEBUG_FMT("添加源文件: %s, 大小: %lu bytes", filePath.c_str(), fileInfo.size);
+            }
         }
-    }
 
-    LOG_INFO_FMT("共收集到 %lu 个源文件", sourceFiles_.size());
-    return !sourceFiles_.empty();
+        LOG_INFO_FMT("共收集到 %lu 个源文件", sourceFiles_.size());
+        return core::ast_analyzer::makeSuccess(!sourceFiles_.empty());
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("收集源文件时发生异常: %s", e.what());
+        return core::ast_analyzer::makeError<bool>(core::ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+                                                   std::string("收集源文件时发生异常: ") + e.what());
+    }
 }
 
 const std::vector<SourceFileInfo>& SourceManager::getSourceFiles() const {

@@ -90,19 +90,25 @@ int main() {
         sourceManager_ = std::make_unique<source_manager::SourceManager>(config_);
 
         // 收集源文件
-        ASSERT_TRUE(sourceManager_->collectSourceFiles()) << "收集源文件失败";
+        auto collectResult = sourceManager_->collectSourceFiles();
+        ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
+        ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
 
         // 创建AST分析器
         astAnalyzer_ = std::make_unique<ast_analyzer::ASTAnalyzer>(config_, *sourceManager_);
 
         // 分析所有文件
-        ASSERT_TRUE(astAnalyzer_->analyzeAll()) << "分析所有文件失败";
+        auto analyzeResult = astAnalyzer_->analyzeAll();
+        ASSERT_FALSE(analyzeResult.hasError()) << "分析所有文件失败: " << analyzeResult.errorMessage();
+        ASSERT_TRUE(analyzeResult.value()) << "分析文件返回false";
 
         // 创建日志识别器
         logIdentifier_ = std::make_unique<log_identifier::LogIdentifier>(config_, *astAnalyzer_);
 
         // 识别日志调用
-        ASSERT_TRUE(logIdentifier_->identifyLogCalls()) << "识别日志调用失败";
+        auto identifyResult = logIdentifier_->identifyLogCalls();
+        ASSERT_FALSE(identifyResult.hasError()) << "识别日志调用失败: " << identifyResult.errorMessage();
+        ASSERT_TRUE(identifyResult.value()) << "识别日志调用返回false";
 
         // 创建覆盖率计算器
         coverageCalculator_ = std::make_unique<CoverageCalculator>(config_, *astAnalyzer_, *logIdentifier_);
@@ -169,7 +175,8 @@ TEST_F(CoverageCalculatorTestFixture, InitializeAndDestroy) {
 // 测试覆盖率计算
 TEST_F(CoverageCalculatorTestFixture, CalculateCoverage) {
     // 计算覆盖率
-    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+    auto calculateResult = coverageCalculator_->calculate();
+    EXPECT_TRUE(calculateResult) << "计算覆盖率失败";
 
     // 获取测试文件的覆盖率统计信息
     std::string testFilePath = testDir_ + "/test.cpp";
@@ -196,7 +203,8 @@ TEST_F(CoverageCalculatorTestFixture, CalculateCoverage) {
 // 测试总体覆盖率计算
 TEST_F(CoverageCalculatorTestFixture, OverallCoverage) {
     // 计算覆盖率
-    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+    auto calculateResult = coverageCalculator_->calculate();
+    EXPECT_TRUE(calculateResult) << "计算覆盖率失败";
 
     // 获取总体覆盖率统计信息
     const CoverageStats& overallStats = coverageCalculator_->getOverallCoverageStats();
@@ -221,7 +229,8 @@ TEST_F(CoverageCalculatorTestFixture, OverallCoverage) {
 // 测试未覆盖路径建议
 TEST_F(CoverageCalculatorTestFixture, UncoveredPathSuggestions) {
     // 计算覆盖率
-    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+    auto calculateResult = coverageCalculator_->calculate();
+    EXPECT_TRUE(calculateResult) << "计算覆盖率失败";
 
     // 获取总体覆盖率统计信息
     const CoverageStats& overallStats = coverageCalculator_->getOverallCoverageStats();

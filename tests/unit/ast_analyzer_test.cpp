@@ -148,7 +148,9 @@ void exception_log() {
         sourceManager_ = std::make_unique<source_manager::SourceManager>(config_);
 
         // 收集源文件
-        ASSERT_TRUE(sourceManager_->collectSourceFiles()) << "收集源文件失败";
+        auto collectResult = sourceManager_->collectSourceFiles();
+        ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
+        ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
 
         // 创建AST分析器
         astAnalyzer_ = std::make_unique<ASTAnalyzer>(config_, *sourceManager_);
@@ -210,12 +212,15 @@ TEST_F(ASTAnalyzerTestFixture, InitializeAndDestroy) {
 // 测试分析单个文件
 TEST_F(ASTAnalyzerTestFixture, AnalyzeSingleFile) {
     std::string testFilePath = testDir_ + "/test.cpp";
-    EXPECT_TRUE(astAnalyzer_->analyze(testFilePath)) << "分析文件失败";
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    auto analyzeResult = astAnalyzer_->analyze(testFilePath);
+    EXPECT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    EXPECT_TRUE(analyzeResult.value()) << "分析文件返回false";
+
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo) << "未生成AST节点信息";
 
-    // 验证根节点
+    // 验证根节点 - 使用FUNCTION类型而非TRANSLATION_UNIT
     EXPECT_EQ(NodeType::FUNCTION, nodeInfo->type);
     EXPECT_FALSE(nodeInfo->hasLogging);  // 标准输出不算作日志
     EXPECT_GT(nodeInfo->children.size(), 0) << "根节点应该有子节点";
@@ -223,7 +228,9 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeSingleFile) {
 
 // 测试分析所有文件
 TEST_F(ASTAnalyzerTestFixture, AnalyzeAllFiles) {
-    EXPECT_TRUE(astAnalyzer_->analyzeAll()) << "分析所有文件失败";
+    auto analyzeAllResult = astAnalyzer_->analyzeAll();
+    EXPECT_FALSE(analyzeAllResult.hasError()) << "分析所有文件失败: " << analyzeAllResult.errorMessage();
+    EXPECT_TRUE(analyzeAllResult.value()) << "分析所有文件返回false";
 
     const auto& allASTNodeInfo = astAnalyzer_->getAllASTNodeInfo();
     EXPECT_EQ(2, allASTNodeInfo.size()) << "分析文件数量不符";
@@ -238,9 +245,11 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeAllFiles) {
 // 测试条件语句分析
 TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalStatements) {
     std::string testFilePath = testDir_ + "/test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(testFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找conditional_function
@@ -267,9 +276,11 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalStatements) {
 // 测试循环语句分析
 TEST_F(ASTAnalyzerTestFixture, AnalyzeLoopStatements) {
     std::string testFilePath = testDir_ + "/test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(testFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找loop_function
@@ -302,9 +313,11 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeLoopStatements) {
 // 测试异常处理语句分析
 TEST_F(ASTAnalyzerTestFixture, AnalyzeExceptionHandling) {
     std::string testFilePath = testDir_ + "/test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(testFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找exception_function
@@ -339,9 +352,11 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeExceptionHandling) {
 // 测试Qt日志函数识别
 TEST_F(ASTAnalyzerTestFixture, AnalyzeQtLogging) {
     std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(qtTestFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找qt_log_function
@@ -368,9 +383,11 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeQtLogging) {
 // 测试条件分支中的日志识别
 TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalLogging) {
     std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(qtTestFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找conditional_log
@@ -402,30 +419,32 @@ TEST_F(ASTAnalyzerTestFixture, AnalyzeConditionalLogging) {
 // 测试AST单元管理
 TEST_F(ASTAnalyzerTestFixture, ASTUnitManagement) {
     std::string testFilePath = testDir_ + "/test.cpp";
-
-    // 分析文件
-    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
-
-    // 分析另一个文件
     std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+
+    auto analyzeResult1 = astAnalyzer_->analyze(testFilePath);
+    ASSERT_FALSE(analyzeResult1.hasError()) << "分析文件失败: " << analyzeResult1.errorMessage();
+    ASSERT_TRUE(analyzeResult1.value());
+
+    auto analyzeResult2 = astAnalyzer_->analyze(qtTestFilePath);
+    ASSERT_FALSE(analyzeResult2.hasError()) << "分析文件失败: " << analyzeResult2.errorMessage();
+    ASSERT_TRUE(analyzeResult2.value());
 
     // 验证节点信息是否正确
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
-    const ASTNodeInfo* qtNodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    const auto* qtNodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
     ASSERT_NE(nullptr, qtNodeInfo);
 }
 
 // 测试上下文管理
 TEST_F(ASTAnalyzerTestFixture, ContextManagement) {
     std::string testFilePath = testDir_ + "/test.cpp";
-
-    // 分析文件
-    ASSERT_TRUE(astAnalyzer_->analyze(testFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(testFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
     // 验证节点信息
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(testFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找conditional_function并验证其结构
@@ -443,9 +462,11 @@ TEST_F(ASTAnalyzerTestFixture, ContextManagement) {
 // 测试嵌套上下文管理
 TEST_F(ASTAnalyzerTestFixture, NestedContextManagement) {
     std::string qtTestFilePath = testDir_ + "/qt_log_test.cpp";
-    ASSERT_TRUE(astAnalyzer_->analyze(qtTestFilePath));
+    auto analyzeResult = astAnalyzer_->analyze(qtTestFilePath);
+    ASSERT_FALSE(analyzeResult.hasError()) << "分析文件失败: " << analyzeResult.errorMessage();
+    ASSERT_TRUE(analyzeResult.value());
 
-    const ASTNodeInfo* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
+    const auto* nodeInfo = astAnalyzer_->getASTNodeInfo(qtTestFilePath);
     ASSERT_NE(nullptr, nodeInfo);
 
     // 查找conditional_log函数并验证其嵌套结构
@@ -479,26 +500,36 @@ TEST_F(ASTAnalyzerTestFixture, NestedContextManagement) {
 // 测试错误处理和边界条件
 TEST_F(ASTAnalyzerTestFixture, ErrorHandlingAndBoundaryConditions) {
     // 测试空文件路径
-    EXPECT_FALSE(astAnalyzer_->analyze(""));
+    auto emptyResult = astAnalyzer_->analyze("");
+    EXPECT_TRUE(emptyResult.hasError()) << "空文件路径应该导致错误";
 
     // 测试不存在的文件
-    EXPECT_FALSE(astAnalyzer_->analyze("/path/to/nonexistent/file.cpp"));
+    auto nonexistentResult = astAnalyzer_->analyze("/path/to/nonexistent/file.cpp");
+    EXPECT_TRUE(nonexistentResult.hasError()) << "不存在的文件应该导致错误";
 
     // 测试无效的文件内容
     std::string invalidFilePath = testDir_ + "/invalid.cpp";
     createTestFile(invalidFilePath, "invalid c++ code");
-    EXPECT_FALSE(astAnalyzer_->analyze(invalidFilePath));
+    auto invalidResult = astAnalyzer_->analyze(invalidFilePath);
+    EXPECT_TRUE(invalidResult.hasError()) << "无效的文件内容应该导致错误";
 
     // 测试空目录分析
     config_.scan.directories.clear();
-    EXPECT_FALSE(astAnalyzer_->analyzeAll());
+    auto emptyDirResult = astAnalyzer_->analyzeAll();
+    EXPECT_TRUE(emptyDirResult.hasError()) << "空目录应该导致错误";
 
     // 测试重复分析同一文件
     std::string testFilePath = testDir_ + "/test.cpp";
-    EXPECT_TRUE(astAnalyzer_->analyze(testFilePath));
-    const ASTNodeInfo* firstAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
-    EXPECT_TRUE(astAnalyzer_->analyze(testFilePath));
-    const ASTNodeInfo* secondAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
+    auto firstResult = astAnalyzer_->analyze(testFilePath);
+    EXPECT_FALSE(firstResult.hasError()) << "首次分析文件失败: " << firstResult.errorMessage();
+    EXPECT_TRUE(firstResult.value());
+    const auto* firstAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
+
+    auto secondResult = astAnalyzer_->analyze(testFilePath);
+    EXPECT_FALSE(secondResult.hasError()) << "重复分析文件失败: " << secondResult.errorMessage();
+    EXPECT_TRUE(secondResult.value());
+    const auto* secondAnalysis = astAnalyzer_->getASTNodeInfo(testFilePath);
+
     EXPECT_NE(nullptr, firstAnalysis);
     EXPECT_NE(nullptr, secondAnalysis);
 }

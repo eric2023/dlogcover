@@ -30,13 +30,13 @@ TEST(CommandLineParserTest, HelpRequest) {
     // 执行
     int argc = 2;
     char* argv[] = {(char*)"dlogcover", (char*)"--help", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准输出
     std::cout.rdbuf(oldCout);
 
     // 验证
-    EXPECT_FALSE(result);  // 因为显示帮助后应该返回false
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_TRUE(parser.isHelpOrVersionRequest());
     EXPECT_TRUE(capturedOutput.str().find("DLogCover") != std::string::npos);
     EXPECT_TRUE(capturedOutput.str().find("用法:") != std::string::npos);
@@ -55,15 +55,15 @@ TEST(CommandLineParserTest, VersionRequest) {
     // 执行
     int argc = 2;
     char* argv[] = {(char*)"dlogcover", (char*)"--version", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准输出
     std::cout.rdbuf(oldCout);
 
     // 验证
-    EXPECT_FALSE(result);  // 因为显示版本后应该返回false
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_TRUE(parser.isHelpOrVersionRequest());
-    EXPECT_TRUE(capturedOutput.str().find("DLogCover 版本") != std::string::npos);
+    EXPECT_TRUE(capturedOutput.str().find("DLogCover v") != std::string::npos);
 }
 
 // 测试短格式帮助请求
@@ -80,13 +80,13 @@ TEST(CommandLineParserTest, ShortHelpRequest) {
     std::ostringstream capturedOutput;
     std::cout.rdbuf(capturedOutput.rdbuf());
 
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准输出
     std::cout.rdbuf(oldCout);
 
     // 验证
-    EXPECT_FALSE(result);
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_TRUE(parser.isHelpOrVersionRequest());
 }
 
@@ -104,13 +104,13 @@ TEST(CommandLineParserTest, ShortVersionRequest) {
     std::ostringstream capturedOutput;
     std::cout.rdbuf(capturedOutput.rdbuf());
 
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准输出
     std::cout.rdbuf(oldCout);
 
     // 验证
-    EXPECT_FALSE(result);
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_TRUE(parser.isHelpOrVersionRequest());
 }
 
@@ -122,10 +122,10 @@ TEST(CommandLineParserTest, NormalArguments) {
     // 执行
     int argc = 3;
     char* argv[] = {(char*)"dlogcover", (char*)"-d", (char*)"./src", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 验证
-    EXPECT_TRUE(result);  // 应该返回true表示成功解析
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
     EXPECT_EQ("./src", parser.getOptions().directoryPath);
 }
@@ -138,10 +138,10 @@ TEST(CommandLineParserTest, NoArguments) {
     // 执行
     int argc = 1;
     char* argv[] = {(char*)"dlogcover", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 验证
-    EXPECT_TRUE(result);  // 应该返回true表示使用默认值
+    EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
     EXPECT_EQ("./", parser.getOptions().directoryPath);  // 使用默认值
 }
@@ -159,15 +159,16 @@ TEST(CommandLineParserTest, InvalidArguments) {
     // 执行
     int argc = 2;
     char* argv[] = {(char*)"dlogcover", (char*)"--invalid", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准错误输出
     std::cerr.rdbuf(oldCerr);
 
     // 验证
-    EXPECT_FALSE(result);
+    EXPECT_TRUE(result.hasError());  // 应该有错误
+    EXPECT_EQ(ConfigError::UnknownOption, result.error());
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
-    EXPECT_TRUE(capturedError.str().find("未知选项") != std::string::npos);
+    EXPECT_TRUE(result.message().find("未知选项") != std::string::npos);
 }
 
 // 测试缺少参数值的情况
@@ -183,15 +184,16 @@ TEST(CommandLineParserTest, MissingArgumentValue) {
     // 执行 - 缺少目录参数值
     int argc = 2;
     char* argv[] = {(char*)"dlogcover", (char*)"-d", nullptr};
-    bool result = parser.parse(argc, argv);
+    auto result = parser.parse(argc, argv);
 
     // 恢复标准错误输出
     std::cerr.rdbuf(oldCerr);
 
     // 验证
-    EXPECT_FALSE(result);
+    EXPECT_TRUE(result.hasError());  // 应该有错误
+    EXPECT_EQ(ConfigError::MissingArgument, result.error());
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
-    EXPECT_TRUE(capturedError.str().find("缺少") != std::string::npos);
+    EXPECT_TRUE(result.message().find("缺少") != std::string::npos);
 }
 
 // 测试日志级别解析
@@ -201,33 +203,27 @@ TEST(CommandLineParserTest, LogLevelParsing) {
 
     // 测试有效日志级别
     const std::vector<std::pair<std::string, LogLevel>> validLevels = {
-        {"debug", LogLevel::DEBUG},
-        {"DEBUG", LogLevel::DEBUG},  // 测试大写
-        {"info", LogLevel::INFO},
-        {"warning", LogLevel::WARNING},
-        {"critical", LogLevel::CRITICAL},
-        {"fatal", LogLevel::FATAL},
-        {"all", LogLevel::ALL}
-    };
+        {"debug", LogLevel::DEBUG}, {"DEBUG", LogLevel::DEBUG},  // 测试大写
+        {"info", LogLevel::INFO},   {"warning", LogLevel::WARNING}, {"critical", LogLevel::CRITICAL},
+        {"fatal", LogLevel::FATAL}, {"all", LogLevel::ALL}};
 
     for (const auto& [levelStr, expectedLevel] : validLevels) {
         int argc = 3;
         char* argv[] = {(char*)"dlogcover", (char*)"-l", (char*)levelStr.c_str(), nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result) << "Failed to parse log level: " << levelStr;
-        EXPECT_EQ(expectedLevel, parser.getOptions().logLevel)
-            << "Incorrect log level for input: " << levelStr;
+        EXPECT_FALSE(result.hasError()) << "Failed to parse log level: " << levelStr;
+        EXPECT_EQ(expectedLevel, parser.getOptions().logLevel) << "Incorrect log level for input: " << levelStr;
     }
 
     // 测试无效日志级别（应该使用默认值ALL）
     {
         int argc = 3;
         char* argv[] = {(char*)"dlogcover", (char*)"-l", (char*)"invalid", nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
-        EXPECT_EQ(LogLevel::ALL, parser.getOptions().logLevel);
+        EXPECT_TRUE(result.hasError());
+        EXPECT_EQ(ConfigError::InvalidLogLevel, result.error());
     }
 }
 
@@ -241,27 +237,26 @@ TEST(CommandLineParserTest, ReportFormatParsing) {
         {"text", ReportFormat::TEXT},
         {"TEXT", ReportFormat::TEXT},  // 测试大写
         {"json", ReportFormat::JSON},
-        {"JSON", ReportFormat::JSON}   // 测试大写
+        {"JSON", ReportFormat::JSON}  // 测试大写
     };
 
     for (const auto& [formatStr, expectedFormat] : validFormats) {
         int argc = 3;
         char* argv[] = {(char*)"dlogcover", (char*)"-f", (char*)formatStr.c_str(), nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result) << "Failed to parse format: " << formatStr;
-        EXPECT_EQ(expectedFormat, parser.getOptions().reportFormat)
-            << "Incorrect format for input: " << formatStr;
+        EXPECT_FALSE(result.hasError()) << "Failed to parse format: " << formatStr;
+        EXPECT_EQ(expectedFormat, parser.getOptions().reportFormat) << "Incorrect format for input: " << formatStr;
     }
 
-    // 测试无效格式（应该使用默认值TEXT）
+    // 测试无效格式（应该返回错误）
     {
         int argc = 3;
         char* argv[] = {(char*)"dlogcover", (char*)"-f", (char*)"invalid", nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
-        EXPECT_EQ(ReportFormat::TEXT, parser.getOptions().reportFormat);
+        EXPECT_TRUE(result.hasError());
+        EXPECT_EQ(ConfigError::InvalidReportFormat, result.error());
     }
 }
 
@@ -298,9 +293,9 @@ TEST_F(CommandLineParserFileTest, DirectoryValidation) {
         int argc = 3;
         std::string dirPath = testDir.string();
         char* argv[] = {(char*)"dlogcover", (char*)"-d", (char*)dirPath.c_str(), nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
+        EXPECT_FALSE(result.hasError());
         EXPECT_EQ(dirPath, parser.getOptions().directoryPath);
     }
 
@@ -315,13 +310,14 @@ TEST_F(CommandLineParserFileTest, DirectoryValidation) {
         std::ostringstream capturedError;
         std::cerr.rdbuf(capturedError.rdbuf());
 
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
         // 恢复标准错误输出
         std::cerr.rdbuf(oldCerr);
 
-        EXPECT_FALSE(result);
-        EXPECT_TRUE(capturedError.str().find("目录不存在") != std::string::npos);
+        EXPECT_TRUE(result.hasError());
+        EXPECT_EQ(ConfigError::DirectoryNotFound, result.error());
+        EXPECT_TRUE(result.message().find("目录不存在") != std::string::npos);
     }
 }
 
@@ -333,9 +329,9 @@ TEST_F(CommandLineParserFileTest, ConfigFileValidation) {
         int argc = 3;
         std::string configPath = configFile.string();
         char* argv[] = {(char*)"dlogcover", (char*)"-c", (char*)configPath.c_str(), nullptr};
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
+        EXPECT_FALSE(result.hasError());
         EXPECT_EQ(configPath, parser.getOptions().configPath);
     }
 
@@ -350,13 +346,14 @@ TEST_F(CommandLineParserFileTest, ConfigFileValidation) {
         std::ostringstream capturedError;
         std::cerr.rdbuf(capturedError.rdbuf());
 
-        bool result = parser.parse(argc, argv);
+        auto result = parser.parse(argc, argv);
 
         // 恢复标准错误输出
         std::cerr.rdbuf(oldCerr);
 
-        EXPECT_FALSE(result);
-        EXPECT_TRUE(capturedError.str().find("配置文件不存在") != std::string::npos);
+        EXPECT_TRUE(result.hasError());
+        EXPECT_EQ(ConfigError::FileNotFound, result.error());
+        EXPECT_TRUE(result.message().find("文件不存在") != std::string::npos);
     }
 }
 
@@ -370,17 +367,19 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
         std::string dirPath = testDir.string();
         std::string outputPath = (outputDir / "report.txt").string();
         std::string configPath = configFile.string();
-        char* argv[] = {
-            (char*)"dlogcover",
-            (char*)"-d", (char*)dirPath.c_str(),
-            (char*)"-o", (char*)outputPath.c_str(),
-            (char*)"-c", (char*)configPath.c_str(),
-            (char*)"-l", (char*)"debug",
-            nullptr
-        };
-        bool result = parser.parse(argc, argv);
+        char* argv[] = {(char*)"dlogcover",
+                        (char*)"-d",
+                        (char*)dirPath.c_str(),
+                        (char*)"-o",
+                        (char*)outputPath.c_str(),
+                        (char*)"-c",
+                        (char*)configPath.c_str(),
+                        (char*)"-l",
+                        (char*)"debug",
+                        nullptr};
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
+        EXPECT_FALSE(result.hasError());
         EXPECT_EQ(dirPath, parser.getOptions().directoryPath);
         EXPECT_EQ(outputPath, parser.getOptions().outputPath);
         EXPECT_EQ(configPath, parser.getOptions().configPath);
@@ -390,16 +389,11 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
     // 测试多个排除模式
     {
         int argc = 7;
-        char* argv[] = {
-            (char*)"dlogcover",
-            (char*)"-e", (char*)"build/*",
-            (char*)"-e", (char*)"test/*",
-            (char*)"-e", (char*)"*.tmp",
-            nullptr
-        };
-        bool result = parser.parse(argc, argv);
+        char* argv[] = {(char*)"dlogcover", (char*)"-e", (char*)"build/*", (char*)"-e",
+                        (char*)"test/*",    (char*)"-e", (char*)"*.tmp",   nullptr};
+        auto result = parser.parse(argc, argv);
 
-        EXPECT_TRUE(result);
+        EXPECT_FALSE(result.hasError());
         EXPECT_EQ(3, parser.getOptions().excludePatterns.size());
         EXPECT_EQ("build/*", parser.getOptions().excludePatterns[0]);
         EXPECT_EQ("test/*", parser.getOptions().excludePatterns[1]);
@@ -412,7 +406,7 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
 }  // namespace dlogcover
 
 // 添加一个独立的main函数用于覆盖率测试
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

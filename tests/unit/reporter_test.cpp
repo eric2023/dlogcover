@@ -95,7 +95,8 @@ int main() {
         sourceManager_ = std::make_unique<source_manager::SourceManager>(config_);
 
         // 收集源文件
-        ASSERT_TRUE(sourceManager_->collectSourceFiles()) << "收集源文件失败";
+        auto collectResult = sourceManager_->collectSourceFiles();
+        ASSERT_TRUE(collectResult) << "未能有效收集源文件";
 
         // 创建AST分析器
         astAnalyzer_ = std::make_unique<core::ast_analyzer::ASTAnalyzer>(config_, *sourceManager_);
@@ -214,15 +215,14 @@ TEST_F(ReporterTestFixture, GenerateTextReport) {
 
     // 生成报告
     auto result = reporter_->generateReport(outputPath, progressCallback_);
-    EXPECT_FALSE(result.hasError()) << "生成文本报告失败: " << result.errorMessage();
-    EXPECT_TRUE(result.value()) << "生成文本报告返回false";
+    EXPECT_TRUE(result) << "生成文本报告失败";
 
     // 验证报告文件是否存在
     EXPECT_TRUE(utils::FileUtils::fileExists(outputPath)) << "报告文件不存在";
 
     // 读取文件内容进行简单验证
     std::string content;
-    ASSERT_TRUE(utils::FileUtils::readFileToString(outputPath, content)) << "无法读取报告文件";
+    ASSERT_TRUE(utils::FileUtils::readFile(outputPath, content)) << "无法读取报告文件";
 
     // 验证报告内容
     EXPECT_TRUE(content.find("DLogCover 日志覆盖率报告") != std::string::npos) << "报告标题不正确";
@@ -248,15 +248,14 @@ TEST_F(ReporterTestFixture, GenerateJsonReport) {
 
     // 生成报告
     auto result = reporter_->generateReport(outputPath, progressCallback_);
-    EXPECT_FALSE(result.hasError()) << "生成JSON报告失败: " << result.errorMessage();
-    EXPECT_TRUE(result.value()) << "生成JSON报告返回false";
+    EXPECT_TRUE(result) << "生成JSON报告失败";
 
     // 验证报告文件是否存在
     EXPECT_TRUE(utils::FileUtils::fileExists(outputPath)) << "报告文件不存在";
 
     // 读取文件内容进行简单验证
     std::string content;
-    ASSERT_TRUE(utils::FileUtils::readFileToString(outputPath, content)) << "无法读取报告文件";
+    ASSERT_TRUE(utils::FileUtils::readFile(outputPath, content)) << "无法读取报告文件";
 
     // 解析JSON
     bool validJson = true;
@@ -294,12 +293,12 @@ TEST_F(ReporterTestFixture, GenerateMultipleFormatReports) {
     // 生成文本报告
     std::string textOutputPath = outputDir_ + "/coverage_report.txt";
     auto textResult = reporter_->generateReport(textOutputPath, ReportFormat::TEXT);
-    EXPECT_FALSE(textResult.hasError()) << "生成文本报告失败: " << textResult.errorMessage();
+    EXPECT_TRUE(textResult) << "生成文本报告失败";
 
     // 生成JSON报告
     std::string jsonOutputPath = outputDir_ + "/coverage_report.json";
     auto jsonResult = reporter_->generateReport(jsonOutputPath, ReportFormat::JSON);
-    EXPECT_FALSE(jsonResult.hasError()) << "生成JSON报告失败: " << jsonResult.errorMessage();
+    EXPECT_TRUE(jsonResult) << "生成JSON报告失败";
 
     // 验证文件存在
     EXPECT_TRUE(utils::FileUtils::fileExists(textOutputPath)) << "文本报告文件不存在";
