@@ -68,6 +68,8 @@ const char* const OPTION_LOG_LEVEL_SHORT = "-l";
 const char* const OPTION_LOG_LEVEL_LONG = "--log-level";
 const char* const OPTION_FORMAT_SHORT = "-f";
 const char* const OPTION_FORMAT_LONG = "--format";
+const char* const OPTION_LOG_PATH_SHORT = "-p";
+const char* const OPTION_LOG_PATH_LONG = "--log-path";
 /** @} */
 
 /**
@@ -94,6 +96,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   -e, --exclude <pattern>    排除符合模式的文件或目录 (可多次使用)
   -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fatal, all)
   -f, --format <format>      指定报告格式 (text, json)
+  -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
 
 环境变量:
   DLOGCOVER_DIRECTORY       等同于 -d 选项
@@ -102,6 +105,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   DLOGCOVER_LOG_LEVEL       等同于 -l 选项
   DLOGCOVER_REPORT_FORMAT   等同于 -f 选项
   DLOGCOVER_EXCLUDE         排除模式列表，使用冒号分隔
+  DLOGCOVER_LOG_PATH        等同于 -p 选项
 
 配置文件格式 (JSON):
 {
@@ -110,6 +114,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   "log_level": "debug",             // 可选，日志级别
   "report_format": "text",          // 可选，报告格式
   "exclude": ["build/*", "test/*"]  // 可选，排除模式列表
+  "log_path": "./dlogcover.log"     // 可选，日志文件路径
 }
 
 优先级:
@@ -191,6 +196,7 @@ CommandLineParser::CommandLineParser() {
     options_.configPath = DEFAULT_CONFIG;
     options_.logLevel = LogLevel::ALL;
     options_.reportFormat = ReportFormat::TEXT;
+    options_.logPath = "";  // 默认为空，将使用自动生成的文件名
 
     // 初始化帮助和版本请求标志
     isHelpRequest_ = false;
@@ -290,6 +296,20 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                     if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
                         return ErrorResult(ConfigError::OutputDirectoryNotFound,
                                            std::string(config::error::OUTPUT_DIR_NOT_FOUND) + parentPath.string());
+                    }
+                    return ErrorResult();
+                });
+                if (result.hasError()) {
+                    return result;
+                }
+            } else if (arg == config::cli::OPTION_LOG_PATH_SHORT || arg == config::cli::OPTION_LOG_PATH_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view logPath) -> ErrorResult {
+                    options_.logPath = std::string(logPath);
+                    std::filesystem::path fsPath(logPath);
+                    auto parentPath = fsPath.parent_path();
+                    if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
+                        return ErrorResult(ConfigError::InvalidLogPath,
+                                           std::string(config::error::INVALID_LOG_PATH) + parentPath.string());
                     }
                     return ErrorResult();
                 });

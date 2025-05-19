@@ -26,6 +26,7 @@ const std::string KEY_OUTPUT_STR{config::json::KEY_OUTPUT};
 const std::string KEY_LOG_LEVEL_STR{config::json::KEY_LOG_LEVEL};
 const std::string KEY_REPORT_FORMAT_STR{config::json::KEY_REPORT_FORMAT};
 const std::string KEY_EXCLUDE_STR{config::json::KEY_EXCLUDE};
+const std::string KEY_LOG_PATH_STR{config::json::KEY_LOG_PATH};
 
 /**
  * @brief 解析日志级别字符串
@@ -133,6 +134,11 @@ bool ConfigValidator::validateConfig(std::string_view configPath) {
             return false;
         }
 
+        if (config.find(KEY_LOG_PATH_STR) != config.end() && !config[KEY_LOG_PATH_STR].is_string()) {
+            setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_PATH_STR);
+            return false;
+        }
+
         if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
             if (!config[KEY_LOG_LEVEL_STR].is_string()) {
                 setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_LEVEL_STR);
@@ -199,24 +205,34 @@ bool ConfigValidator::loadFromConfig(std::string_view configPath, Options& optio
             options.outputPath = config[KEY_OUTPUT_STR].get<std::string>();
         }
 
+        if (config.find(KEY_LOG_PATH_STR) != config.end()) {
+            options.logPath = config[KEY_LOG_PATH_STR].get<std::string>();
+        }
+
         if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
-            parseLogLevelString(config[KEY_LOG_LEVEL_STR].get<std::string>(), options.logLevel);
+            LogLevel level;
+            if (parseLogLevelString(config[KEY_LOG_LEVEL_STR].get<std::string>(), level)) {
+                options.logLevel = level;
+            }
         }
 
         if (config.find(KEY_REPORT_FORMAT_STR) != config.end()) {
-            parseReportFormatString(config[KEY_REPORT_FORMAT_STR].get<std::string>(), options.reportFormat);
+            ReportFormat format;
+            if (parseReportFormatString(config[KEY_REPORT_FORMAT_STR].get<std::string>(), format)) {
+                options.reportFormat = format;
+            }
         }
 
         if (config.find(KEY_EXCLUDE_STR) != config.end()) {
             options.excludePatterns.clear();
             for (const auto& item : config[KEY_EXCLUDE_STR]) {
-                options.excludePatterns.emplace_back(item.get<std::string>());
+                options.excludePatterns.push_back(item.get<std::string>());
             }
         }
 
-        LOG_INFO("成功从配置文件加载选项");
+        LOG_INFO("从配置文件加载选项成功");
         return true;
-    } catch (const std::exception& e) {
+    } catch (const json::exception& e) {
         setError(ConfigError::ParseError, e.what());
         return false;
     }
@@ -240,6 +256,11 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
         if (const char* config_path = std::getenv(config::env::CONFIG.data())) {
             options.configPath = config_path;
             LOG_DEBUG_FMT("从环境变量加载配置文件路径: %s", config_path);
+        }
+
+        if (const char* log_path = std::getenv(config::env::LOG_PATH.data())) {
+            options.logPath = log_path;
+            LOG_DEBUG_FMT("从环境变量加载日志文件路径: %s", log_path);
         }
 
         if (const char* level = std::getenv(config::env::LOG_LEVEL.data())) {
