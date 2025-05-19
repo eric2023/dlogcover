@@ -15,6 +15,44 @@
 namespace dlogcover {
 namespace config {
 
+namespace {
+/**
+ * @brief 检查JSON对象中是否存在指定的键，并且值类型符合要求
+ * @param json JSON对象
+ * @param key 键名
+ * @param type 期望的值类型
+ * @return 如果键存在且类型匹配返回true，否则返回false
+ */
+bool hasValidField(const nlohmann::json& json, const std::string& key, nlohmann::json::value_t type) {
+    auto it = json.find(key);
+    return it != json.end() && it->type() == type;
+}
+
+/**
+ * @brief 从JSON数组中安全地读取字符串列表
+ * @param json JSON数组
+ * @param defaultValue 默认值
+ * @return 字符串列表
+ */
+std::vector<std::string> safeGetStringArray(const nlohmann::json& json,
+                                            const std::vector<std::string>& defaultValue = {}) {
+    if (!json.is_array()) {
+        return defaultValue;
+    }
+
+    std::vector<std::string> result;
+    result.reserve(json.size());
+
+    for (const auto& item : json) {
+        if (item.is_string()) {
+            result.push_back(item.get<std::string>());
+        }
+    }
+
+    return result.empty() ? defaultValue : result;
+}
+}  // namespace
+
 ConfigManager::ConfigManager() {
     LOG_DEBUG("配置管理器初始化");
     config_ = getDefaultConfig();
@@ -22,6 +60,144 @@ ConfigManager::ConfigManager() {
 
 ConfigManager::~ConfigManager() {
     LOG_DEBUG("配置管理器销毁");
+}
+
+bool ConfigManager::parseScanConfig(const nlohmann::json& jsonConfig) {
+    LOG_DEBUG("解析扫描配置");
+    try {
+        if (!hasValidField(jsonConfig, "scan", nlohmann::json::value_t::object)) {
+            return true;  // 使用默认配置
+        }
+
+        const auto& scan = jsonConfig["scan"];
+
+        if (hasValidField(scan, "directories", nlohmann::json::value_t::array)) {
+            config_.scan.directories = safeGetStringArray(scan["directories"], config_.scan.directories);
+        }
+
+        if (hasValidField(scan, "excludes", nlohmann::json::value_t::array)) {
+            config_.scan.excludes = safeGetStringArray(scan["excludes"], config_.scan.excludes);
+        }
+
+        if (hasValidField(scan, "file_types", nlohmann::json::value_t::array)) {
+            config_.scan.fileTypes = safeGetStringArray(scan["file_types"], config_.scan.fileTypes);
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("解析扫描配置失败: %s", e.what());
+        return false;
+    }
+}
+
+bool ConfigManager::parseLogFunctionsConfig(const nlohmann::json& jsonConfig) {
+    LOG_DEBUG("解析日志函数配置");
+    try {
+        if (!hasValidField(jsonConfig, "log_functions", nlohmann::json::value_t::object)) {
+            return true;  // 使用默认配置
+        }
+
+        const auto& logFunctions = jsonConfig["log_functions"];
+
+        // 解析Qt日志函数配置
+        if (hasValidField(logFunctions, "qt", nlohmann::json::value_t::object)) {
+            const auto& qt = logFunctions["qt"];
+
+            if (hasValidField(qt, "enabled", nlohmann::json::value_t::boolean)) {
+                config_.logFunctions.qt.enabled = qt["enabled"].get<bool>();
+            }
+
+            if (hasValidField(qt, "functions", nlohmann::json::value_t::array)) {
+                config_.logFunctions.qt.functions =
+                    safeGetStringArray(qt["functions"], config_.logFunctions.qt.functions);
+            }
+
+            if (hasValidField(qt, "category_functions", nlohmann::json::value_t::array)) {
+                config_.logFunctions.qt.categoryFunctions =
+                    safeGetStringArray(qt["category_functions"], config_.logFunctions.qt.categoryFunctions);
+            }
+        }
+
+        // 解析自定义日志函数配置
+        if (hasValidField(logFunctions, "custom", nlohmann::json::value_t::object)) {
+            const auto& custom = logFunctions["custom"];
+
+            if (hasValidField(custom, "enabled", nlohmann::json::value_t::boolean)) {
+                config_.logFunctions.custom.enabled = custom["enabled"].get<bool>();
+            }
+
+            if (hasValidField(custom, "functions", nlohmann::json::value_t::object)) {
+                const auto& functions = custom["functions"];
+                for (auto it = functions.begin(); it != functions.end(); ++it) {
+                    if (it.value().is_array()) {
+                        config_.logFunctions.custom.functions[it.key()] =
+                            safeGetStringArray(it.value(), config_.logFunctions.custom.functions[it.key()]);
+                    }
+                }
+            }
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("解析日志函数配置失败: %s", e.what());
+        return false;
+    }
+}
+
+bool ConfigManager::parseAnalysisConfig(const nlohmann::json& jsonConfig) {
+    LOG_DEBUG("解析分析配置");
+    try {
+        if (!hasValidField(jsonConfig, "analysis", nlohmann::json::value_t::object)) {
+            return true;  // 使用默认配置
+        }
+
+        const auto& analysis = jsonConfig["analysis"];
+
+        if (hasValidField(analysis, "function_coverage", nlohmann::json::value_t::boolean)) {
+            config_.analysis.functionCoverage = analysis["function_coverage"].get<bool>();
+        }
+
+        if (hasValidField(analysis, "branch_coverage", nlohmann::json::value_t::boolean)) {
+            config_.analysis.branchCoverage = analysis["branch_coverage"].get<bool>();
+        }
+
+        if (hasValidField(analysis, "exception_coverage", nlohmann::json::value_t::boolean)) {
+            config_.analysis.exceptionCoverage = analysis["exception_coverage"].get<bool>();
+        }
+
+        if (hasValidField(analysis, "key_path_coverage", nlohmann::json::value_t::boolean)) {
+            config_.analysis.keyPathCoverage = analysis["key_path_coverage"].get<bool>();
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("解析分析配置失败: %s", e.what());
+        return false;
+    }
+}
+
+bool ConfigManager::parseReportConfig(const nlohmann::json& jsonConfig) {
+    LOG_DEBUG("解析报告配置");
+    try {
+        if (!hasValidField(jsonConfig, "report", nlohmann::json::value_t::object)) {
+            return true;  // 使用默认配置
+        }
+
+        const auto& report = jsonConfig["report"];
+
+        if (hasValidField(report, "format", nlohmann::json::value_t::string)) {
+            config_.report.format = report["format"].get<std::string>();
+        }
+
+        if (hasValidField(report, "timestamp_format", nlohmann::json::value_t::string)) {
+            config_.report.timestampFormat = report["timestamp_format"].get<std::string>();
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("解析报告配置失败: %s", e.what());
+        return false;
+    }
 }
 
 bool ConfigManager::loadConfig(const std::string& path) {
@@ -42,115 +218,10 @@ bool ConfigManager::loadConfig(const std::string& path) {
         nlohmann::json jsonConfig;
         file >> jsonConfig;
 
-        // 解析扫描配置
-        if (jsonConfig.find("scan") != jsonConfig.end()) {
-            auto& scan = jsonConfig["scan"];
-
-            if (scan.find("directories") != scan.end() && scan["directories"].is_array()) {
-                config_.scan.directories.clear();
-                for (const auto& dir : scan["directories"]) {
-                    config_.scan.directories.push_back(dir.get<std::string>());
-                }
-            }
-
-            if (scan.find("excludes") != scan.end() && scan["excludes"].is_array()) {
-                config_.scan.excludes.clear();
-                for (const auto& exclude : scan["excludes"]) {
-                    config_.scan.excludes.push_back(exclude.get<std::string>());
-                }
-            }
-
-            if (scan.find("file_types") != scan.end() && scan["file_types"].is_array()) {
-                config_.scan.fileTypes.clear();
-                for (const auto& fileType : scan["file_types"]) {
-                    config_.scan.fileTypes.push_back(fileType.get<std::string>());
-                }
-            }
-        }
-
-        // 解析日志函数配置
-        if (jsonConfig.find("log_functions") != jsonConfig.end()) {
-            auto& logFunctions = jsonConfig["log_functions"];
-
-            // Qt日志函数
-            if (logFunctions.find("qt") != logFunctions.end()) {
-                auto& qt = logFunctions["qt"];
-
-                if (qt.find("enabled") != qt.end() && qt["enabled"].is_boolean()) {
-                    config_.logFunctions.qt.enabled = qt["enabled"].get<bool>();
-                }
-
-                if (qt.find("functions") != qt.end() && qt["functions"].is_array()) {
-                    config_.logFunctions.qt.functions.clear();
-                    for (const auto& func : qt["functions"]) {
-                        config_.logFunctions.qt.functions.push_back(func.get<std::string>());
-                    }
-                }
-
-                if (qt.find("category_functions") != qt.end() && qt["category_functions"].is_array()) {
-                    config_.logFunctions.qt.categoryFunctions.clear();
-                    for (const auto& func : qt["category_functions"]) {
-                        config_.logFunctions.qt.categoryFunctions.push_back(func.get<std::string>());
-                    }
-                }
-            }
-
-            // 自定义日志函数
-            if (logFunctions.find("custom") != logFunctions.end()) {
-                auto& custom = logFunctions["custom"];
-
-                if (custom.find("enabled") != custom.end() && custom["enabled"].is_boolean()) {
-                    config_.logFunctions.custom.enabled = custom["enabled"].get<bool>();
-                }
-
-                if (custom.find("functions") != custom.end() && custom["functions"].is_object()) {
-                    config_.logFunctions.custom.functions.clear();
-                    for (auto it = custom["functions"].begin(); it != custom["functions"].end(); ++it) {
-                        std::string level = it.key();
-                        if (it.value().is_array()) {
-                            std::vector<std::string> funcs;
-                            for (const auto& func : it.value()) {
-                                funcs.push_back(func.get<std::string>());
-                            }
-                            config_.logFunctions.custom.functions[level] = funcs;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 解析分析配置
-        if (jsonConfig.find("analysis") != jsonConfig.end()) {
-            auto& analysis = jsonConfig["analysis"];
-
-            if (analysis.find("function_coverage") != analysis.end() && analysis["function_coverage"].is_boolean()) {
-                config_.analysis.functionCoverage = analysis["function_coverage"].get<bool>();
-            }
-
-            if (analysis.find("branch_coverage") != analysis.end() && analysis["branch_coverage"].is_boolean()) {
-                config_.analysis.branchCoverage = analysis["branch_coverage"].get<bool>();
-            }
-
-            if (analysis.find("exception_coverage") != analysis.end() && analysis["exception_coverage"].is_boolean()) {
-                config_.analysis.exceptionCoverage = analysis["exception_coverage"].get<bool>();
-            }
-
-            if (analysis.find("key_path_coverage") != analysis.end() && analysis["key_path_coverage"].is_boolean()) {
-                config_.analysis.keyPathCoverage = analysis["key_path_coverage"].get<bool>();
-            }
-        }
-
-        // 解析报告配置
-        if (jsonConfig.find("report") != jsonConfig.end()) {
-            auto& report = jsonConfig["report"];
-
-            if (report.find("format") != report.end() && report["format"].is_string()) {
-                config_.report.format = report["format"].get<std::string>();
-            }
-
-            if (report.find("timestamp_format") != report.end() && report["timestamp_format"].is_string()) {
-                config_.report.timestampFormat = report["timestamp_format"].get<std::string>();
-            }
+        // 按顺序解析各个配置部分
+        if (!parseScanConfig(jsonConfig) || !parseLogFunctionsConfig(jsonConfig) || !parseAnalysisConfig(jsonConfig) ||
+            !parseReportConfig(jsonConfig)) {
+            return false;
         }
 
         LOG_INFO("配置文件加载成功");
@@ -175,78 +246,52 @@ void ConfigManager::mergeWithCommandLineOptions(const cli::Options& options) {
 
     // 合并排除模式
     if (!options.excludePatterns.empty()) {
-        for (const auto& pattern : options.excludePatterns) {
-            config_.scan.excludes.push_back(pattern);
-        }
+        config_.scan.excludes.insert(config_.scan.excludes.end(), options.excludePatterns.begin(),
+                                     options.excludePatterns.end());
     }
 
     // 合并日志级别过滤
     if (options.logLevel != cli::LogLevel::ALL) {
-        // 根据命令行选项调整日志函数配置
-        // 例如，如果选择的日志级别是WARNING，则禁用DEBUG和INFO级别的日志函数
-        switch (options.logLevel) {
-            case cli::LogLevel::DEBUG:
-                // 所有级别都保留
-                break;
-            case cli::LogLevel::INFO:
-                // 禁用DEBUG级别
-                if (config_.logFunctions.custom.functions.find("debug") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("debug");
-                }
-                break;
-            case cli::LogLevel::WARNING:
-                // 禁用DEBUG和INFO级别
-                if (config_.logFunctions.custom.functions.find("debug") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("debug");
-                }
-                if (config_.logFunctions.custom.functions.find("info") != config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("info");
-                }
-                break;
-            case cli::LogLevel::CRITICAL:
-                // 只保留CRITICAL和FATAL级别
-                if (config_.logFunctions.custom.functions.find("debug") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("debug");
-                }
-                if (config_.logFunctions.custom.functions.find("info") != config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("info");
-                }
-                if (config_.logFunctions.custom.functions.find("warning") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("warning");
-                }
-                break;
-            case cli::LogLevel::FATAL:
-                // 只保留FATAL级别
-                if (config_.logFunctions.custom.functions.find("debug") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("debug");
-                }
-                if (config_.logFunctions.custom.functions.find("info") != config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("info");
-                }
-                if (config_.logFunctions.custom.functions.find("warning") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("warning");
-                }
-                if (config_.logFunctions.custom.functions.find("critical") !=
-                    config_.logFunctions.custom.functions.end()) {
-                    config_.logFunctions.custom.functions.erase("critical");
-                }
-                break;
-            default:
-                break;
-        }
+        updateLogLevelFilters(options.logLevel);
     }
 
     // 合并报告格式
-    if (options.reportFormat == cli::ReportFormat::JSON) {
-        config_.report.format = "json";
-    } else {
-        config_.report.format = "text";
+    config_.report.format = (options.reportFormat == cli::ReportFormat::JSON) ? "json" : "text";
+}
+
+void ConfigManager::updateLogLevelFilters(cli::LogLevel level) {
+    LOG_DEBUG_FMT("更新日志级别过滤器: %d", static_cast<int>(level));
+
+    const std::vector<std::string> levelOrder = {"debug", "info", "warning", "critical", "fatal"};
+    size_t startIndex = 0;
+
+    switch (level) {
+        case cli::LogLevel::DEBUG:
+            startIndex = 0;
+            break;
+        case cli::LogLevel::INFO:
+            startIndex = 1;
+            break;
+        case cli::LogLevel::WARNING:
+            startIndex = 2;
+            break;
+        case cli::LogLevel::CRITICAL:
+            startIndex = 3;
+            break;
+        case cli::LogLevel::FATAL:
+            startIndex = 4;
+            break;
+        default:
+            return;
+    }
+
+    // 移除低于指定级别的日志函数
+    for (size_t i = 0; i < startIndex; ++i) {
+        const auto& levelName = levelOrder[i];
+        auto it = config_.logFunctions.custom.functions.find(levelName);
+        if (it != config_.logFunctions.custom.functions.end()) {
+            config_.logFunctions.custom.functions.erase(it);
+        }
     }
 }
 
@@ -293,6 +338,10 @@ Config ConfigManager::getDefaultConfig() {
 bool ConfigManager::validateConfig() const {
     LOG_DEBUG("验证配置");
 
+    return validateScanConfig() && validateLogFunctionsConfig() && validateReportConfig();
+}
+
+bool ConfigManager::validateScanConfig() const {
     // 检查扫描目录是否存在
     for (const auto& dir : config_.scan.directories) {
         if (!utils::FileUtils::directoryExists(dir)) {
@@ -315,15 +364,43 @@ bool ConfigManager::validateConfig() const {
         }
     }
 
+    return true;
+}
+
+bool ConfigManager::validateLogFunctionsConfig() const {
     // 检查日志函数
     if (!config_.logFunctions.qt.enabled && !config_.logFunctions.custom.enabled) {
         LOG_ERROR("未启用任何日志函数");
         return false;
     }
 
+    // 检查Qt日志函数配置
+    if (config_.logFunctions.qt.enabled) {
+        if (config_.logFunctions.qt.functions.empty() && config_.logFunctions.qt.categoryFunctions.empty()) {
+            LOG_ERROR("Qt日志函数配置无效：未指定任何函数");
+            return false;
+        }
+    }
+
+    // 检查自定义日志函数配置
+    if (config_.logFunctions.custom.enabled && config_.logFunctions.custom.functions.empty()) {
+        LOG_ERROR("自定义日志函数配置无效：未指定任何函数");
+        return false;
+    }
+
+    return true;
+}
+
+bool ConfigManager::validateReportConfig() const {
     // 检查报告格式
     if (config_.report.format != "text" && config_.report.format != "json") {
         LOG_ERROR_FMT("不支持的报告格式: %s", config_.report.format.c_str());
+        return false;
+    }
+
+    // 检查时间戳格式
+    if (config_.report.timestampFormat.empty()) {
+        LOG_ERROR("时间戳格式不能为空");
         return false;
     }
 

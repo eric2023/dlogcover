@@ -2,37 +2,312 @@
  * @file options.cpp
  * @brief 命令行选项实现
  * @copyright Copyright (c) 2023 DLogCover Team
+ *
+ * 该文件实现了命令行选项的验证和管理功能。主要包括：
+ * - 选项有效性验证
+ * - 选项值格式化
+ * - 默认值管理
+ *
+ * 使用示例：
+ * @code
+ * Options options;
+ * options.directoryPath = "/path/to/scan";
+ * if (auto result = options.validate(); result.hasError()) {
+ *     std::cerr << "选项验证失败: " << result.message() << std::endl;
+ *     return 1;
+ * }
+ * @endcode
  */
 
+#include <dlogcover/cli/config_constants.h>
+#include <dlogcover/cli/error_types.h>
 #include <dlogcover/cli/options.h>
-#include <dlogcover/utils/file_utils.h>
+#include <dlogcover/utils/log_utils.h>
+#include <dlogcover/utils/string_utils.h>
 
 #include <filesystem>
+#include <nlohmann/json.hpp>
+#include <sstream>
+#include <stdexcept>
 
 namespace dlogcover {
 namespace cli {
 
-bool Options::isValid() const {
-    // 检查扫描目录是否存在
-    if (!directoryPath.empty() && !utils::FileUtils::directoryExists(directoryPath)) {
-        return false;
+namespace {
+/**
+ * @brief 验证目录路径
+ * @param path 目录路径
+ * @return 错误结果
+ */
+ErrorResult validateDirectoryPath(std::string_view path) {
+    LOG_DEBUG_FMT("验证目录路径: %.*s", static_cast<int>(path.size()), path.data());
+
+    if (path.empty()) {
+        return ErrorResult();  // 空路径允许使用默认值
     }
 
-    // 检查配置文件是否存在
-    if (!configPath.empty() && !utils::FileUtils::fileExists(configPath)) {
-        return false;
+    std::filesystem::path fsPath(path);
+    if (!std::filesystem::exists(fsPath)) {
+        LOG_ERROR_FMT("目录不存在: %s", std::string(path).c_str());
+        return ErrorResult(ConfigError::DirectoryNotFound,
+                           std::string(config::error::DIRECTORY_NOT_FOUND) + std::string(path));
     }
 
-    // 检查输出路径的父目录是否存在
-    if (!outputPath.empty()) {
-        std::filesystem::path outputFilePath(outputPath);
-        std::filesystem::path parentPath = outputFilePath.parent_path();
-        if (!parentPath.empty() && !utils::FileUtils::directoryExists(parentPath.string())) {
-            return false;
+    if (!std::filesystem::is_directory(fsPath)) {
+        LOG_ERROR_FMT("路径不是目录: %s", std::string(path).c_str());
+        return ErrorResult(ConfigError::DirectoryNotFound,
+                           std::string(config::error::DIRECTORY_NOT_FOUND) + std::string(path));
+    }
+
+    return ErrorResult();
+}
+
+/**
+ * @brief 验证文件路径
+ * @param path 文件路径
+ * @param checkParentDir 是否检查父目录存在性
+ * @return 错误结果
+ */
+ErrorResult validateFilePath(std::string_view path, bool checkParentDir) {
+    LOG_DEBUG_FMT("验证文件路径: %.*s, 检查父目录: %d", static_cast<int>(path.size()), path.data(), checkParentDir);
+
+    if (path.empty()) {
+        return ErrorResult();  // 空路径允许使用默认值
+    }
+
+    std::filesystem::path fsPath(path);
+
+    if (checkParentDir) {
+        auto parentPath = fsPath.parent_path();
+        if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
+            LOG_ERROR_FMT("父目录不存在: %s", parentPath.string().c_str());
+            return ErrorResult(ConfigError::OutputDirectoryNotFound,
+                               std::string(config::error::OUTPUT_DIR_NOT_FOUND) + parentPath.string());
+        }
+    } else {
+        if (!std::filesystem::exists(fsPath)) {
+            LOG_ERROR_FMT("文件不存在: %s", std::string(path).c_str());
+            return ErrorResult(ConfigError::FileNotFound,
+                               std::string(config::error::FILE_NOT_FOUND) + std::string(path));
         }
     }
 
-    return true;
+    return ErrorResult();
+}
+
+/**
+ * @brief 将string_view转换为string
+ * @param view 要转换的string_view
+ * @return 转换后的string
+ */
+std::string toStdString(std::string_view view) {
+    return std::string(view.data(), view.size());
+}
+}  // namespace
+
+std::string_view toString(LogLevel level) {
+    switch (level) {
+        case LogLevel::DEBUG:
+            return config::log::DEBUG;
+        case LogLevel::INFO:
+            return config::log::INFO;
+        case LogLevel::WARNING:
+            return config::log::WARNING;
+        case LogLevel::CRITICAL:
+            return config::log::CRITICAL;
+        case LogLevel::FATAL:
+            return config::log::FATAL;
+        case LogLevel::ALL:
+            return config::log::ALL;
+        default:
+            return config::log::ALL;
+    }
+}
+
+LogLevel parseLogLevel(std::string_view str) {
+    std::string strLower{str};
+    std::transform(strLower.begin(), strLower.end(), strLower.begin(), ::tolower);
+
+    if (strLower == config::log::DEBUG)
+        return LogLevel::DEBUG;
+    else if (strLower == config::log::INFO)
+        return LogLevel::INFO;
+    else if (strLower == config::log::WARNING)
+        return LogLevel::WARNING;
+    else if (strLower == config::log::CRITICAL)
+        return LogLevel::CRITICAL;
+    else if (strLower == config::log::FATAL)
+        return LogLevel::FATAL;
+    else if (strLower == config::log::ALL)
+        return LogLevel::ALL;
+
+    throw std::invalid_argument(std::string(config::error::INVALID_LOG_LEVEL) + std::string(str));
+}
+
+std::string_view toString(ReportFormat format) {
+    switch (format) {
+        case ReportFormat::TEXT:
+            return config::report::TEXT;
+        case ReportFormat::JSON:
+            return config::report::JSON;
+        default:
+            return config::report::TEXT;
+    }
+}
+
+ReportFormat parseReportFormat(std::string_view str) {
+    std::string strLower{str};
+    std::transform(strLower.begin(), strLower.end(), strLower.begin(), ::tolower);
+
+    if (strLower == config::report::TEXT)
+        return ReportFormat::TEXT;
+    else if (strLower == config::report::JSON)
+        return ReportFormat::JSON;
+
+    throw std::invalid_argument(std::string(config::error::INVALID_REPORT_FORMAT) + std::string(str));
+}
+
+ErrorResult Options::validate() const {
+    LOG_DEBUG("开始验证选项");
+
+    // 验证扫描目录
+    if (auto result = validateDirectoryPath(directoryPath); result.hasError()) {
+        return result;
+    }
+
+    // 验证配置文件
+    if (auto result = validateFilePath(configPath, false); result.hasError()) {
+        return result;
+    }
+
+    // 验证输出路径
+    if (auto result = validateFilePath(outputPath, true); result.hasError()) {
+        return result;
+    }
+
+    // 验证排除模式
+    for (const auto& pattern : excludePatterns) {
+        if (pattern.empty()) {
+            LOG_ERROR("发现空的排除模式");
+            return ErrorResult(ConfigError::InvalidExcludePattern, std::string(config::error::INVALID_EXCLUDE));
+        }
+    }
+
+    LOG_DEBUG("选项验证通过");
+    return ErrorResult();
+}
+
+std::string Options::toString() const {
+    std::ostringstream oss;
+    oss << "Options {\n"
+        << "  directoryPath: " << directoryPath << "\n"
+        << "  outputPath: " << outputPath << "\n"
+        << "  configPath: " << configPath << "\n"
+        << "  excludePatterns: [";
+
+    for (size_t i = 0; i < excludePatterns.size(); ++i) {
+        if (i > 0)
+            oss << ", ";
+        oss << excludePatterns[i];
+    }
+
+    oss << "]\n"
+        << "  logLevel: " << cli::toString(logLevel) << "\n"
+        << "  reportFormat: " << cli::toString(reportFormat) << "\n"
+        << "}";
+
+    return oss.str();
+}
+
+void Options::reset() {
+    LOG_DEBUG("重置选项为默认值");
+
+    directoryPath = std::string(config::cli::DEFAULT_DIRECTORY);
+    outputPath = std::string(config::cli::DEFAULT_OUTPUT);
+    configPath = std::string(config::cli::DEFAULT_CONFIG);
+    excludePatterns.clear();
+    logLevel = LogLevel::ALL;
+    reportFormat = ReportFormat::TEXT;
+}
+
+std::string Options::toJson() const {
+    LOG_DEBUG("序列化选项为JSON");
+
+    nlohmann::json j;
+    j["directory"] = directoryPath;
+    j["output"] = outputPath;
+    j["config"] = configPath;
+    j["exclude"] = excludePatterns;
+    j["log_level"] = std::string(cli::toString(logLevel));
+    j["report_format"] = std::string(cli::toString(reportFormat));
+    j["version"] = config::CURRENT_CONFIG_VERSION;
+
+    return j.dump(2);  // 使用2空格缩进
+}
+
+ErrorResult Options::fromJson(std::string_view json) {
+    LOG_DEBUG("从JSON反序列化选项");
+
+    try {
+        auto j = nlohmann::json::parse(json);
+
+        // 验证版本
+        if (j.find("version") == j.end()) {
+            return ErrorResult(ConfigError::InvalidVersion,
+                               std::string(config::error::INVALID_VERSION) + "missing version field");
+        }
+
+        std::string version = j["version"];
+        if (version != config::CURRENT_CONFIG_VERSION) {
+            return ErrorResult(ConfigError::InvalidVersion, std::string(config::error::INVALID_VERSION) + version);
+        }
+
+        // 必需字段
+        if (j.find("directory") == j.end()) {
+            return ErrorResult(ConfigError::MissingField, std::string(config::error::MISSING_FIELD) + "directory");
+        }
+
+        // 读取字段
+        directoryPath = j["directory"];
+        outputPath = j.value("output", std::string(config::cli::DEFAULT_OUTPUT));
+        configPath = j.value("config", std::string(config::cli::DEFAULT_CONFIG));
+        excludePatterns = j.value("exclude", std::vector<std::string>());
+
+        // 解析日志级别
+        if (j.find("log_level") != j.end()) {
+            try {
+                logLevel = parseLogLevel(j["log_level"]);
+            } catch (const std::invalid_argument& e) {
+                return ErrorResult(ConfigError::InvalidLogLevel, e.what());
+            }
+        }
+
+        // 解析报告格式
+        if (j.find("report_format") != j.end()) {
+            try {
+                reportFormat = parseReportFormat(j["report_format"]);
+            } catch (const std::invalid_argument& e) {
+                return ErrorResult(ConfigError::InvalidReportFormat, e.what());
+            }
+        }
+
+        return ErrorResult();
+    } catch (const nlohmann::json::exception& e) {
+        return ErrorResult(ConfigError::ParseError, std::string(config::error::PARSE_ERROR) + e.what());
+    }
+}
+
+bool Options::isValid() const {
+    return !validate().hasError();
+}
+
+bool Options::operator==(const Options& other) const {
+    return directoryPath == other.directoryPath && outputPath == other.outputPath && configPath == other.configPath &&
+           excludePatterns == other.excludePatterns && logLevel == other.logLevel && reportFormat == other.reportFormat;
+}
+
+bool Options::operator!=(const Options& other) const {
+    return !(*this == other);
 }
 
 }  // namespace cli
