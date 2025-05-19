@@ -1,4 +1,4 @@
-#include "test_utils.h"
+#include "../common/test_utils.h"
 
 #include <chrono>
 #include <filesystem>
@@ -89,20 +89,13 @@ config::Config TestUtils::createTestConfig(const std::string& testDir) {
 
     // 添加必要的编译参数
     config.scan.compilerArgs = {
-        "-std=c++17",
-        "-I/usr/include",
-        "-I/usr/include/c++/8",
-        "-I/usr/include/x86_64-linux-gnu/c++/8",
-        "-I/usr/include/x86_64-linux-gnu",
-        "-I/usr/local/include",
+        "-std=c++17", "-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
+        "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
         // Qt头文件路径
-        "-I/usr/include/x86_64-linux-gnu/qt5",
-        "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
-        "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
-        "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+        "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
+        "-I/usr/include/x86_64-linux-gnu/qt5/QtGui", "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
         // 系统定义
-        "-D__GNUG__", "-D__linux__", "-D__x86_64__"
-    };
+        "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
 
     // 设置为Qt项目
     config.scan.isQtProject = true;
@@ -114,10 +107,8 @@ std::unique_ptr<source_manager::SourceManager> TestUtils::createTestSourceManage
     return std::make_unique<source_manager::SourceManager>(config);
 }
 
-bool TestUtils::collectAndAnalyzeSource(
-    source_manager::SourceManager& sourceManager,
-    core::ast_analyzer::ASTAnalyzer& astAnalyzer) {
-
+bool TestUtils::collectAndAnalyzeSource(source_manager::SourceManager& sourceManager,
+                                        core::ast_analyzer::ASTAnalyzer& astAnalyzer) {
     // 收集源文件
     auto collectResult = sourceManager.collectSourceFiles();
     if (collectResult.hasError()) {
@@ -133,10 +124,8 @@ bool TestUtils::collectAndAnalyzeSource(
     return true;
 }
 
-bool TestUtils::identifyLogs(
-    core::ast_analyzer::ASTAnalyzer& astAnalyzer,
-    core::log_identifier::LogIdentifier& logIdentifier) {
-
+bool TestUtils::identifyLogs(core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+                             core::log_identifier::LogIdentifier& logIdentifier) {
     // 识别日志调用
     auto identifyResult = logIdentifier.identifyLogCalls();
     if (identifyResult.hasError()) {
@@ -146,22 +135,15 @@ bool TestUtils::identifyLogs(
     return true;
 }
 
-bool TestUtils::calculateCoverage(
-    core::log_identifier::LogIdentifier& logIdentifier,
-    core::ast_analyzer::ASTAnalyzer& astAnalyzer,
-    core::coverage::CoverageCalculator& coverageCalculator) {
-
+bool TestUtils::calculateCoverage(core::log_identifier::LogIdentifier& logIdentifier,
+                                  core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+                                  core::coverage::CoverageCalculator& coverageCalculator) {
     // 计算覆盖率
-    auto calculateResult = coverageCalculator.calculate();
-    if (calculateResult.hasError()) {
-        return false;
-    }
-
-    return true;
+    return coverageCalculator.calculate();
 }
 
 std::string TestUtils::createTestSourceFile(const std::string& dirPath, const std::string& filename,
-                                           const std::string& content) {
+                                            const std::string& content) {
     std::string filePath = dirPath + "/" + filename;
     std::ofstream file(filePath);
     if (!file.is_open()) {

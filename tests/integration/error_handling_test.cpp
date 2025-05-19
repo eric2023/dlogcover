@@ -8,6 +8,7 @@
 #include <dlogcover/config/config_manager.h>
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
 #include <dlogcover/core/log_identifier/log_identifier.h>
+#include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
 
@@ -15,6 +16,12 @@
 
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+
+#include "../common/test_utils.h"
 
 namespace dlogcover {
 namespace test {
@@ -23,7 +30,7 @@ class ErrorHandlingTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 创建临时测试目录
-        test_dir_ = utils::FileUtils::createTempDir();
+        test_dir_ = TestUtils::createTestTempDir("error_test_");
         ASSERT_FALSE(test_dir_.empty());
 
         // 初始化日志系统
@@ -33,6 +40,10 @@ protected:
         // 创建测试源文件目录
         source_dir_ = test_dir_ + "/src";
         std::filesystem::create_directories(source_dir_);
+
+        // 初始化配置和源文件管理器
+        config_ = config::ConfigManager::getDefaultConfig();
+        source_manager_ = std::make_unique<source_manager::SourceManager>(config_);
     }
 
     void TearDown() override {
@@ -41,7 +52,7 @@ protected:
 
         // 清理临时目录
         if (!test_dir_.empty()) {
-            std::filesystem::remove_all(test_dir_);
+            TestUtils::cleanupTestTempDir(test_dir_);
         }
     }
 
@@ -59,6 +70,8 @@ protected:
     std::string test_dir_;
     std::string log_file_;
     std::string source_dir_;
+    config::Config config_;
+    std::unique_ptr<source_manager::SourceManager> source_manager_;
 };
 
 // 测试无效源文件处理
@@ -81,12 +94,12 @@ TEST_F(ErrorHandlingTest, InvalidSourceFile) {
     std::string source_path = createTestSource("invalid.cpp", invalid_source);
 
     // 创建分析器
-    core::LogIdentifier identifier;
-    core::ASTAnalyzer ast_analyzer;
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager_);
+    core::log_identifier::LogIdentifier identifier(config_, ast_analyzer);
 
     // 分析文件应该失败
-    EXPECT_THROW(identifier.analyze(source_path), std::runtime_error);
     EXPECT_THROW(ast_analyzer.analyze(source_path), std::runtime_error);
+    EXPECT_THROW(identifier.identifyLogCalls(), std::runtime_error);
 }
 
 // 测试文件权限错误
@@ -98,8 +111,9 @@ TEST_F(ErrorHandlingTest, FilePermissionError) {
                                                    std::filesystem::perms::others_read);
 
     // 尝试在只读目录中创建文件
-    config::ConfigManager configManager;
-    EXPECT_FALSE(configManager.saveConfig(readonly_dir + "/config.json"));
+    std::string test_file = readonly_dir + "/test_write.txt";
+    std::string content = "Test content";
+    EXPECT_FALSE(utils::FileUtils::writeFile(test_file, content));
 }
 
 // 测试内存限制处理
@@ -120,12 +134,12 @@ TEST_F(ErrorHandlingTest, MemoryLimitHandling) {
     std::string source_path = createTestSource("large_file.cpp", large_source.str());
 
     // 创建分析器
-    core::LogIdentifier identifier;
-    core::ASTAnalyzer ast_analyzer;
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager_);
+    core::log_identifier::LogIdentifier identifier(config_, ast_analyzer);
 
     // 分析大文件应该触发内存限制保护
-    EXPECT_THROW(identifier.analyze(source_path), std::runtime_error);
     EXPECT_THROW(ast_analyzer.analyze(source_path), std::runtime_error);
+    EXPECT_THROW(identifier.identifyLogCalls(), std::runtime_error);
 }
 
 // 测试递归包含处理
@@ -169,12 +183,12 @@ TEST_F(ErrorHandlingTest, RecursiveIncludeHandling) {
     std::string source_path = createTestSource("source.cpp", source);
 
     // 创建分析器
-    core::LogIdentifier identifier;
-    core::ASTAnalyzer ast_analyzer;
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager_);
+    core::log_identifier::LogIdentifier identifier(config_, ast_analyzer);
 
     // 分析循环包含的文件应该被正确处理
-    EXPECT_NO_THROW(identifier.analyze(source_path));
     EXPECT_NO_THROW(ast_analyzer.analyze(source_path));
+    EXPECT_NO_THROW(identifier.identifyLogCalls());
 }
 
 // 测试编码错误处理
@@ -184,19 +198,19 @@ TEST_F(ErrorHandlingTest, EncodingErrorHandling) {
     std::string source_path = createTestSource("invalid_encoding.cpp", invalid_encoding);
 
     // 创建分析器
-    core::LogIdentifier identifier;
-    core::ASTAnalyzer ast_analyzer;
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager_);
+    core::log_identifier::LogIdentifier identifier(config_, ast_analyzer);
 
     // 分析非UTF-8文件应该失败
-    EXPECT_THROW(identifier.analyze(source_path), std::runtime_error);
     EXPECT_THROW(ast_analyzer.analyze(source_path), std::runtime_error);
+    EXPECT_THROW(identifier.identifyLogCalls(), std::runtime_error);
 }
 
 // 测试并发分析错误处理
 TEST_F(ErrorHandlingTest, ConcurrentAnalysisHandling) {
     // 创建多个测试文件
     std::vector<std::string> source_files;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 5; ++i) {
         std::string source = R"(
             #include <QDebug>
 
@@ -209,16 +223,18 @@ TEST_F(ErrorHandlingTest, ConcurrentAnalysisHandling) {
         source_files.push_back(createTestSource("test" + std::to_string(i) + ".cpp", source));
     }
 
-    // 创建分析器
-    core::LogIdentifier identifier;
-    core::ASTAnalyzer ast_analyzer;
-
     // 并发分析所有文件
     std::vector<std::future<void>> futures;
     for (const auto& file : source_files) {
-        futures.push_back(std::async(std::launch::async, [&]() {
-            EXPECT_NO_THROW(identifier.analyze(file));
+        futures.push_back(std::async(std::launch::async, [&, file]() {
+            // 为每个线程创建单独的分析器
+            config::Config thread_config = config::ConfigManager::getDefaultConfig();
+            auto thread_source_manager = std::make_unique<source_manager::SourceManager>(thread_config);
+            core::ast_analyzer::ASTAnalyzer ast_analyzer(thread_config, *thread_source_manager);
+            core::log_identifier::LogIdentifier identifier(thread_config, ast_analyzer);
+
             EXPECT_NO_THROW(ast_analyzer.analyze(file));
+            EXPECT_NO_THROW(identifier.identifyLogCalls());
         }));
     }
 

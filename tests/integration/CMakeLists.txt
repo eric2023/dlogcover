@@ -18,6 +18,7 @@ file(GLOB_RECURSE PROJECT_SOURCES
     "${CMAKE_SOURCE_DIR}/src/core/log_identifier/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/coverage/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/reporter/*.cpp"
+    "${CMAKE_SOURCE_DIR}/tests/common/*.cpp"
 )
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 

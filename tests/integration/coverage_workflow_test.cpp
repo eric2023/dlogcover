@@ -17,6 +17,11 @@
 
 #include <filesystem>
 #include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+
+#include "../common/test_utils.h"
 
 namespace dlogcover {
 namespace test {
@@ -25,9 +30,7 @@ class CoverageWorkflowTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 创建临时测试目录
-        test_dir_ = std::filesystem::temp_directory_path().string() + "/dlogcover_coverage_test_" +
-                    std::to_string(static_cast<long long>(std::chrono::system_clock::now().time_since_epoch().count()));
-        utils::FileUtils::createDirectory(test_dir_);
+        test_dir_ = TestUtils::createTestTempDir("coverage_test_");
         ASSERT_FALSE(test_dir_.empty());
 
         // 初始化日志系统
@@ -39,7 +42,7 @@ protected:
         std::filesystem::create_directories(source_dir_);
 
         // 创建配置
-        config_ = createTestConfig();
+        config_ = TestUtils::createTestConfig(test_dir_);
     }
 
     void TearDown() override {
@@ -48,7 +51,7 @@ protected:
 
         // 清理临时目录
         if (!test_dir_.empty()) {
-            std::filesystem::remove_all(test_dir_);
+            TestUtils::cleanupTestTempDir(test_dir_);
         }
     }
 
@@ -60,36 +63,6 @@ protected:
         source_file << content;
         source_file.close();
         return file_path;
-    }
-
-    // 创建测试配置
-    config::Config createTestConfig() {
-        config::Config config;
-
-        // 设置扫描目录
-        config.scan.directories = {source_dir_};
-
-        // 设置文件类型
-        config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
-
-        // 设置日志函数
-        config.logFunctions.qt.enabled = true;
-        config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
-
-        // 添加必要的编译参数
-        config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
-                                    "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
-                                    // Qt头文件路径
-                                    "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
-                                    // 系统定义
-                                    "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
-
-        // 设置为Qt项目
-        config.scan.isQtProject = true;
-
-        return config;
     }
 
 protected:
@@ -139,47 +112,45 @@ int main() {
     std::string source_path = createTestSource("calculator.cpp", source);
 
     // 初始化源文件管理器
-    source_manager::SourceManager sourceManager(config_);
+    auto source_manager = TestUtils::createTestSourceManager(config_);
 
     // 收集源文件
-    auto collectResult = sourceManager.collectSourceFiles();
-    ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
-    ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
+    auto collect_result = source_manager->collectSourceFiles();
+    ASSERT_FALSE(collect_result.hasError()) << "收集源文件失败: " << collect_result.errorMessage();
+    ASSERT_TRUE(collect_result.value()) << "未能有效收集源文件";
 
     // 创建AST分析器
-    core::ast_analyzer::ASTAnalyzer astAnalyzer(config_, sourceManager);
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager);
 
     // 分析所有文件
-    auto analyzeResult = astAnalyzer.analyzeAll();
-    ASSERT_FALSE(analyzeResult.hasError()) << "分析所有文件失败: " << analyzeResult.errorMessage();
-    ASSERT_TRUE(analyzeResult.value()) << "分析文件返回false";
+    auto analyze_result = ast_analyzer.analyzeAll();
+    ASSERT_FALSE(analyze_result.hasError()) << "分析所有文件失败: " << analyze_result.errorMessage();
+    ASSERT_TRUE(analyze_result.value()) << "分析文件返回false";
 
     // 创建日志识别器
-    core::log_identifier::LogIdentifier logIdentifier(config_, astAnalyzer);
+    core::log_identifier::LogIdentifier log_identifier(config_, ast_analyzer);
 
     // 识别日志调用
-    auto identifyResult = logIdentifier.identifyLogCalls();
-    ASSERT_FALSE(identifyResult.hasError()) << "识别日志调用失败: " << identifyResult.errorMessage();
-    ASSERT_TRUE(identifyResult.value()) << "识别日志调用返回false";
+    auto identify_result = log_identifier.identifyLogCalls();
+    ASSERT_FALSE(identify_result.hasError()) << "识别日志调用失败: " << identify_result.errorMessage();
+    ASSERT_TRUE(identify_result.value()) << "识别日志调用返回false";
 
     // 创建覆盖率计算器
-    core::coverage::CoverageCalculator coverageCalculator(config_, astAnalyzer, logIdentifier);
+    core::coverage::CoverageCalculator coverage_calculator(config_, ast_analyzer, log_identifier);
 
     // 计算覆盖率
-    auto calculateResult = coverageCalculator.calculate();
-    ASSERT_FALSE(calculateResult.hasError()) << "计算覆盖率失败: " << calculateResult.errorMessage();
-    ASSERT_TRUE(calculateResult.value()) << "计算覆盖率返回false";
+    ASSERT_TRUE(coverage_calculator.calculate()) << "计算覆盖率失败";
 
     // 获取测试文件的覆盖率统计信息
-    const auto& fileStats = coverageCalculator.getCoverageStats(source_path);
+    const auto& file_stats = coverage_calculator.getCoverageStats(source_path);
 
     // 验证覆盖率计算是否进行
-    EXPECT_GE(fileStats.functionCoverage, 0.0);
-    EXPECT_LE(fileStats.functionCoverage, 1.0);
-    EXPECT_GE(fileStats.branchCoverage, 0.0);
-    EXPECT_LE(fileStats.branchCoverage, 1.0);
-    EXPECT_GE(fileStats.exceptionCoverage, 0.0);
-    EXPECT_LE(fileStats.exceptionCoverage, 1.0);
+    EXPECT_GE(file_stats.functionCoverage, 0.0);
+    EXPECT_LE(file_stats.functionCoverage, 1.0);
+    EXPECT_GE(file_stats.branchCoverage, 0.0);
+    EXPECT_LE(file_stats.branchCoverage, 1.0);
+    EXPECT_GE(file_stats.exceptionCoverage, 0.0);
+    EXPECT_LE(file_stats.exceptionCoverage, 1.0);
 }
 
 // 测试复杂场景覆盖率
@@ -254,47 +225,45 @@ int main() {
     std::string source_path = createTestSource("data_processor.cpp", source);
 
     // 初始化源文件管理器
-    source_manager::SourceManager sourceManager(config_);
+    auto source_manager = TestUtils::createTestSourceManager(config_);
 
     // 收集源文件
-    auto collectResult = sourceManager.collectSourceFiles();
-    ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
-    ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
+    auto collect_result = source_manager->collectSourceFiles();
+    ASSERT_FALSE(collect_result.hasError()) << "收集源文件失败: " << collect_result.errorMessage();
+    ASSERT_TRUE(collect_result.value()) << "未能有效收集源文件";
 
     // 创建AST分析器
-    core::ast_analyzer::ASTAnalyzer astAnalyzer(config_, sourceManager);
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager);
 
     // 分析所有文件
-    auto analyzeResult = astAnalyzer.analyzeAll();
-    ASSERT_FALSE(analyzeResult.hasError()) << "分析所有文件失败: " << analyzeResult.errorMessage();
-    ASSERT_TRUE(analyzeResult.value()) << "分析文件返回false";
+    auto analyze_result = ast_analyzer.analyzeAll();
+    ASSERT_FALSE(analyze_result.hasError()) << "分析所有文件失败: " << analyze_result.errorMessage();
+    ASSERT_TRUE(analyze_result.value()) << "分析文件返回false";
 
     // 创建日志识别器
-    core::log_identifier::LogIdentifier logIdentifier(config_, astAnalyzer);
+    core::log_identifier::LogIdentifier log_identifier(config_, ast_analyzer);
 
     // 识别日志调用
-    auto identifyResult = logIdentifier.identifyLogCalls();
-    ASSERT_FALSE(identifyResult.hasError()) << "识别日志调用失败: " << identifyResult.errorMessage();
-    ASSERT_TRUE(identifyResult.value()) << "识别日志调用返回false";
+    auto identify_result = log_identifier.identifyLogCalls();
+    ASSERT_FALSE(identify_result.hasError()) << "识别日志调用失败: " << identify_result.errorMessage();
+    ASSERT_TRUE(identify_result.value()) << "识别日志调用返回false";
 
     // 创建覆盖率计算器
-    core::coverage::CoverageCalculator coverageCalculator(config_, astAnalyzer, logIdentifier);
+    core::coverage::CoverageCalculator coverage_calculator(config_, ast_analyzer, log_identifier);
 
     // 计算覆盖率
-    auto calculateResult = coverageCalculator.calculate();
-    ASSERT_FALSE(calculateResult.hasError()) << "计算覆盖率失败: " << calculateResult.errorMessage();
-    ASSERT_TRUE(calculateResult.value()) << "计算覆盖率返回false";
+    ASSERT_TRUE(coverage_calculator.calculate()) << "计算覆盖率失败";
 
     // 获取总体覆盖率统计信息
-    const auto& overallStats = coverageCalculator.getOverallCoverageStats();
+    const auto& overall_stats = coverage_calculator.getOverallCoverageStats();
 
     // 验证覆盖率计算是否进行
-    EXPECT_GE(overallStats.functionCoverage, 0.0);
-    EXPECT_LE(overallStats.functionCoverage, 1.0);
-    EXPECT_GE(overallStats.branchCoverage, 0.0);
-    EXPECT_LE(overallStats.branchCoverage, 1.0);
-    EXPECT_GE(overallStats.exceptionCoverage, 0.0);
-    EXPECT_LE(overallStats.exceptionCoverage, 1.0);
+    EXPECT_GE(overall_stats.functionCoverage, 0.0);
+    EXPECT_LE(overall_stats.functionCoverage, 1.0);
+    EXPECT_GE(overall_stats.branchCoverage, 0.0);
+    EXPECT_LE(overall_stats.branchCoverage, 1.0);
+    EXPECT_GE(overall_stats.exceptionCoverage, 0.0);
+    EXPECT_LE(overall_stats.exceptionCoverage, 1.0);
 }
 
 // 测试多文件覆盖率计算
@@ -364,47 +333,45 @@ void Helper::doWork() {
     std::string helper_source_path = createTestSource("helper.cpp", helper_source);
 
     // 初始化源文件管理器
-    source_manager::SourceManager sourceManager(config_);
+    auto source_manager = TestUtils::createTestSourceManager(config_);
 
     // 收集源文件
-    auto collectResult = sourceManager.collectSourceFiles();
-    ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
-    ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
+    auto collect_result = source_manager->collectSourceFiles();
+    ASSERT_FALSE(collect_result.hasError()) << "收集源文件失败: " << collect_result.errorMessage();
+    ASSERT_TRUE(collect_result.value()) << "未能有效收集源文件";
 
     // 创建AST分析器
-    core::ast_analyzer::ASTAnalyzer astAnalyzer(config_, sourceManager);
+    core::ast_analyzer::ASTAnalyzer ast_analyzer(config_, *source_manager);
 
     // 分析所有文件
-    auto analyzeResult = astAnalyzer.analyzeAll();
-    ASSERT_FALSE(analyzeResult.hasError()) << "分析所有文件失败: " << analyzeResult.errorMessage();
-    ASSERT_TRUE(analyzeResult.value()) << "分析文件返回false";
+    auto analyze_result = ast_analyzer.analyzeAll();
+    ASSERT_FALSE(analyze_result.hasError()) << "分析所有文件失败: " << analyze_result.errorMessage();
+    ASSERT_TRUE(analyze_result.value()) << "分析文件返回false";
 
     // 创建日志识别器
-    core::log_identifier::LogIdentifier logIdentifier(config_, astAnalyzer);
+    core::log_identifier::LogIdentifier log_identifier(config_, ast_analyzer);
 
     // 识别日志调用
-    auto identifyResult = logIdentifier.identifyLogCalls();
-    ASSERT_FALSE(identifyResult.hasError()) << "识别日志调用失败: " << identifyResult.errorMessage();
-    ASSERT_TRUE(identifyResult.value()) << "识别日志调用返回false";
+    auto identify_result = log_identifier.identifyLogCalls();
+    ASSERT_FALSE(identify_result.hasError()) << "识别日志调用失败: " << identify_result.errorMessage();
+    ASSERT_TRUE(identify_result.value()) << "识别日志调用返回false";
 
     // 创建覆盖率计算器
-    core::coverage::CoverageCalculator coverageCalculator(config_, astAnalyzer, logIdentifier);
+    core::coverage::CoverageCalculator coverage_calculator(config_, ast_analyzer, log_identifier);
 
     // 计算覆盖率
-    auto calculateResult = coverageCalculator.calculate();
-    ASSERT_FALSE(calculateResult.hasError()) << "计算覆盖率失败: " << calculateResult.errorMessage();
-    ASSERT_TRUE(calculateResult.value()) << "计算覆盖率返回false";
+    ASSERT_TRUE(coverage_calculator.calculate()) << "计算覆盖率失败";
 
     // 获取总体覆盖率统计信息
-    const auto& overallStats = coverageCalculator.getOverallCoverageStats();
+    const auto& overall_stats = coverage_calculator.getOverallCoverageStats();
 
     // 验证覆盖率计算是否进行
-    EXPECT_GE(overallStats.functionCoverage, 0.0);
-    EXPECT_LE(overallStats.functionCoverage, 1.0);
-    EXPECT_GE(overallStats.branchCoverage, 0.0);
-    EXPECT_LE(overallStats.branchCoverage, 1.0);
-    EXPECT_GE(overallStats.exceptionCoverage, 0.0);
-    EXPECT_LE(overallStats.exceptionCoverage, 1.0);
+    EXPECT_GE(overall_stats.functionCoverage, 0.0);
+    EXPECT_LE(overall_stats.functionCoverage, 1.0);
+    EXPECT_GE(overall_stats.branchCoverage, 0.0);
+    EXPECT_LE(overall_stats.branchCoverage, 1.0);
+    EXPECT_GE(overall_stats.exceptionCoverage, 0.0);
+    EXPECT_LE(overall_stats.exceptionCoverage, 1.0);
 }
 
 }  // namespace test
