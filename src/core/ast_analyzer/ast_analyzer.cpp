@@ -35,7 +35,7 @@ namespace core {
 namespace ast_analyzer {
 
 ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager)
-    : config_(config), sourceManager_(sourceManager), currentContext_(nullptr) {
+    : config_(config), sourceManager_(sourceManager) {
     LOG_DEBUG("AST分析器初始化");
 }
 
@@ -43,21 +43,19 @@ ASTAnalyzer::~ASTAnalyzer() {
     LOG_DEBUG("AST分析器销毁");
 }
 
-bool ASTAnalyzer::analyze(const std::string& filePath) {
+Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
     LOG_INFO_FMT("分析文件: %s", filePath.c_str());
 
     // 获取源文件信息
     const source_manager::SourceFileInfo* sourceFile = sourceManager_.getSourceFile(filePath);
     if (!sourceFile) {
-        LOG_ERROR_FMT("无法找到源文件: %s", filePath.c_str());
-        return false;
+        return makeError<bool>(ASTAnalyzerError::FILE_NOT_FOUND, "无法找到源文件: " + filePath);
     }
 
     // 读取文件内容
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        LOG_ERROR_FMT("无法打开文件: %s", filePath.c_str());
-        return false;
+        return makeError<bool>(ASTAnalyzerError::FILE_READ_ERROR, "无法打开文件: " + filePath);
     }
 
     std::stringstream buffer;
@@ -68,42 +66,35 @@ bool ASTAnalyzer::analyze(const std::string& filePath) {
     // 创建AST单元
     currentASTUnit_ = createASTUnit(filePath, content);
     if (!currentASTUnit_) {
-        LOG_ERROR_FMT("创建AST单元失败: %s", filePath.c_str());
-        return false;
+        return makeError<bool>(ASTAnalyzerError::COMPILATION_ERROR, "创建AST单元失败: " + filePath);
     }
 
-    // 获取AST上下文
-    currentContext_ = &currentASTUnit_->getASTContext();
-
     // 分析AST上下文
-    auto rootNode = analyzeASTContext(*currentContext_, filePath);
-    if (!rootNode) {
-        LOG_ERROR_FMT("分析AST上下文失败: %s", filePath.c_str());
-        return false;
+    auto result = analyzeASTContext(currentASTUnit_->getASTContext(), filePath);
+    if (result.hasError()) {
+        return makeError<bool>(result.error(), result.errorMessage());
     }
 
     // 保存AST节点信息
-    astNodes_[filePath] = std::move(rootNode);
+    astNodes_[filePath] = std::move(result.value());
 
     LOG_INFO_FMT("文件分析完成: %s", filePath.c_str());
-    return true;
+    return makeSuccess(true);
 }
 
-bool ASTAnalyzer::analyzeAll() {
-    LOG_INFO("开始分析所有源文件");
+Result<bool> ASTAnalyzer::analyzeAll() {
+    LOG_DEBUG("开始分析所有源文件");
 
-    bool success = true;
-    const auto& sourceFiles = sourceManager_.getSourceFiles();
-
-    for (const auto& sourceFile : sourceFiles) {
-        if (!analyze(sourceFile.path)) {
-            LOG_ERROR_FMT("分析文件失败: %s", sourceFile.path.c_str());
-            success = false;
+    bool allSuccess = true;
+    for (const auto& sourceFile : sourceManager_.getSourceFiles()) {
+        auto result = analyze(sourceFile.path);
+        if (result.hasError()) {
+            LOG_ERROR_FMT("分析文件失败: %s, 错误: %s", sourceFile.path.c_str(), result.errorMessage().c_str());
+            allSuccess = false;
         }
     }
 
-    LOG_INFO_FMT("所有文件分析完成，成功率: %s", success ? "100%" : "部分失败");
-    return success;
+    return makeSuccess(std::move(allSuccess));
 }
 
 const ASTNodeInfo* ASTAnalyzer::getASTNodeInfo(const std::string& filePath) const {
@@ -157,8 +148,12 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
     return astUnit;
 }
 
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeASTContext(clang::ASTContext& context, const std::string& filePath) {
+Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTContext& context,
+                                                                    const std::string& filePath) {
     LOG_DEBUG_FMT("分析AST上下文: %s", filePath.c_str());
+
+    // 创建函数分析器
+    ASTFunctionAnalyzer functionAnalyzer(context, filePath, config_);
 
     // 创建根节点
     auto rootNode = std::make_unique<ASTNodeInfo>();
@@ -174,9 +169,15 @@ std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeASTContext(clang::ASTContext& c
         if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
             // 检查函数是否在当前源文件中定义
             if (funcDecl->hasBody() && context.getSourceManager().isInMainFile(funcDecl->getBeginLoc())) {
-                auto funcNode = analyzeFunctionDecl(funcDecl, filePath);
-                if (funcNode) {
-                    rootNode->children.push_back(std::move(funcNode));
+                auto result = functionAnalyzer.analyzeFunctionDecl(funcDecl);
+                if (!result.hasError()) {
+                    auto& funcNode = result.value();
+                    if (funcNode && funcNode->hasLogging) {
+                        rootNode->hasLogging = true;
+                    }
+                    if (funcNode) {
+                        rootNode->children.push_back(std::move(funcNode));
+                    }
                 }
             }
         }
@@ -187,9 +188,15 @@ std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeASTContext(clang::ASTContext& c
                 // 遍历类中的方法
                 for (auto* method : classDecl->methods()) {
                     if (method->hasBody()) {
-                        auto methodNode = analyzeMethodDecl(method, filePath);
-                        if (methodNode) {
-                            rootNode->children.push_back(std::move(methodNode));
+                        auto result = functionAnalyzer.analyzeMethodDecl(method);
+                        if (!result.hasError()) {
+                            auto& methodNode = result.value();
+                            if (methodNode && methodNode->hasLogging) {
+                                rootNode->hasLogging = true;
+                            }
+                            if (methodNode) {
+                                rootNode->children.push_back(std::move(methodNode));
+                            }
                         }
                     }
                 }
@@ -197,744 +204,8 @@ std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeASTContext(clang::ASTContext& c
         }
     }
 
-    // 检查根节点子节点中是否有日志调用，如果有，则设置hasLogging为true
-    for (const auto& child : rootNode->children) {
-        if (child->hasLogging) {
-            rootNode->hasLogging = true;
-            break;
-        }
-    }
-
     LOG_INFO_FMT("AST上下文分析完成，找到 %zu 个顶层函数/方法", rootNode->children.size());
-    return rootNode;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeFunctionDecl(clang::FunctionDecl* decl, const std::string& filePath) {
-    if (!decl || !decl->hasBody()) {
-        return nullptr;
-    }
-
-    LOG_DEBUG_FMT("分析函数声明: %s", decl->getNameAsString().c_str());
-
-    // 获取函数位置信息
-    clang::SourceLocation loc = decl->getBeginLoc();
-    clang::SourceManager& SM = decl->getASTContext().getSourceManager();
-    unsigned line = SM.getSpellingLineNumber(loc);
-    unsigned column = SM.getSpellingColumnNumber(loc);
-
-    // 创建函数节点
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::FUNCTION;
-    nodeInfo->name = decl->getNameAsString();
-    nodeInfo->location.filePath = filePath;
-    nodeInfo->location.line = line;
-    nodeInfo->location.column = column;
-
-    // 获取函数文本表示
-    clang::SourceLocation endLoc = decl->getEndLoc();
-    std::string text;
-    if (loc.isValid() && endLoc.isValid()) {
-        unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-        llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-        if (SM.getFileOffset(loc) + length <= fileData.size()) {
-            text = fileData.substr(SM.getFileOffset(loc), length).str();
-            // 限制文本长度
-            if (text.length() > 200) {
-                text = text.substr(0, 197) + "...";
-            }
-        }
-    }
-    nodeInfo->text = text;
-
-    // 分析函数体
-    if (auto* body = decl->getBody()) {
-        if (auto* compoundStmt = llvm::dyn_cast<clang::CompoundStmt>(body)) {
-            for (auto* stmt : compoundStmt->body()) {
-                auto stmtNode = analyzeStmt(stmt, filePath);
-                if (stmtNode) {
-                    // 检查子节点是否包含日志调用
-                    if (stmtNode->hasLogging) {
-                        nodeInfo->hasLogging = true;
-                    }
-                    nodeInfo->children.push_back(std::move(stmtNode));
-                }
-            }
-        }
-    }
-
-    LOG_DEBUG_FMT("函数 %s 分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->name.c_str(), nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeMethodDecl(clang::CXXMethodDecl* decl, const std::string& filePath) {
-    if (!decl || !decl->hasBody()) {
-        return nullptr;
-    }
-
-    LOG_DEBUG_FMT("分析方法声明: %s::%s", decl->getParent()->getNameAsString().c_str(),
-                  decl->getNameAsString().c_str());
-
-    // 获取方法位置信息
-    clang::SourceLocation loc = decl->getBeginLoc();
-    clang::SourceManager& SM = decl->getASTContext().getSourceManager();
-    unsigned line = SM.getSpellingLineNumber(loc);
-    unsigned column = SM.getSpellingColumnNumber(loc);
-
-    // 创建方法节点
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::METHOD;
-    nodeInfo->name = decl->getParent()->getNameAsString() + "::" + decl->getNameAsString();
-    nodeInfo->location.filePath = filePath;
-    nodeInfo->location.line = line;
-    nodeInfo->location.column = column;
-
-    // 获取方法文本表示
-    clang::SourceLocation endLoc = decl->getEndLoc();
-    std::string text;
-    if (loc.isValid() && endLoc.isValid()) {
-        unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-        llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-        if (SM.getFileOffset(loc) + length <= fileData.size()) {
-            text = fileData.substr(SM.getFileOffset(loc), length).str();
-            // 限制文本长度
-            if (text.length() > 200) {
-                text = text.substr(0, 197) + "...";
-            }
-        }
-    }
-    nodeInfo->text = text;
-
-    // 分析方法体
-    if (auto* body = decl->getBody()) {
-        if (auto* compoundStmt = llvm::dyn_cast<clang::CompoundStmt>(body)) {
-            for (auto* stmt : compoundStmt->body()) {
-                auto stmtNode = analyzeStmt(stmt, filePath);
-                if (stmtNode) {
-                    // 检查子节点是否包含日志调用
-                    if (stmtNode->hasLogging) {
-                        nodeInfo->hasLogging = true;
-                    }
-                    nodeInfo->children.push_back(std::move(stmtNode));
-                }
-            }
-        }
-    }
-
-    LOG_DEBUG_FMT("方法 %s 分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->name.c_str(), nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeStmt(clang::Stmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG_FMT("分析语句，类型ID: %d", stmt->getStmtClass());
-
-    // 根据语句类型调用不同的分析方法
-    if (auto* compoundStmt = llvm::dyn_cast<clang::CompoundStmt>(stmt)) {
-        return analyzeCompoundStmt(compoundStmt, filePath);
-    } else if (auto* ifStmt = llvm::dyn_cast<clang::IfStmt>(stmt)) {
-        return analyzeIfStmt(ifStmt, filePath);
-    } else if (auto* switchStmt = llvm::dyn_cast<clang::SwitchStmt>(stmt)) {
-        return analyzeSwitchStmt(switchStmt, filePath);
-    } else if (auto* forStmt = llvm::dyn_cast<clang::ForStmt>(stmt)) {
-        return analyzeForStmt(forStmt, filePath);
-    } else if (auto* whileStmt = llvm::dyn_cast<clang::WhileStmt>(stmt)) {
-        return analyzeWhileStmt(whileStmt, filePath);
-    } else if (auto* doStmt = llvm::dyn_cast<clang::DoStmt>(stmt)) {
-        return analyzeDoStmt(doStmt, filePath);
-    } else if (auto* tryStmt = llvm::dyn_cast<clang::CXXTryStmt>(stmt)) {
-        return analyzeTryStmt(tryStmt, filePath);
-    } else if (auto* catchStmt = llvm::dyn_cast<clang::CXXCatchStmt>(stmt)) {
-        return analyzeCatchStmt(catchStmt, filePath);
-    } else if (auto* callExpr = llvm::dyn_cast<clang::CallExpr>(stmt)) {
-        return analyzeCallExpr(callExpr, filePath);
-    }
-
-    // 对于其他类型的语句，创建一个通用节点
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::CALL_EXPR;  // 默认为一般表达式
-
-    // 获取语句位置信息
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        }
-    }
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeCompoundStmt(clang::CompoundStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析复合语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::CALL_EXPR;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-        nodeInfo->text = "{...}";
-    }
-
-    // 分析复合语句中的每条语句
-    for (auto* subStmt : stmt->body()) {
-        auto subNode = analyzeStmt(subStmt, filePath);  // 递归调用，也需要context
-        if (subNode) {
-            // 检查子节点是否包含日志调用
-            if (subNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(subNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("复合语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeIfStmt(clang::IfStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析if语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::IF_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "if (...) {...}";
-        }
-    }
-
-    // 分析if语句的then部分
-    if (stmt->getThen()) {
-        auto thenNode = analyzeStmt(stmt->getThen(), filePath);
-        if (thenNode) {
-            if (thenNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(thenNode));
-        }
-    }
-
-    // 分析if语句的else部分
-    if (stmt->getElse()) {
-        auto elseNode = std::make_unique<ASTNodeInfo>();
-        elseNode->type = NodeType::ELSE_STMT;
-
-        clang::SourceLocation elseLoc = stmt->getElseLoc();
-        if (elseLoc.isValid()) {
-            clang::SourceManager& SM = currentContext_->getSourceManager();
-            elseNode->location.filePath = filePath;
-            elseNode->location.line = SM.getSpellingLineNumber(elseLoc);
-            elseNode->location.column = SM.getSpellingColumnNumber(elseLoc);
-            elseNode->text = "else {...}";
-        }
-
-        auto elseStmtNode = analyzeStmt(stmt->getElse(), filePath);
-        if (elseStmtNode) {
-            if (elseStmtNode->hasLogging) {
-                elseNode->hasLogging = true;
-                nodeInfo->hasLogging = true;
-            }
-            elseNode->children.push_back(std::move(elseStmtNode));
-        }
-
-        nodeInfo->children.push_back(std::move(elseNode));
-    }
-
-    LOG_DEBUG_FMT("if语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeSwitchStmt(clang::SwitchStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析switch语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::SWITCH_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "switch (...) {...}";
-        }
-    }
-
-    // 分析switch语句体
-    if (auto* body = stmt->getBody()) {
-        auto bodyNode = analyzeStmt(body, filePath);  // 递归调用
-        if (bodyNode) {
-            // 检查子节点是否包含日志调用
-            if (bodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(bodyNode));
-        }
-
-        // 注意：case语句将在analyzeStmt中处理，因为它们是CompoundStmt的一部分
-    }
-
-    LOG_DEBUG_FMT("switch语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeForStmt(clang::ForStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析for循环语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::FOR_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "for (...) {...}";
-        }
-    }
-
-    // 分析for循环语句体
-    if (stmt->getBody()) {
-        auto bodyNode = analyzeStmt(stmt->getBody(), filePath);  // 递归调用
-        if (bodyNode) {
-            // 检查子节点是否包含日志调用
-            if (bodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(bodyNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("for循环语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeWhileStmt(clang::WhileStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析while循环语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::WHILE_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "while (...) {...}";
-        }
-    }
-
-    // 分析while循环语句体
-    if (stmt->getBody()) {
-        auto bodyNode = analyzeStmt(stmt->getBody(), filePath);  // 递归调用
-        if (bodyNode) {
-            // 检查子节点是否包含日志调用
-            if (bodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(bodyNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("while循环语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeDoStmt(clang::DoStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析do-while循环语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::DO_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "do {...} while (...);";
-        }
-    }
-
-    // 分析do-while循环语句体
-    if (stmt->getBody()) {
-        auto bodyNode = analyzeStmt(stmt->getBody(), filePath);  // 递归调用
-        if (bodyNode) {
-            // 检查子节点是否包含日志调用
-            if (bodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(bodyNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("do-while循环语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeTryStmt(clang::CXXTryStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析try语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::TRY_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        // 获取语句文本表示
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                // 限制文本长度
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            nodeInfo->text = "try {...} catch (...) {...}";
-        }
-    }
-
-    // 分析try语句体
-    if (stmt->getTryBlock()) {
-        auto tryBodyNode = analyzeStmt(stmt->getTryBlock(), filePath);  // 递归调用
-        if (tryBodyNode) {
-            // 检查子节点是否包含日志调用
-            if (tryBodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(tryBodyNode));
-        }
-    }
-
-    // 分析所有catch语句
-    for (unsigned i = 0; i < stmt->getNumHandlers(); ++i) {
-        auto* handler = stmt->getHandler(i);
-        auto catchNode = analyzeCatchStmt(handler, filePath);  // 递归调用
-        if (catchNode) {
-            // 检查子节点是否包含日志调用
-            if (catchNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(catchNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("try语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeCatchStmt(clang::CXXCatchStmt* stmt, const std::string& filePath) {
-    if (!stmt || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("分析catch语句");
-
-    auto nodeInfo = std::make_unique<ASTNodeInfo>();
-    nodeInfo->type = NodeType::CATCH_STMT;
-
-    clang::SourceLocation loc = stmt->getBeginLoc();
-    if (loc.isValid()) {
-        clang::SourceManager& SM = currentContext_->getSourceManager();
-        nodeInfo->location.filePath = filePath;
-        nodeInfo->location.line = SM.getSpellingLineNumber(loc);
-        nodeInfo->location.column = SM.getSpellingColumnNumber(loc);
-
-        clang::SourceLocation endLoc = stmt->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = SM.getFileOffset(endLoc) - SM.getFileOffset(loc);
-            llvm::StringRef fileData = SM.getBufferData(SM.getFileID(loc));
-            if (SM.getFileOffset(loc) + length <= fileData.size()) {
-                nodeInfo->text = fileData.substr(SM.getFileOffset(loc), length).str();
-                if (nodeInfo->text.length() > 100) {
-                    nodeInfo->text = nodeInfo->text.substr(0, 97) + "...";
-                }
-            }
-        } else {
-            // 获取异常类型
-            std::string exceptionTypeStr = "...";
-            if (stmt->getExceptionDecl()) {
-                clang::QualType caughtType = stmt->getExceptionDecl()->getType();
-                if (!caughtType.isNull()) {
-                    exceptionTypeStr = caughtType.getAsString(currentContext_->getPrintingPolicy());
-                }
-            }
-            nodeInfo->text = "catch (" + exceptionTypeStr + ") {...}";
-        }
-    }
-
-    // 分析catch语句体
-    if (stmt->getHandlerBlock()) {
-        auto catchBodyNode = analyzeStmt(stmt->getHandlerBlock(), filePath);
-        if (catchBodyNode) {
-            if (catchBodyNode->hasLogging) {
-                nodeInfo->hasLogging = true;
-            }
-            nodeInfo->children.push_back(std::move(catchBodyNode));
-        }
-    }
-
-    LOG_DEBUG_FMT("catch语句分析完成，有 %zu 个子节点，%s日志调用", nodeInfo->children.size(),
-                  nodeInfo->hasLogging ? "包含" : "不包含");
-
-    return nodeInfo;
-}
-
-std::unique_ptr<ASTNodeInfo> ASTAnalyzer::analyzeCallExpr(clang::CallExpr* expr, const std::string& filePath) {
-    if (!expr || !currentContext_) {
-        return nullptr;
-    }
-
-    LOG_DEBUG("开始分析函数调用表达式");
-
-    auto node = std::make_unique<ASTNodeInfo>();
-    node->type = NodeType::CALL_EXPR;
-
-    // 获取函数名和完整的调用表达式
-    std::string funcName;
-    bool isQtLog = false;
-
-    if (const auto* callee = expr->getDirectCallee()) {
-        funcName = callee->getNameAsString();
-        LOG_DEBUG_FMT("直接调用函数名: %s", funcName.c_str());
-    } else if (const auto* calleeExpr = expr->getCallee()) {
-        // 处理更复杂的调用表达式
-        if (const auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(calleeExpr->IgnoreParenImpCasts())) {
-            funcName = declRef->getNameInfo().getAsString();
-            LOG_DEBUG_FMT("通过DeclRefExpr获取函数名: %s", funcName.c_str());
-        } else if (const auto* memberExpr = llvm::dyn_cast<clang::MemberExpr>(calleeExpr->IgnoreParenImpCasts())) {
-            funcName = memberExpr->getMemberNameInfo().getAsString();
-            LOG_DEBUG_FMT("通过MemberExpr获取函数名: %s", funcName.c_str());
-        }
-    }
-
-    node->name = funcName;
-
-    // 设置位置信息
-    auto loc = expr->getBeginLoc();
-    if (loc.isValid()) {
-        auto& srcMgr = currentContext_->getSourceManager();
-        node->location.filePath = filePath;
-        node->location.line = srcMgr.getSpellingLineNumber(loc);
-        node->location.column = srcMgr.getSpellingColumnNumber(loc);
-
-        // 获取完整的调用文本，用于调试
-        auto endLoc = expr->getEndLoc();
-        if (endLoc.isValid()) {
-            unsigned length = srcMgr.getFileOffset(endLoc) - srcMgr.getFileOffset(loc);
-            llvm::StringRef fileData = srcMgr.getBufferData(srcMgr.getFileID(loc));
-            if (srcMgr.getFileOffset(loc) + length <= fileData.size()) {
-                node->text = fileData.substr(srcMgr.getFileOffset(loc), length).str();
-                LOG_DEBUG_FMT("调用表达式文本: %s", node->text.c_str());
-            }
-        }
-    }
-
-    // 检查是否是 Qt 日志调用
-    if (config_.scan.isQtProject) {
-        const static std::unordered_set<std::string> qtLogFuncs = {
-            "qDebug", "qInfo", "qWarning", "qCritical", "qFatal",
-            "qCDebug", "qCInfo", "qCWarning", "qCCritical"
-        };
-
-        // 检查基本的Qt日志函数
-        isQtLog = qtLogFuncs.find(funcName) != qtLogFuncs.end();
-
-        // 检查是否是流式操作符形式的Qt日志调用
-        if (!isQtLog && expr->getNumArgs() > 0) {
-            const auto* firstArg = expr->getArg(0);
-            if (firstArg) {
-                std::string argStr;
-                llvm::raw_string_ostream rso(argStr);
-                firstArg->printPretty(rso, nullptr, clang::PrintingPolicy(currentContext_->getLangOpts()));
-                LOG_DEBUG_FMT("检查第一个参数: %s", argStr.c_str());
-
-                // 检查是否包含Qt日志函数名
-                for (const auto& logFunc : qtLogFuncs) {
-                    if (argStr.find(logFunc) != std::string::npos) {
-                        isQtLog = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // 如果是 Qt 日志调用，设置为 LOG_CALL_EXPR 类型
-    if (isQtLog) {
-        LOG_DEBUG_FMT("识别到Qt日志调用: %s", node->name.c_str());
-        node->type = NodeType::LOG_CALL_EXPR;
-        node->hasLogging = true;
-    }
-
-    // 分析参数
-    for (unsigned i = 0; i < expr->getNumArgs(); ++i) {
-        if (auto* arg = expr->getArg(i)) {
-            auto argNode = analyzeStmt(const_cast<clang::Stmt*>(static_cast<const clang::Stmt*>(arg)), filePath);
-            if (argNode) {
-                // 如果参数中包含日志调用，设置hasLogging标记
-                if (argNode->hasLogging) {
-                    node->hasLogging = true;
-                }
-                node->children.push_back(std::move(argNode));
-            }
-        }
-    }
-
-    LOG_DEBUG_FMT("函数调用分析完成: %s, %s日志调用", node->name.c_str(),
-                  node->hasLogging ? "包含" : "不包含");
-
-    return node;
+    return makeSuccess(std::move(rootNode));
 }
 
 bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
