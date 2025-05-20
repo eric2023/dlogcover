@@ -67,7 +67,8 @@ private:
 bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
     Timer timer("命令行解析");
 
-    if (!parser.parse(argc, argv)) {
+    auto result = parser.parse(argc, argv);
+    if (result.hasError()) {
         // 检查是否是帮助或版本请求
         if (parser.isHelpOrVersionRequest()) {
             return false;  // 帮助或版本请求，正常退出
@@ -82,8 +83,10 @@ bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
 bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& configManager) {
     Timer timer("配置加载和验证");
 
+    // loadConfig现在即使配置文件不存在也会返回true，因为会使用默认配置
     if (!configManager.loadConfig(options.configPath)) {
-        LOG_ERROR("无法加载配置文件: " + options.configPath);
+        // 这里应该不会再进来，但保留以防万一
+        LOG_ERROR("无法加载配置文件或默认配置: " + options.configPath);
         return false;
     }
 

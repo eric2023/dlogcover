@@ -11,6 +11,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <regex>
+#include <filesystem>
 
 namespace dlogcover {
 namespace config {
@@ -204,15 +205,21 @@ bool ConfigManager::loadConfig(const std::string& path) {
     LOG_INFO_FMT("加载配置文件: %s", path.c_str());
 
     if (!utils::FileUtils::fileExists(path)) {
-        LOG_ERROR_FMT("配置文件不存在: %s", path.c_str());
-        return false;
+        LOG_WARNING_FMT("配置文件不存在: %s，将使用默认配置", path.c_str());
+        // 使用默认配置
+        config_ = getDefaultConfig();
+        LOG_INFO("已加载默认配置");
+        return true;
     }
 
     try {
         std::ifstream file(path);
         if (!file.is_open()) {
-            LOG_ERROR_FMT("无法打开配置文件: %s", path.c_str());
-            return false;
+            LOG_ERROR_FMT("无法打开配置文件: %s，将使用默认配置", path.c_str());
+            // 使用默认配置
+            config_ = getDefaultConfig();
+            LOG_INFO("已加载默认配置");
+            return true;
         }
 
         nlohmann::json jsonConfig;
@@ -221,14 +228,21 @@ bool ConfigManager::loadConfig(const std::string& path) {
         // 按顺序解析各个配置部分
         if (!parseScanConfig(jsonConfig) || !parseLogFunctionsConfig(jsonConfig) || !parseAnalysisConfig(jsonConfig) ||
             !parseReportConfig(jsonConfig)) {
-            return false;
+            LOG_ERROR_FMT("配置文件解析失败: %s，将使用默认配置", path.c_str());
+            // 使用默认配置
+            config_ = getDefaultConfig();
+            LOG_INFO("已加载默认配置");
+            return true;
         }
 
         LOG_INFO("配置文件加载成功");
         return true;
     } catch (const std::exception& e) {
-        LOG_ERROR_FMT("配置文件解析错误: %s", e.what());
-        return false;
+        LOG_ERROR_FMT("配置文件解析错误: %s，将使用默认配置", e.what());
+        // 使用默认配置
+        config_ = getDefaultConfig();
+        LOG_INFO("已加载默认配置");
+        return true;
     }
 }
 
@@ -345,8 +359,19 @@ bool ConfigManager::validateScanConfig() const {
     // 检查扫描目录是否存在
     for (const auto& dir : config_.scan.directories) {
         if (!utils::FileUtils::directoryExists(dir)) {
-            LOG_ERROR_FMT("扫描目录不存在: %s", dir.c_str());
-            return false;
+            // 尝试创建目录
+            LOG_WARNING_FMT("扫描目录不存在，尝试创建: %s", dir.c_str());
+            try {
+                if (std::filesystem::create_directories(dir)) {
+                    LOG_INFO_FMT("成功创建扫描目录: %s", dir.c_str());
+                } else {
+                    LOG_ERROR_FMT("无法创建扫描目录: %s", dir.c_str());
+                    return false;
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR_FMT("创建扫描目录失败: %s, 错误: %s", dir.c_str(), e.what());
+                return false;
+            }
         }
     }
 

@@ -4,18 +4,19 @@
  * @copyright Copyright (c) 2023 DLogCover Team
  */
 
-#include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/file_utils.h>
+#include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/string_utils.h>
-#include <iostream>
-#include <fstream>
-#include <ctime>
-#include <iomanip>
-#include <mutex>
-#include <cstdarg>
-#include <thread>
-#include <chrono>
+
 #include <atomic>
+#include <chrono>
+#include <cstdarg>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <thread>
 
 namespace dlogcover {
 namespace utils {
@@ -89,9 +90,20 @@ void Logger::shutdown() {
 
     {
         std::lock_guard<std::mutex> logLock(logMutex_);
-        log(LogLevel::INFO, "日志系统关闭");
 
+        // 直接输出关闭消息，而不是通过log()函数
+        std::string timeStr = getCurrentTimeString();
+        std::string fullMessage = timeStr + " [INFO] 日志系统关闭";
+
+        // 输出到控制台
+        if (enableConsoleOutput_) {
+            std::cout << fullMessage << std::endl;
+        }
+
+        // 输出到文件
         if (logFileStream_.is_open()) {
+            logFileStream_ << fullMessage << std::endl;
+            logFileStream_.flush();
             logFileStream_.close();
         }
     }
@@ -194,28 +206,33 @@ void Logger::logOutput(LogLevel level, const std::string& message) {
 
 std::string Logger::getLevelName(LogLevel level) {
     switch (level) {
-        case LogLevel::DEBUG:   return "DEBUG";
-        case LogLevel::INFO:    return "INFO";
-        case LogLevel::WARNING: return "WARNING";
-        case LogLevel::ERROR:   return "ERROR";
-        case LogLevel::FATAL:   return "FATAL";
-        default:                return "UNKNOWN";
+        case LogLevel::DEBUG:
+            return "DEBUG";
+        case LogLevel::INFO:
+            return "INFO";
+        case LogLevel::WARNING:
+            return "WARNING";
+        case LogLevel::ERROR:
+            return "ERROR";
+        case LogLevel::FATAL:
+            return "FATAL";
+        default:
+            return "UNKNOWN";
     }
 }
 
 std::string Logger::getCurrentTimeString() {
     auto now = std::chrono::system_clock::now();
     auto time_t_now = std::chrono::system_clock::to_time_t(now);
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                 now.time_since_epoch()) % 1000;
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
 
     // 更安全的时间处理，避免在多线程环境下使用不安全的 localtime 函数
     std::tm tm_buf{};
-    #ifdef _WIN32
+#ifdef _WIN32
     localtime_s(&tm_buf, &time_t_now);
-    #else
+#else
     localtime_r(&time_t_now, &tm_buf);
-    #endif
+#endif
 
     std::stringstream ss;
     ss << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S");
@@ -224,5 +241,5 @@ std::string Logger::getCurrentTimeString() {
     return ss.str();
 }
 
-} // namespace utils
-} // namespace dlogcover
+}  // namespace utils
+}  // namespace dlogcover
