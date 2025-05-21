@@ -1,0 +1,80 @@
+{
+    "scan": {
+        "directories": [
+            "./"
+        ],
+        "excludes": [
+            "build/",
+            "test/",
+            ".git/",
+            ".vscode/",
+            ".cursor/",
+            ".specstory/"
+        ],
+        "file_types": [
+            ".cpp",
+            ".cc",
+            ".cxx",
+            ".h",
+            ".hpp",
+            ".hxx"
+        ],
+        "include_paths": "./include:./src",
+        "is_qt_project": false,
+        "compiler_args": [
+            "-Wno-everything",
+            "-xc++",
+            "-ferror-limit=0",
+            "-fsyntax-only"
+        ]
+    },
+    "log_functions": {
+        "qt": {
+            "enabled": true,
+            "functions": [
+                "qDebug",
+                "qInfo",
+                "qWarning",
+                "qCritical",
+                "qFatal"
+            ],
+            "category_functions": [
+                "qCDebug",
+                "qCInfo",
+                "qCWarning",
+                "qCCritical"
+            ]
+        },
+        "custom": {
+            "enabled": true,
+            "functions": {
+                "debug": [
+                    "LOG_DEBUG",
+                    "LOG_DEBUG_FMT"
+                ],
+                "info": [
+                    "LOG_INFO",
+                    "LOG_INFO_FMT"
+                ],
+                "warning": [
+                    "LOG_WARNING",
+                    "LOG_WARNING_FMT"
+                ],
+                "critical": [
+                    "LOG_ERROR",
+                    "LOG_ERROR_FMT"
+                ]
+            }
+        }
+    },
+    "analysis": {
+        "function_coverage": true,
+        "branch_coverage": true,
+        "exception_coverage": true,
+        "key_path_coverage": true
+    },
+    "report": {
+        "format": "text",
+        "timestamp_format": "YYYYMMDD_HHMMSS"
+    }
+}

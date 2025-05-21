@@ -379,3 +379,62 @@ clang-format -i src/*.cpp include/dlogcover/*.h
 2. 优化日志消息提取算法
 3. 加强日志函数名识别的准确性
 4. 恢复严格的测试验证逻辑
+
+## 故障排除
+
+### 修复AST创建失败问题
+
+在使用DLogCover过程中，您可能会遇到"无法为文件创建AST单元"的错误，这通常是由于AST分析器无法正确地处理Clang工具链API导致的。
+
+#### 问题症状
+程序运行日志中出现大量类似下面的错误：
+```
+error: no input files
+error: unable to handle compilation, expected exactly one compiler job in ''
+```
+
+#### 解决方案
+1. 我们通过以下方式修复了这个问题：
+   - 修改AST分析器的实现，使用正确的Clang工具链API创建AST单元
+   - 提供了一个默认的配置文件`dlogcover.json`，包含必要的编译选项
+   - 添加对包含路径的解析和应用
+
+2. 如果您仍然遇到相关问题，可以尝试：
+   - 确保项目根目录下存在`dlogcover.json`配置文件
+   - 在配置文件中设置正确的包含路径和编译选项
+   - 检查是否设置了正确的C++标准
+
+#### 配置文件示例
+```json
+{
+  "scan": {
+    "directories": ["./"],
+    "excludes": ["build/", "test/", ".git/", ".vscode/", ".cursor/", ".specstory/"],
+    "file_types": [".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx"],
+    "include_paths": "./include:./src",
+    "is_qt_project": false,
+    "compiler_args": [
+      "-Wno-everything",
+      "-xc++",
+      "-ferror-limit=0",
+      "-fsyntax-only"
+    ]
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+      "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["LOG_DEBUG", "LOG_DEBUG_FMT"],
+        "info": ["LOG_INFO", "LOG_INFO_FMT"],
+        "warning": ["LOG_WARNING", "LOG_WARNING_FMT"],
+        "critical": ["LOG_ERROR", "LOG_ERROR_FMT"]
+      }
+    }
+  }
+}
+```

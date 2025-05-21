@@ -23,6 +23,7 @@
 #include <clang/Parse/ParseAST.h>
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Tooling/Tooling.h>
+#include <clang/Tooling/CompilationDatabase.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -113,13 +114,33 @@ const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& ASTAnalyzer
 std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& filePath, const std::string& content) {
     LOG_DEBUG_FMT("创建文件的AST单元: %s", filePath.c_str());
 
-    // 准备命令行参数，指定C++语言和标准
-    std::vector<std::string> args = {"-std=c++17",
-                                     "-xc++",
-                                     "-Wall",
-                                     "-Wextra",
-                                     "-fPIC",  // 添加 PIC 支持
-                                     "-I" + config_.scan.includePathsStr};
+    // 创建编译命令行参数
+    std::vector<std::string> args;
+
+    // 基本命令行选项
+    args.push_back("-std=c++17");
+    args.push_back("-xc++");
+    args.push_back("-Wall");
+    args.push_back("-Wextra");
+    args.push_back("-fPIC");
+    args.push_back("-Wno-everything");  // 忽略所有警告
+    args.push_back("-ferror-limit=0");  // 不限制错误数量
+    args.push_back("-fsyntax-only");    // 仅进行语法检查
+
+    // 添加包含路径
+    if (!config_.scan.includePathsStr.empty()) {
+        std::istringstream iss(config_.scan.includePathsStr);
+        std::string includePath;
+        while (std::getline(iss, includePath, ':')) {
+            if (!includePath.empty()) {
+                args.push_back("-I" + includePath);
+            }
+        }
+    }
+
+    // 默认添加当前目录和include目录
+    args.push_back("-I.");
+    args.push_back("-I./include");
 
     // 为Qt项目添加常用的定义和选项
     if (config_.scan.isQtProject) {
@@ -135,6 +156,8 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
     for (const auto& arg : config_.scan.compilerArgs) {
         args.push_back(arg);
     }
+
+    LOG_DEBUG_FMT("编译命令: %s", llvm::join(args, " ").c_str());
 
     // 使用Clang的工具链创建AST
     std::unique_ptr<clang::ASTUnit> astUnit = clang::tooling::buildASTFromCodeWithArgs(content, args, filePath);

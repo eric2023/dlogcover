@@ -1,0 +1,1481 @@
+=====================================================
+            DLogCover 日志覆盖率报告                
+=====================================================
+生成时间: 2025-05-21 20:41:57
+----------------------------------------------------
+
+总体覆盖率统计
+----------------------------------------------------
+函数级覆盖率: 0.00% (0/113)
+分支级覆盖率: 0.00% (0/21)
+异常级覆盖率: 0.00% (0/3)
+关键路径覆盖率: 0.00% (0/124)
+总体覆盖率: 0.00%
+未覆盖路径: 261 个
+
+
+=====================================================
+
+文件覆盖率统计
+----------------------------------------------------
+文件: ./include/dlogcover/cli/command_line_parser.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/cli/config_constants.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/cli/config_validator.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/cli/error_types.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/cli/options.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/config/config.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/config/config_manager.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_expression_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_function_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_node_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_statement_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/ast_types.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/ast_analyzer/iast_analyzer.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/coverage/coverage_calculator.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/log_identifier/log_identifier.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/core/log_types.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/ireporter_strategy.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/json_reporter_strategy.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/reporter.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/reporter_factory.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/reporter_types.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/reporter/text_reporter_strategy.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/source_manager/source_manager.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/utils/file_utils.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/utils/log_utils.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./include/dlogcover/utils/string_utils.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/cli/command_line_parser.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/cli/config_validator.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/cli/options.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/config/config_manager.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/ast_analyzer/ast_analyzer.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/ast_analyzer/ast_expression_analyzer.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/ast_analyzer/ast_function_analyzer.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/ast_analyzer/ast_node_analyzer.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/ast_analyzer/ast_statement_analyzer.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/coverage/coverage_calculator.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/core/log_identifier/log_identifier.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/main.cpp
+  函数覆盖率: 0.00% (0/50)
+  分支覆盖率: 0.00% (0/21)
+  异常覆盖率: 0.00% (0/3)
+  关键路径覆盖率: 0.00% (0/61)
+  总体覆盖率: 0.00%
+  未覆盖路径: 135 个
+----------------------------------------------------
+文件: ./src/reporter/json_reporter_strategy.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/reporter/reporter.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/reporter/reporter_factory.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/reporter/text_reporter_strategy.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/source_manager/source_manager.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/utils/file_utils.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/utils/log_utils.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./src/utils/string_utils.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/common/test_utils.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/common/test_utils.h
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/integration/config_workflow_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/integration/coverage_workflow_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/integration/error_handling_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/integration/log_analysis_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/ast_analyzer_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/cli/options_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/command_line_parser_test.cpp
+  函数覆盖率: 0.00% (0/3)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/3)
+  总体覆盖率: 0.00%
+  未覆盖路径: 6 个
+----------------------------------------------------
+文件: ./tests/unit/config_manager_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/coverage_calculator_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/file_utils_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/log_identifier_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/reporter_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+文件: ./tests/unit/source_manager_test.cpp
+  函数覆盖率: 0.00% (0/1)
+  分支覆盖率: N/A (0/0)
+  异常覆盖率: N/A (0/0)
+  关键路径覆盖率: 0.00% (0/1)
+  总体覆盖率: 0.00%
+  未覆盖路径: 2 个
+----------------------------------------------------
+
+未覆盖路径列表
+----------------------------------------------------
+[函数] root
+  位置: ./tests/integration/coverage_workflow_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/integration/coverage_workflow_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_node_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_node_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/common/test_utils.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/common/test_utils.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_function_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_function_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/log_identifier_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/log_identifier_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/iast_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/iast_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/cli/command_line_parser.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/cli/command_line_parser.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/ast_analyzer_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/ast_analyzer_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/ast_analyzer/ast_expression_analyzer.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/ast_analyzer/ast_expression_analyzer.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/log_types.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/log_types.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/log_identifier/log_identifier.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/log_identifier/log_identifier.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/config/config_manager.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/config/config_manager.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/source_manager/source_manager.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/source_manager/source_manager.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/cli/options_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/cli/options_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/config/config.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/config/config.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/ast_analyzer/ast_analyzer.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/ast_analyzer/ast_analyzer.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/cli/config_validator.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/cli/config_validator.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/utils/file_utils.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/utils/file_utils.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/cli/error_types.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/cli/error_types.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/cli/config_validator.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/cli/config_validator.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/integration/config_workflow_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/integration/config_workflow_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/common/test_utils.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/common/test_utils.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/coverage/coverage_calculator.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/coverage/coverage_calculator.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/utils/log_utils.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/utils/log_utils.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/reporter_factory.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/reporter_factory.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/file_utils_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/file_utils_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/cli/options.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/cli/options.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/main.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] LogManager::LogManager
+  位置: ./src/main.cpp:36:5
+  代码: LogManager(const std::string& logFileName, bool console, utils::LogLevel level) {
+        utils::Log...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:36:85
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] LogManager::~LogManager
+  位置: ./src/main.cpp:41:5
+  代码: ~LogManager() {
+        LOG_INFO("DLogCover 关闭日志系统");
+        utils::Logger::shutdown();...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:41:19
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] Timer::Timer
+  位置: ./src/main.cpp:50:5
+  代码: Timer(const std::string& operationName)
+        : operationName_(operationName), start_(std::chrono:...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:51:92
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] Timer::~Timer
+  位置: ./src/main.cpp:55:5
+  代码: ~Timer() {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:55:14
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] parseCommandLine
+  位置: ./src/main.cpp:67:1
+  代码: bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
+    Timer timer("命...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:67:79
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:71:28
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:73:46
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] loadAndValidateConfig
+  位置: ./src/main.cpp:83:1
+  代码: bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& configManager) {
+    ...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:83:95
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:87:56
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:97:42
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] collectSourceFiles
+  位置: ./src/main.cpp:106:1
+  代码: bool collectSourceFiles(const config::Config& config, source_manager::SourceManager& sourceManager) ...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:106:101
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:110:46
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] performASTAnalysis
+  位置: ./src/main.cpp:119:1
+  代码: bool performASTAnalysis(const config::Config& config, source_manager::SourceManager& sourceManager,
+...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:120:71
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:124:36
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] identifyLogCalls
+  位置: ./src/main.cpp:133:1
+  代码: bool identifyLogCalls(const config::Config& config, core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+  ...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:134:75
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:138:44
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] calculateCoverage
+  位置: ./src/main.cpp:147:1
+  代码: bool calculateCoverage(const config::Config& config, core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+ ...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:149:80
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:153:42
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] generateReport
+  位置: ./src/main.cpp:162:1
+  代码: bool generateReport(const config::Config& config, const cli::Options& options,
+                    c...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:163:77
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:188:58
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:190:65
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:192:12
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:199:28
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] generateLogFileName
+  位置: ./src/main.cpp:208:1
+  代码: std::string generateLogFileName(const cli::Options& options) {
+    // 如果配置中指定了日志...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:208:62
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:210:35
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] main
+  位置: ./src/main.cpp:222:1
+  代码: int main(int argc, char* argv[]) {
+    // 记录程序开始时间
+    auto programStart = std::chro...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:222:34
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:226:9
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:229:63
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:243:61
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:251:57
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:257:70
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:263:68
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:269:89
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:274:67
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:284:39
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./src/main.cpp:288:19
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[分支] if 分支
+  位置: ./src/main.cpp:71:5
+  代码: if (result.hasError()) {
+        // 检查是否是帮助或版本请求
+        if (parser.isHelpOr...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:73:9
+  代码: if (parser.isHelpOrVersionRequest()) {
+            return false;  // 帮助或版本请求，正常�...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:87:5
+  代码: if (!configManager.loadConfig(options.configPath)) {
+        // 这里应该不会再进来，但保...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:97:5
+  代码: if (!configManager.validateConfig()) {
+        LOG_ERROR("配置验证失败");
+        return false...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:110:5
+  代码: if (!sourceManager.collectSourceFiles()) {
+        LOG_ERROR("源文件收集失败");
+        retur...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:124:5
+  代码: if (!astAnalyzer.analyzeAll()) {
+        LOG_ERROR("AST分析失败");
+        return false;
+    
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:138:5
+  代码: if (!logIdentifier.identifyLogCalls()) {
+        LOG_ERROR("日志调用识别失败");
+        retu...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:153:5
+  代码: if (!coverageCalculator.calculate()) {
+        LOG_ERROR("覆盖率计算失败");
+        return fa...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:188:5
+  代码: if (options.reportFormat == cli::ReportFormat::TEXT) {
+        format = reporter::ReportFormat::TEXT...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: ./src/main.cpp:190:7
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:190:12
+  代码: if (options.reportFormat == cli::ReportFormat::JSON) {
+        format = reporter::ReportFormat::JSON...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: ./src/main.cpp:192:7
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:199:5
+  代码: if (result.hasError()) {
+        LOG_ERROR_FMT("报告生成失败: %s", result.errorMessage().c_str...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:210:5
+  代码: if (!options.logPath.empty()) {
+        return options.logPath;
+    
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:229:9
+  代码: if (!parseCommandLine(argc, argv, commandLineParser)) {
+            // 正常退出（帮助或版�...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:243:9
+  代码: if (!loadAndValidateConfig(options, configManager)) {
+            return 1;
+        
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:251:9
+  代码: if (!collectSourceFiles(config, sourceManager)) {
+            return 1;
+        
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:257:9
+  代码: if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
+            return 1;
+        
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:263:9
+  代码: if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
+            return 1;
+        
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:269:9
+  代码: if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
+            return...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: ./src/main.cpp:274:9
+  代码: if (!generateReport(config, options, coverageCalculator)) {
+            return 1;
+        
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[异常] try
+  位置: ./src/main.cpp:226:5
+  代码: try {
+        // 解析命令行参数
+        cli::CommandLineParser commandLineParser;
+        if ...
+  建议: 在try块中关键位置添加日志记录，记录可能导致异常的操作
+[异常] catch
+  位置: ./src/main.cpp:284:7
+  代码: catch (const std::exception& e) {
+        std::cerr << "错误: " << e.what() << std::endl;
+        ...
+  建议: 在catch块中添加日志记录，记录捕获到的异常信息和相关上下文
+[异常] catch
+  位置: ./src/main.cpp:288:7
+  代码: catch (...) {
+        std::cerr << "未知错误" << std::endl;
+        LOG_ERROR("未知异常");
+ ...
+  建议: 在catch块中添加日志记录，记录捕获到的异常信息和相关上下文
+[关键路径] root
+  位置: ./src/main.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] LogManager::LogManager
+  位置: ./src/main.cpp:36:5
+  代码: LogManager(const std::string& logFileName, bool console, utils::LogLevel level) {
+        utils::Log...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:36:85
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] LogManager::~LogManager
+  位置: ./src/main.cpp:41:5
+  代码: ~LogManager() {
+        LOG_INFO("DLogCover 关闭日志系统");
+        utils::Logger::shutdown();...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:41:19
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] Timer::Timer
+  位置: ./src/main.cpp:50:5
+  代码: Timer(const std::string& operationName)
+        : operationName_(operationName), start_(std::chrono:...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:51:92
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] Timer::~Timer
+  位置: ./src/main.cpp:55:5
+  代码: ~Timer() {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:55:14
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] parseCommandLine
+  位置: ./src/main.cpp:67:1
+  代码: bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
+    Timer timer("命...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:67:79
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:71:28
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:73:46
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] loadAndValidateConfig
+  位置: ./src/main.cpp:83:1
+  代码: bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& configManager) {
+    ...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:83:95
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:87:56
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:97:42
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] collectSourceFiles
+  位置: ./src/main.cpp:106:1
+  代码: bool collectSourceFiles(const config::Config& config, source_manager::SourceManager& sourceManager) ...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:106:101
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:110:46
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] performASTAnalysis
+  位置: ./src/main.cpp:119:1
+  代码: bool performASTAnalysis(const config::Config& config, source_manager::SourceManager& sourceManager,
+...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:120:71
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:124:36
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] identifyLogCalls
+  位置: ./src/main.cpp:133:1
+  代码: bool identifyLogCalls(const config::Config& config, core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+  ...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:134:75
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:138:44
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] calculateCoverage
+  位置: ./src/main.cpp:147:1
+  代码: bool calculateCoverage(const config::Config& config, core::ast_analyzer::ASTAnalyzer& astAnalyzer,
+ ...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:149:80
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:153:42
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] generateReport
+  位置: ./src/main.cpp:162:1
+  代码: bool generateReport(const config::Config& config, const cli::Options& options,
+                    c...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:163:77
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:188:58
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:190:65
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:192:12
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:199:28
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] generateLogFileName
+  位置: ./src/main.cpp:208:1
+  代码: std::string generateLogFileName(const cli::Options& options) {
+    // 如果配置中指定了日志...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:208:62
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:210:35
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] main
+  位置: ./src/main.cpp:222:1
+  代码: int main(int argc, char* argv[]) {
+    // 记录程序开始时间
+    auto programStart = std::chro...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:222:34
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:226:9
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:229:63
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:243:61
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:251:57
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:257:70
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:263:68
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:269:89
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:274:67
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:284:39
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./src/main.cpp:288:19
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] catch
+  位置: ./src/main.cpp:284:7
+  代码: catch (const std::exception& e) {
+        std::cerr << "错误: " << e.what() << std::endl;
+        ...
+  建议: 此catch块是关键异常处理路径，应详细记录异常信息和处理步骤
+[关键路径] catch
+  位置: ./src/main.cpp:288:7
+  代码: catch (...) {
+        std::cerr << "未知错误" << std::endl;
+        LOG_ERROR("未知异常");
+ ...
+  建议: 此catch块是关键异常处理路径，应详细记录异常信息和处理步骤
+[关键路径] if
+  位置: ./src/main.cpp:71:5
+  代码: if (result.hasError()) {
+        // 检查是否是帮助或版本请求
+        if (parser.isHelpOr...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:73:9
+  代码: if (parser.isHelpOrVersionRequest()) {
+            return false;  // 帮助或版本请求，正常�...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:87:5
+  代码: if (!configManager.loadConfig(options.configPath)) {
+        // 这里应该不会再进来，但保...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:97:5
+  代码: if (!configManager.validateConfig()) {
+        LOG_ERROR("配置验证失败");
+        return false...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:110:5
+  代码: if (!sourceManager.collectSourceFiles()) {
+        LOG_ERROR("源文件收集失败");
+        retur...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:124:5
+  代码: if (!astAnalyzer.analyzeAll()) {
+        LOG_ERROR("AST分析失败");
+        return false;
+    
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:138:5
+  代码: if (!logIdentifier.identifyLogCalls()) {
+        LOG_ERROR("日志调用识别失败");
+        retu...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:153:5
+  代码: if (!coverageCalculator.calculate()) {
+        LOG_ERROR("覆盖率计算失败");
+        return fa...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: ./src/main.cpp:199:5
+  代码: if (result.hasError()) {
+        LOG_ERROR_FMT("报告生成失败: %s", result.errorMessage().c_str...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[函数] root
+  位置: ./src/utils/string_utils.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/utils/string_utils.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/reporter/text_reporter_strategy.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/reporter/text_reporter_strategy.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/cli/command_line_parser.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/cli/command_line_parser.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/reporter/reporter_factory.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/reporter/reporter_factory.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/cli/config_constants.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/cli/config_constants.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_expression_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_expression_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/reporter/reporter.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/reporter/reporter.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/config/config_manager.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/config/config_manager.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/reporter/json_reporter_strategy.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/reporter/json_reporter_strategy.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/ast_analyzer/ast_statement_analyzer.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/ast_analyzer/ast_statement_analyzer.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_types.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_types.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/ast_analyzer/ast_function_analyzer.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/ast_analyzer/ast_function_analyzer.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/source_manager_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/source_manager_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_statement_analyzer.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/core/ast_analyzer/ast_statement_analyzer.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/utils/file_utils.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/utils/file_utils.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/source_manager/source_manager.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/source_manager/source_manager.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/reporter_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/reporter_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/ast_analyzer/ast_node_analyzer.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/ast_analyzer/ast_node_analyzer.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/reporter.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/reporter.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/coverage_calculator_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/coverage_calculator_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/ireporter_strategy.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/ireporter_strategy.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/json_reporter_strategy.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/json_reporter_strategy.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/utils/log_utils.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/utils/log_utils.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/text_reporter_strategy.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/text_reporter_strategy.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/integration/error_handling_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/integration/error_handling_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/integration/log_analysis_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/integration/log_analysis_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/log_identifier/log_identifier.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/log_identifier/log_identifier.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/cli/options.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/cli/options.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/command_line_parser_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] main
+  位置: ./tests/unit/command_line_parser_test.cpp:409:1
+  代码: int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TES...
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] compound
+  位置: ./tests/unit/command_line_parser_test.cpp:409:33
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/command_line_parser_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] main
+  位置: ./tests/unit/command_line_parser_test.cpp:409:1
+  代码: int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TES...
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] compound
+  位置: ./tests/unit/command_line_parser_test.cpp:409:33
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./src/core/coverage/coverage_calculator.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./src/core/coverage/coverage_calculator.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/utils/string_utils.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/utils/string_utils.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./include/dlogcover/reporter/reporter_types.h:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./include/dlogcover/reporter/reporter_types.h:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[函数] root
+  位置: ./tests/unit/config_manager_test.cpp:1:1
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[关键路径] root
+  位置: ./tests/unit/config_manager_test.cpp:1:1
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+
+改进建议
+----------------------------------------------------
+1. 确保所有函数入口和关键分支都有适当级别的日志记录。
+2. 当前日志覆盖率较低，应优先关注函数入口和异常处理的日志记录。
+3. 为主要功能模块添加详细的日志记录，便于问题定位。
+4. 函数级覆盖率较低，建议在函数入口添加debug级别日志，记录函数调用及参数。
+5. 分支覆盖率较低，建议在关键条件分支添加合适级别的日志，记录分支执行情况。
+6. 异常覆盖率不足，建议在所有异常处理块中添加warning或error级别日志。
+7. 有 261 个未覆盖路径需要添加日志记录，请参考上述未覆盖路径列表。
+
+日志记录最佳实践：
+- 函数入口应使用debug级别日志，记录函数名和关键参数
+- 重要业务逻辑应使用info级别日志，记录操作和结果
+- 异常分支应使用warning级别日志，记录异常情况
+- 错误处理应使用error级别日志，记录错误信息和上下文
+- 致命错误应使用fatal级别日志，记录导致程序终止的错误
+
+=====================================================
+               报告结束                             
+=====================================================

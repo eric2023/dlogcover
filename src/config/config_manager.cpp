@@ -8,10 +8,10 @@
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
 
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <regex>
-#include <filesystem>
 
 namespace dlogcover {
 namespace config {
@@ -82,6 +82,24 @@ bool ConfigManager::parseScanConfig(const nlohmann::json& jsonConfig) {
 
         if (hasValidField(scan, "file_types", nlohmann::json::value_t::array)) {
             config_.scan.fileTypes = safeGetStringArray(scan["file_types"], config_.scan.fileTypes);
+        }
+
+        // 添加对include_paths的解析
+        if (hasValidField(scan, "include_paths", nlohmann::json::value_t::string)) {
+            config_.scan.includePathsStr = scan["include_paths"].get<std::string>();
+            LOG_DEBUG_FMT("包含路径设置为: %s", config_.scan.includePathsStr.c_str());
+        }
+
+        // 添加对is_qt_project的解析
+        if (hasValidField(scan, "is_qt_project", nlohmann::json::value_t::boolean)) {
+            config_.scan.isQtProject = scan["is_qt_project"].get<bool>();
+            LOG_DEBUG_FMT("Qt项目标志设置为: %s", config_.scan.isQtProject ? "true" : "false");
+        }
+
+        // 添加对compiler_args的解析
+        if (hasValidField(scan, "compiler_args", nlohmann::json::value_t::array)) {
+            config_.scan.compilerArgs = safeGetStringArray(scan["compiler_args"], config_.scan.compilerArgs);
+            LOG_DEBUG_FMT("添加了 %zu 个编译器参数", config_.scan.compilerArgs.size());
         }
 
         return true;
@@ -322,6 +340,14 @@ Config ConfigManager::getDefaultConfig() {
     config.scan.directories = {"./"};  // 默认为当前目录
     config.scan.excludes = {"build/", "test/", "third_party/", ".git/"};
     config.scan.fileTypes = {".cpp", ".cc", ".cxx", ".h", ".hpp"};
+    config.scan.includePathsStr = "./include:./src";  // 默认包含路径
+    config.scan.isQtProject = false;  // 默认不是Qt项目
+    config.scan.compilerArgs = {  // 默认编译参数
+        "-Wno-everything",
+        "-xc++",
+        "-ferror-limit=0",
+        "-fsyntax-only"
+    };
 
     // 默认Qt日志函数配置
     config.logFunctions.qt.enabled = true;
