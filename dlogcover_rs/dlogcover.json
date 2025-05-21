@@ -1,0 +1,33 @@
+{
+  "scan": {
+    "directories": ["./src"],
+    "excludes": ["target/", "test/"],
+    "file_types": [".rs"]
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": false,
+      "functions": [],
+      "category_functions": []
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["debug!", "log::debug"],
+        "info": ["info!", "log::info"],
+        "warning": ["warn!", "log::warn"],
+        "error": ["error!", "log::error"]
+      }
+    }
+  },
+  "analysis": {
+    "function_coverage": true,
+    "branch_coverage": false,
+    "exception_coverage": false,
+    "key_path_coverage": true
+  },
+  "report": {
+    "format": "text",
+    "timestamp_format": "%Y%m%d_%H%M%S"
+  }
+}
