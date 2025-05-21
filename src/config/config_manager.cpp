@@ -341,13 +341,9 @@ Config ConfigManager::getDefaultConfig() {
     config.scan.excludes = {"build/", "test/", "third_party/", ".git/"};
     config.scan.fileTypes = {".cpp", ".cc", ".cxx", ".h", ".hpp"};
     config.scan.includePathsStr = "./include:./src";  // 默认包含路径
-    config.scan.isQtProject = false;  // 默认不是Qt项目
-    config.scan.compilerArgs = {  // 默认编译参数
-        "-Wno-everything",
-        "-xc++",
-        "-ferror-limit=0",
-        "-fsyntax-only"
-    };
+    config.scan.isQtProject = false;                  // 默认不是Qt项目
+    config.scan.compilerArgs = {                      // 默认编译参数
+                                "-Wno-everything", "-xc++", "-ferror-limit=0", "-fsyntax-only"};
 
     // 默认Qt日志函数配置
     config.logFunctions.qt.enabled = true;
@@ -359,8 +355,9 @@ Config ConfigManager::getDefaultConfig() {
     config.logFunctions.custom.functions["debug"] = {"logDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"};
     config.logFunctions.custom.functions["info"] = {"logInfo", "LOG_INFO", "LOG_INFO_FMT"};
     config.logFunctions.custom.functions["warning"] = {"logWarning", "LOG_WARNING", "LOG_WARNING_FMT"};
-    config.logFunctions.custom.functions["critical"] = {"logCritical", "LOG_ERROR", "LOG_ERROR_FMT"};
-    config.logFunctions.custom.functions["fatal"] = {"logFatal", "LOG_FATAL", "LOG_FATAL_FMT"};
+    config.logFunctions.custom.functions["critical"] = {"logCritical"};
+    config.logFunctions.custom.functions["fatal"] = {"logFatal", "LOG_ERROR", "LOG_ERROR_FMT", "LOG_FATAL",
+                                                     "LOG_FATAL_FMT"};
 
     // 默认分析配置
     config.analysis.functionCoverage = true;

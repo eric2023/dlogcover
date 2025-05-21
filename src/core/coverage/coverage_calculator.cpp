@@ -2,6 +2,14 @@
  * @file coverage_calculator.cpp
  * @brief 覆盖率计算器实现
  * @copyright Copyright (c) 2023 DLogCover Team
+ *
+ * @note 重构说明：
+ *   1. 移除了硬编码的日志函数/宏检测逻辑，改为使用配置文件中的logFunctions配置
+ *   2. 添加了getAllLogFunctionsAndMacros辅助方法，用于获取配置中所有日志函数名称
+ *   3. 优化了containsLogMacros方法，使用配置的日志函数集合进行检查
+ *   4. 改进了hasLoggingInSubtree方法，移除硬编码的LOG_关键字检查
+ *   5. 重构了identifyKeyBranches方法，增加了可扩展性
+ *   6. 使用命名常量替代硬编码的错误关键词
  */
 
 #include <dlogcover/core/coverage/coverage_calculator.h>
@@ -14,6 +22,11 @@
 namespace dlogcover {
 namespace core {
 namespace coverage {
+
+// 关键词列表，用于识别错误处理相关的分支
+// 这些关键词也可以通过配置文件提供，增加灵活性
+const std::vector<std::string> CoverageCalculator::ERROR_KEYWORDS = {
+    "error", "fail", "exception", "return false", "return -1", "throw", "failed", "invalid", "nullptr", "NULL"};
 
 CoverageCalculator::CoverageCalculator(const config::Config& config, const ast_analyzer::ASTAnalyzer& astAnalyzer,
                                        const log_identifier::LogIdentifier& logIdentifier)
@@ -89,6 +102,33 @@ bool CoverageCalculator::calculate() {
 
     LOG_INFO_FMT("发现未覆盖路径: %zu 个", overallStats_.uncoveredPaths.size());
 
+    // 添加验证步骤，检查是否存在零覆盖率的异常情况
+    if (overallStats_.totalFunctions == 0 && overallStats_.totalBranches == 0 &&
+        overallStats_.totalExceptionHandlers == 0 && overallStats_.totalKeyPaths == 0) {
+        LOG_WARNING("警告：未检测到任何代码元素（函数、分支、异常处理或关键路径）");
+        LOG_WARNING("这可能表示AST分析过程出现问题或配置中的包含/排除规则设置不正确");
+
+        // 打印配置信息以帮助诊断
+        LOG_WARNING_FMT("扫描目录: %zu 个", config_.scan.directories.size());
+        for (const auto& dir : config_.scan.directories) {
+            LOG_WARNING_FMT("  - %s", dir.c_str());
+        }
+
+        LOG_WARNING_FMT("排除目录: %zu 个", config_.scan.excludes.size());
+        for (const auto& exclude : config_.scan.excludes) {
+            LOG_WARNING_FMT("  - %s", exclude.c_str());
+        }
+
+        LOG_WARNING_FMT("文件类型: %zu 个", config_.scan.fileTypes.size());
+        for (const auto& type : config_.scan.fileTypes) {
+            LOG_WARNING_FMT("  - %s", type.c_str());
+        }
+
+        LOG_WARNING_FMT("检查到的AST节点数量: %zu", astAnalyzer_.getAllASTNodeInfo().size());
+
+        // 尽管出现异常情况，依然返回true，让流程继续，以便生成报告
+    }
+
     LOG_INFO("覆盖率计算完成");
     return true;
 }
@@ -129,57 +169,180 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
 
     // 获取该文件的日志调用
     const auto& logCalls = logIdentifier_.getLogCalls(filePath);
+    LOG_DEBUG_FMT("文件 %s 中发现 %zu 个日志调用", filePath.c_str(), logCalls.size());
 
     // 创建日志行号集合，用于快速查找
     std::unordered_set<unsigned int> logLines;
     for (const auto& logCall : logCalls) {
         logLines.insert(logCall.location.line);
+        LOG_DEBUG_FMT("日志调用行号: %u, 函数: %s", logCall.location.line, logCall.functionName.c_str());
     }
 
     // 计算已覆盖的函数数量
     for (const auto* funcNode : functionNodes) {
+        // 跳过复合语句节点，确保只处理真正的函数
+        if (funcNode->name == "compound") {
+            continue;
+        }
+
+        // 首先检查函数节点本身是否已标记为有日志调用
         bool isCovered = funcNode->hasLogging;
+        LOG_DEBUG_FMT("函数 %s 在位置 %s:%u hasLogging=%d", funcNode->name.c_str(), funcNode->location.filePath.c_str(),
+                      funcNode->location.line, isCovered);
+
+        // 增强的覆盖检测: 检查函数的子节点是否含有日志调用
+        if (!isCovered) {
+            isCovered = containsLogMacros(funcNode);
+            if (isCovered) {
+                LOG_DEBUG_FMT("函数 %s 在子节点中包含配置的日志函数或宏调用", funcNode->name.c_str());
+            }
+        }
 
         // 如果仍然未覆盖，检查是否在logCalls中有记录
         if (!isCovered) {
             // 获取函数的起始和结束行
             unsigned int funcStartLine = funcNode->location.line;
+            unsigned int funcEndLine = funcNode->location.line;
 
-            // 结束行需要推断，这里简单地搜索函数后的日志调用
-            unsigned int funcEndLine = funcStartLine + 100;  // 假设函数不超过100行
-            for (const auto& logCall : logCalls) {
-                if (logCall.location.line >= funcStartLine && logCall.location.line <= funcEndLine &&
-                    logCall.location.filePath == funcNode->location.filePath) {
+            // 确定函数的结束行
+            if (funcNode->endLocation.line > 0) {
+                funcEndLine = funcNode->endLocation.line;
+            } else {
+                // 如果没有确切的结束行，给一个合理的范围
+                // 为提高准确度，尝试从函数文本中推导结束行号
+                size_t braceCount = 0;
+                size_t lineCount = 0;
+                std::istringstream stream(funcNode->text);
+                std::string line;
+
+                while (std::getline(stream, line)) {
+                    lineCount++;
+                    for (char c : line) {
+                        if (c == '{')
+                            braceCount++;
+                        if (c == '}')
+                            braceCount--;
+                    }
+                }
+
+                // 更新函数结束行
+                if (lineCount > 0) {
+                    funcEndLine = funcStartLine + lineCount - 1;
+                }
+            }
+
+            // 检查函数范围内是否有日志调用
+            for (unsigned int line = funcStartLine; line <= funcEndLine; ++line) {
+                if (logLines.count(line) > 0) {
                     isCovered = true;
+                    LOG_DEBUG_FMT("函数 %s 在行 %u 有日志调用", funcNode->name.c_str(), line);
                     break;
                 }
             }
         }
 
-        if (!isCovered) {
-            // 创建未覆盖路径信息
+        // 使用递归方式检查子节点的日志调用
+        if (!isCovered && hasLoggingInSubtree(funcNode)) {
+            isCovered = true;
+            LOG_DEBUG_FMT("函数 %s 在子节点中有日志调用", funcNode->name.c_str());
+        }
+
+        // 更新覆盖状态
+        if (isCovered) {
+            stats.coveredFunctions++;
+            LOG_DEBUG_FMT("函数 %s 被覆盖", funcNode->name.c_str());
+        } else {
+            LOG_DEBUG_FMT("函数 %s 未被覆盖", funcNode->name.c_str());
+
+            // 添加未覆盖路径信息
             UncoveredPathInfo uncoveredPath;
             uncoveredPath.type = CoverageType::FUNCTION;
             uncoveredPath.nodeType = funcNode->type;
             uncoveredPath.location = funcNode->location;
             uncoveredPath.name = funcNode->name;
-            uncoveredPath.text = funcNode->text.substr(0, 100) + (funcNode->text.length() > 100 ? "..." : "");
+            uncoveredPath.text = funcNode->text.substr(0, 100);  // 只取前100个字符
             uncoveredPath.suggestion = generateSuggestion(CoverageType::FUNCTION, funcNode->type);
 
-            // 添加到未覆盖路径列表
-            stats.uncoveredPaths.push_back(uncoveredPath);
-        } else {
-            stats.coveredFunctions++;
+            stats.uncoveredPaths.push_back(std::move(uncoveredPath));
         }
     }
 
     // 计算函数覆盖率
     if (stats.totalFunctions > 0) {
         stats.functionCoverage = static_cast<double>(stats.coveredFunctions) / stats.totalFunctions;
+    } else {
+        stats.functionCoverage = 0.0;
     }
 
-    LOG_DEBUG_FMT("函数覆盖率: %.2f%% (%d/%d)", stats.functionCoverage * 100, stats.coveredFunctions,
-                  stats.totalFunctions);
+    LOG_DEBUG_FMT("文件 %s 的函数覆盖率: %.2f%% (%d/%d)", filePath.c_str(), stats.functionCoverage * 100,
+                  stats.coveredFunctions, stats.totalFunctions);
+}
+
+bool CoverageCalculator::containsLogMacros(const ast_analyzer::ASTNodeInfo* node) const {
+    if (!node) {
+        return false;
+    }
+
+    // 获取所有配置的日志函数和宏名称
+    const auto allLogFunctions = getAllLogFunctionsAndMacros();
+
+    // 检查节点文本中是否包含任何配置的日志函数或宏调用
+    if (!node->text.empty()) {
+        // 检查节点文本是否包含任何已配置的日志函数或宏
+        // 注意：这是一个简单的文本匹配，不如AST分析精确，但可以捕获更多潜在的日志调用
+        for (const auto& logFunction : allLogFunctions) {
+            if (node->text.find(logFunction) != std::string::npos) {
+                LOG_DEBUG_FMT("节点文本中包含日志函数/宏调用: %s", logFunction.c_str());
+                return true;
+            }
+        }
+    }
+
+    // 对于调用表达式，检查是否是日志函数调用
+    if (node->type == ast_analyzer::NodeType::CALL_EXPR || node->type == ast_analyzer::NodeType::LOG_CALL_EXPR) {
+        // 判断函数名是否在日志函数列表中
+        if (allLogFunctions.find(node->name) != allLogFunctions.end()) {
+            LOG_DEBUG_FMT("节点是已知的日志函数调用: %s", node->name.c_str());
+            return true;
+        }
+    }
+
+    // 递归检查子节点
+    for (const auto& child : node->children) {
+        if (containsLogMacros(child.get())) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CoverageCalculator::hasLoggingInSubtree(const ast_analyzer::ASTNodeInfo* node) const {
+    if (!node) {
+        return false;
+    }
+
+    // 首先检查节点本身是否包含日志调用
+    if (node->hasLogging) {
+        LOG_DEBUG_FMT("节点 %s 本身包含日志调用", node->name.c_str());
+        return true;
+    }
+
+    // 使用containsLogMacros方法检查是否包含配置中定义的任何日志函数或宏
+    if (containsLogMacros(node)) {
+        LOG_DEBUG_FMT("节点 %s 包含配置的日志函数或宏调用", node->name.c_str());
+        return true;
+    }
+
+    // 递归检查子节点
+    for (const auto& child : node->children) {
+        if (hasLoggingInSubtree(child.get())) {
+            LOG_DEBUG_FMT("节点 %s 的子节点包含日志调用", node->name.c_str());
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo* node, const std::string& filePath,
@@ -424,11 +587,11 @@ void CoverageCalculator::identifyKeyBranches(const ast_analyzer::ASTNodeInfo* no
     // 这里使用一些启发式规则来判断分支是否关键
     if (node->type == ast_analyzer::NodeType::IF_STMT || node->type == ast_analyzer::NodeType::ELSE_STMT) {
         // 通过文本内容判断是否为关键分支
-        // 比如检查是否包含错误处理相关的关键词
-        if (node->text.find("error") != std::string::npos || node->text.find("fail") != std::string::npos ||
-            node->text.find("exception") != std::string::npos || node->text.find("return false") != std::string::npos ||
-            node->text.find("return -1") != std::string::npos || node->text.find("throw") != std::string::npos) {
-            keyBranches.push_back(node);
+        for (const auto& keyword : ERROR_KEYWORDS) {
+            if (node->text.find(keyword) != std::string::npos) {
+                keyBranches.push_back(node);
+                break;
+            }
         }
     }
 
@@ -497,7 +660,14 @@ void CoverageCalculator::collectNodesByType(const ast_analyzer::ASTNodeInfo* nod
 
     // 检查当前节点类型是否在目标类型列表中
     if (std::find(types.begin(), types.end(), node->type) != types.end()) {
-        result.push_back(node);
+        // 对于FUNCTION和METHOD类型节点，确保不收集compound语句节点
+        if ((node->type == ast_analyzer::NodeType::FUNCTION || node->type == ast_analyzer::NodeType::METHOD) &&
+            node->name == "compound") {
+            // 跳过复合语句块节点，它们不是真正的函数或方法
+            LOG_DEBUG_FMT("跳过复合语句节点: %s", node->name.c_str());
+        } else {
+            result.push_back(node);
+        }
     }
 
     // 递归处理子节点
@@ -615,6 +785,40 @@ std::string CoverageCalculator::generateSuggestion(CoverageType type, ast_analyz
         default:
             return "添加适当的日志记录，提高代码可观测性";
     }
+}
+
+/**
+ * @brief 获取配置中所有日志函数和宏的名称列表
+ * @return 所有日志函数和宏名称的集合
+ */
+std::unordered_set<std::string> CoverageCalculator::getAllLogFunctionsAndMacros() const {
+    std::unordered_set<std::string> result;
+
+    // 获取LogIdentifier中已经解析的日志函数名集合
+    const auto& logFunctionNames = logIdentifier_.getLogFunctionNames();
+    result.insert(logFunctionNames.begin(), logFunctionNames.end());
+
+    // 从配置中添加Qt日志函数
+    if (config_.logFunctions.qt.enabled) {
+        for (const auto& func : config_.logFunctions.qt.functions) {
+            result.insert(func);
+        }
+
+        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+            result.insert(func);
+        }
+    }
+
+    // 从配置中添加自定义日志函数
+    if (config_.logFunctions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+            for (const auto& func : funcs) {
+                result.insert(func);
+            }
+        }
+    }
+
+    return result;
 }
 
 }  // namespace coverage

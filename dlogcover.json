@@ -6,6 +6,7 @@
         "excludes": [
             "build/",
             "test/",
+            "third_party/",
             ".git/",
             ".vscode/",
             ".cursor/",
@@ -25,7 +26,8 @@
             "-Wno-everything",
             "-xc++",
             "-ferror-limit=0",
-            "-fsyntax-only"
+            "-fsyntax-only",
+            "-std=c++17"
         ]
     },
     "log_functions": {
@@ -49,20 +51,28 @@
             "enabled": true,
             "functions": {
                 "debug": [
+                    "fmDebug",
                     "LOG_DEBUG",
                     "LOG_DEBUG_FMT"
                 ],
                 "info": [
+                    "fmInfo",
                     "LOG_INFO",
                     "LOG_INFO_FMT"
                 ],
                 "warning": [
+                    "fmWarning",
                     "LOG_WARNING",
                     "LOG_WARNING_FMT"
                 ],
                 "critical": [
+                    "fmCritical"
+                ],
+                "fatal": [
                     "LOG_ERROR",
-                    "LOG_ERROR_FMT"
+                    "LOG_ERROR_FMT",
+                    "LOG_FATAL",
+                    "LOG_FATAL_FMT"
                 ]
             }
         }

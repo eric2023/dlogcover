@@ -244,6 +244,46 @@ TEST_F(CoverageCalculatorTestFixture, UncoveredPathSuggestions) {
     }
 }
 
+// 添加测试用例，验证复合语句不会被错误识别为函数
+TEST_F(CoverageCalculatorTestFixture, DoesNotCountCompoundStmtAsFunctions) {
+    // 创建一个模拟的AST节点，包含一个函数节点和多个复合语句节点
+    auto rootNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+    rootNode->type = ast_analyzer::NodeType::FUNCTION;
+    rootNode->name = "testFunction";
+    rootNode->location.filePath = "test.cpp";
+    rootNode->location.line = 1;
+
+    // 添加三个复合语句节点
+    for (int i = 0; i < 3; i++) {
+        auto compoundNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+        compoundNode->type = ast_analyzer::NodeType::COMPOUND_STMT;
+        compoundNode->name = "compound";
+        compoundNode->location.filePath = "test.cpp";
+        compoundNode->location.line = 2 + i;
+        rootNode->children.push_back(std::move(compoundNode));
+    }
+
+    // 模拟AST分析器和日志识别器
+    testing::NiceMock<MockASTAnalyzer> mockAstAnalyzer;
+    testing::NiceMock<MockLogIdentifier> mockLogIdentifier;
+
+    // 设置预期行为
+    std::unordered_map<std::string, std::unique_ptr<ast_analyzer::ASTNodeInfo>> astNodes;
+    astNodes["test.cpp"] = std::move(rootNode);
+
+    ON_CALL(mockAstAnalyzer, getAllASTNodeInfo()).WillByDefault(testing::ReturnRef(astNodes));
+
+    // 创建覆盖率计算器并计算
+    CoverageCalculator calculator(config_, mockAstAnalyzer, mockLogIdentifier);
+    EXPECT_TRUE(calculator.calculate());
+
+    // 获取覆盖率统计结果
+    const auto& stats = calculator.getCoverageStats("test.cpp");
+
+    // 验证只计算了1个函数，而不是4个(1个真实函数 + 3个复合语句)
+    EXPECT_EQ(stats.totalFunctions, 1);
+}
+
 }  // namespace test
 }  // namespace coverage
 }  // namespace core

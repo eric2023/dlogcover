@@ -13,7 +13,9 @@ namespace ast_analyzer {
 
 ASTFunctionAnalyzer::ASTFunctionAnalyzer(clang::ASTContext& context, const std::string& filePath,
                                          const config::Config& config)
-    : ASTNodeAnalyzer(context, filePath), stmtAnalyzer_(context, filePath), exprAnalyzer_(context, filePath, config) {}
+    : ASTNodeAnalyzer(context, filePath),
+      stmtAnalyzer_(context, filePath, config),
+      exprAnalyzer_(context, filePath, config) {}
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTFunctionAnalyzer::analyzeFunctionDecl(clang::FunctionDecl* decl) {
     if (!decl || !decl->hasBody()) {

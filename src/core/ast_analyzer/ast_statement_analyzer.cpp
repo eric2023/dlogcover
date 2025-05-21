@@ -2,14 +2,49 @@
  * @file ast_statement_analyzer.cpp
  * @brief AST语句分析器实现
  * @copyright Copyright (c) 2023 DLogCover Team
+ *
+ * @note 重构说明：
+ *   1. 移除硬编码的日志前缀检测（LOG_），改为使用config中的自定义日志函数配置
+ *   2. 增加对所有配置的日志宏检测，使用配置项检测
  */
 
+#include <dlogcover/config/config.h>
 #include <dlogcover/core/ast_analyzer/ast_statement_analyzer.h>
 #include <dlogcover/utils/log_utils.h>
 
 namespace dlogcover {
 namespace core {
 namespace ast_analyzer {
+
+bool ASTStatementAnalyzer::containsLogKeywords(const std::string& text) const {
+    // 检查自定义日志函数
+    if (config_.logFunctions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+            for (const auto& func : funcs) {
+                if (text.find(func) != std::string::npos) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 检查Qt日志函数
+    if (config_.logFunctions.qt.enabled) {
+        for (const auto& func : config_.logFunctions.qt.functions) {
+            if (text.find(func) != std::string::npos) {
+                return true;
+            }
+        }
+
+        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+            if (text.find(func) != std::string::npos) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeStmt(clang::Stmt* stmt) {
     if (!stmt) {
@@ -50,7 +85,9 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeCompoundStmt(c
         return makeError<std::unique_ptr<ASTNodeInfo>>(ASTAnalyzerError::INVALID_AST, "复合语句为空");
     }
 
-    auto nodeInfo = createNodeInfo(NodeType::FUNCTION, "compound", stmt->getBeginLoc());
+    // 使用COMPOUND_STMT类型，而不是FUNCTION类型
+    // 这样能更准确地区分真正的函数和复合语句块，避免混淆函数覆盖率统计
+    auto nodeInfo = createNodeInfo(NodeType::COMPOUND_STMT, "compound", stmt->getBeginLoc());
 
     for (auto* subStmt : stmt->body()) {
         auto result = analyzeStmt(subStmt);
@@ -74,6 +111,19 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeIfStmt(clang::
 
     nodeInfo->text = getSourceText(stmt->getBeginLoc(), stmt->getEndLoc());
 
+    // 分析if语句的条件表达式
+    if (stmt->getCond()) {
+        clang::Expr* condExpr = stmt->getCond();
+        std::string condText = getSourceText(condExpr->getBeginLoc(), condExpr->getEndLoc());
+        LOG_DEBUG_FMT("if条件表达式: %s", condText.c_str());
+
+        // 检查条件表达式中是否包含日志调用
+        if (containsLogKeywords(condText)) {
+            LOG_DEBUG_FMT("if条件表达式中可能包含日志调用: %s", condText.c_str());
+            nodeInfo->hasLogging = true;
+        }
+    }
+
     // 分析if语句的then部分
     if (stmt->getThen()) {
         auto result = analyzeStmt(stmt->getThen());
@@ -81,6 +131,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeIfStmt(clang::
             auto& thenNode = result.value();
             if (thenNode && thenNode->hasLogging) {
                 nodeInfo->hasLogging = true;
+                LOG_DEBUG_FMT("if语句的then分支包含日志调用");
             }
             if (thenNode) {
                 nodeInfo->children.push_back(std::move(thenNode));
@@ -98,6 +149,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeIfStmt(clang::
                 if (elseStmtNode && elseStmtNode->hasLogging) {
                     elseNode->hasLogging = true;
                     nodeInfo->hasLogging = true;
+                    LOG_DEBUG_FMT("if语句的else分支包含日志调用");
                 }
                 if (elseStmtNode) {
                     elseNode->children.push_back(std::move(elseStmtNode));
@@ -250,6 +302,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang:
             auto& tryNode = result.value();
             if (tryNode && tryNode->hasLogging) {
                 nodeInfo->hasLogging = true;
+                LOG_DEBUG_FMT("try块包含日志调用");
             }
             if (tryNode) {
                 nodeInfo->children.push_back(std::move(tryNode));
@@ -265,6 +318,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang:
             auto& catchNode = result.value();
             if (catchNode && catchNode->hasLogging) {
                 nodeInfo->hasLogging = true;
+                LOG_DEBUG_FMT("catch块包含日志调用");
             }
             if (catchNode) {
                 nodeInfo->children.push_back(std::move(catchNode));
