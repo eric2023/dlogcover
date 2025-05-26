@@ -128,15 +128,17 @@ public:
     const ReportConfig& getReportConfig() const { return config_.report; }
 
     // 兼容性访问器 - 简化的属性访问方式
-    struct {
-        const QtLogConfig& qt;
-        const CustomLogConfig& custom;
-        
-        // 构造函数
-        explicit operator const LogFunctionsConfig&() const {
-            return *reinterpret_cast<const LogFunctionsConfig*>(this);
-        }
-    } logFunctions;
+    /**
+     * @brief 获取Qt日志配置
+     * @return Qt日志配置的常量引用
+     */
+    const QtLogConfig& qt() const { return config_.logFunctions.qt; }
+    
+    /**
+     * @brief 获取自定义日志配置
+     * @return 自定义日志配置的常量引用
+     */
+    const CustomLogConfig& custom() const { return config_.logFunctions.custom; }
 
 private:
     Config config_;                     ///< 配置对象

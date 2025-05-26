@@ -20,14 +20,6 @@ namespace dlogcover {
 namespace reporter {
 
 /**
- * @brief 进度回调函数类型
- * @param current 当前进度
- * @param total 总进度
- * @param message 进度消息
- */
-using ProgressCallback = std::function<void(int current, int total, const std::string& message)>;
-
-/**
  * @brief 报告生成器类
  * 
  * 负责生成各种格式的覆盖率报告

@@ -12,6 +12,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace dlogcover {
 namespace reporter {
@@ -19,7 +20,7 @@ namespace reporter {
 /**
  * @brief 进度回调函数类型
  */
-using ProgressCallback = std::function<void(int current, int total, const std::string& message)>;
+using ProgressCallback = std::function<void(float progress, const std::string& message)>;
 
 /**
  * @brief 报告策略接口
@@ -44,7 +45,7 @@ public:
     virtual Result<bool> generateReport(
         const std::string& outputPath,
         const core::coverage::CoverageStats& overallStats,
-        const std::vector<core::coverage::CoverageStats>& allStats,
+        const std::unordered_map<std::string, core::coverage::CoverageStats>& allStats,
         const ProgressCallback& progressCallback = nullptr) = 0;
 
     /**

@@ -7,6 +7,7 @@
 #ifndef DLOGCOVER_CORE_COVERAGE_COVERAGE_STATS_H
 #define DLOGCOVER_CORE_COVERAGE_COVERAGE_STATS_H
 
+#include <dlogcover/core/ast_analyzer/ast_types.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -14,6 +15,28 @@
 namespace dlogcover {
 namespace core {
 namespace coverage {
+
+/**
+ * @brief 覆盖率类型枚举
+ */
+enum class CoverageType {
+    FUNCTION = 0,       ///< 函数覆盖率
+    BRANCH = 1,         ///< 分支覆盖率
+    EXCEPTION = 2,      ///< 异常覆盖率
+    KEY_PATH = 3        ///< 关键路径覆盖率
+};
+
+/**
+ * @brief 未覆盖路径信息
+ */
+struct UncoveredPathInfo {
+    CoverageType type;                          ///< 覆盖类型
+    ast_analyzer::NodeType nodeType;           ///< 节点类型
+    ast_analyzer::LocationInfo location;       ///< 位置信息
+    std::string name;                           ///< 名称
+    std::string text;                           ///< 文本内容
+    std::string suggestion;                     ///< 建议
+};
 
 /**
  * @brief 函数覆盖率信息
@@ -122,6 +145,60 @@ struct CoverageStats {
     double keyPathCoverageRatio;                            ///< 关键路径覆盖率
     
     double overallCoverageRatio;                            ///< 总体覆盖率
+    
+    // 兼容性成员 - 与cpp文件中的使用匹配
+    double functionCoverage = 0.0;                          ///< 函数覆盖率（兼容）
+    double branchCoverage = 0.0;                            ///< 分支覆盖率（兼容）
+    double exceptionCoverage = 0.0;                         ///< 异常覆盖率（兼容）
+    double keyPathCoverage = 0.0;                           ///< 关键路径覆盖率（兼容）
+    double overallCoverage = 0.0;                           ///< 总体覆盖率（兼容）
+    
+    // cpp文件中使用的异常处理相关成员
+    int totalExceptionHandlers = 0;                         ///< 总异常处理器数
+    int coveredExceptionHandlers = 0;                       ///< 已覆盖异常处理器数
+    
+    // 未覆盖路径信息
+    std::vector<UncoveredPathInfo> uncoveredPaths;          ///< 未覆盖路径列表
+    
+    /**
+     * @brief 默认构造函数
+     */
+    CoverageStats() : totalFiles(0), coveredFiles(0), 
+                     totalFunctions(0), coveredFunctions(0), functionCoverageRatio(0.0),
+                     totalBranches(0), coveredBranches(0), branchCoverageRatio(0.0),
+                     totalExceptions(0), coveredExceptions(0), exceptionCoverageRatio(0.0),
+                     totalKeyPaths(0), coveredKeyPaths(0), keyPathCoverageRatio(0.0),
+                     overallCoverageRatio(0.0) {}
+    
+    /**
+     * @brief 清空统计信息
+     */
+    void clear() {
+        files.clear();
+        totalFiles = 0;
+        coveredFiles = 0;
+        totalFunctions = 0;
+        coveredFunctions = 0;
+        functionCoverageRatio = 0.0;
+        functionCoverage = 0.0;
+        totalBranches = 0;
+        coveredBranches = 0;
+        branchCoverageRatio = 0.0;
+        branchCoverage = 0.0;
+        totalExceptions = 0;
+        coveredExceptions = 0;
+        exceptionCoverageRatio = 0.0;
+        exceptionCoverage = 0.0;
+        totalExceptionHandlers = 0;
+        coveredExceptionHandlers = 0;
+        totalKeyPaths = 0;
+        coveredKeyPaths = 0;
+        keyPathCoverageRatio = 0.0;
+        keyPathCoverage = 0.0;
+        overallCoverageRatio = 0.0;
+        overallCoverage = 0.0;
+        uncoveredPaths.clear();
+    }
 };
 
 } // namespace coverage

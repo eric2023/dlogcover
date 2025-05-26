@@ -80,7 +80,7 @@ private:
     template<typename Handler>
     ErrorResult handleOption(const std::vector<std::string>& args, 
                            size_t& i, 
-                           const std::string& arg, 
+                           const std::string_view& arg, 
                            Handler handler);
 
     /**
@@ -167,11 +167,11 @@ private:
 template<typename Handler>
 ErrorResult CommandLineParser::handleOption(const std::vector<std::string>& args, 
                                            size_t& i, 
-                                           const std::string& arg, 
+                                           const std::string_view& arg, 
                                            Handler handler) {
     if (i + 1 >= args.size()) {
-        return ErrorResult::error(ConfigError::MISSING_VALUE, 
-                                "选项缺少值: " + arg);
+        return ErrorResult(ConfigError::MISSING_VALUE, 
+                          "选项缺少值: " + std::string(arg));
     }
     ++i;
     return handler(args[i]);

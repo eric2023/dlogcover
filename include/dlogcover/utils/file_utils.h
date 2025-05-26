@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace dlogcover {
 namespace utils {
@@ -17,8 +18,10 @@ namespace utils {
  * @brief 临时文件类型枚举
  */
 enum class TempFileType {
-    FILE = 0,       ///< 普通文件
-    DIRECTORY = 1   ///< 目录
+    FILE = 0,           ///< 普通文件
+    DIRECTORY = 1,      ///< 目录
+    EMPTY = 2,          ///< 空文件
+    WITH_CONTENT = 3    ///< 带默认内容的文件
 };
 
 /**
@@ -48,6 +51,13 @@ public:
      * @return 创建成功返回true，否则返回false
      */
     static bool createDirectory(const std::string& path);
+
+    /**
+     * @brief 创建目录（如果不存在）
+     * @param path 目录路径
+     * @return 创建成功或已存在返回true，否则返回false
+     */
+    static bool createDirectoryIfNotExists(const std::string& path);
 
     /**
      * @brief 读取文件内容
@@ -106,13 +116,26 @@ public:
     /**
      * @brief 列出目录中的文件
      * @param path 目录路径
-     * @param pattern 文件名模式（正则表达式）
-     * @param recursive 是否递归查找
+     * @param pattern 文件名模式（可选，空字符串表示所有文件）
+     * @param recursive 是否递归搜索子目录
      * @return 文件路径列表
      */
-    static std::vector<std::string> listFiles(const std::string& path, 
-                                            const std::string& pattern = "", 
-                                            bool recursive = false);
+    static std::vector<std::string> listFiles(const std::string& path,
+                                              const std::string& pattern = "",
+                                              bool recursive = false);
+
+    /**
+     * @brief 列出目录中的文件（带过滤器）
+     * @param path 目录路径
+     * @param filter 文件过滤器函数
+     * @param pattern 文件名模式（可选，空字符串表示所有文件）
+     * @param recursive 是否递归搜索子目录
+     * @return 文件路径列表
+     */
+    static std::vector<std::string> listFiles(const std::string& path,
+                                              const std::function<bool(const std::string&)>& filter,
+                                              const std::string& pattern = "",
+                                              bool recursive = false);
 
     /**
      * @brief 列出目录中的子目录
@@ -140,6 +163,13 @@ public:
      */
     static std::string createTempFile(const std::string& prefix = "dlogcover_", 
                                     TempFileType type = TempFileType::FILE);
+
+    /**
+     * @brief 创建带内容的临时文件
+     * @param content 文件内容
+     * @return 临时文件路径
+     */
+    static std::string createTempFile(const std::string& content);
 
     /**
      * @brief 清理临时文件
@@ -204,6 +234,22 @@ public:
      * @return 移动成功返回true，否则返回false
      */
     static bool moveFile(const std::string& from, const std::string& to);
+
+    /**
+     * @brief 检查文件是否具有指定扩展名
+     * @param filePath 文件路径
+     * @param extension 目标扩展名（包含点号，如".cpp"）
+     * @return 如果文件具有指定扩展名返回true，否则返回false
+     */
+    static bool hasExtension(const std::string& filePath, const std::string& extension);
+
+    /**
+     * @brief 连接路径
+     * @param path1 第一个路径
+     * @param path2 第二个路径
+     * @return 连接后的路径
+     */
+    static std::string joinPaths(const std::string& path1, const std::string& path2);
 };
 
 } // namespace utils

@@ -33,7 +33,20 @@ enum class LogLevel {
 enum class LogType {
     UNKNOWN = 0,        ///< 未知类型
     QT = 1,             ///< Qt日志
-    CUSTOM = 2          ///< 自定义日志
+    CUSTOM = 2,         ///< 自定义日志
+    QT_CATEGORY = 3     ///< Qt分类日志
+};
+
+/**
+ * @brief 日志调用类型枚举
+ */
+enum class LogCallType {
+    UNKNOWN = 0,        ///< 未知调用类型
+    DIRECT = 1,         ///< 直接调用
+    MACRO = 2,          ///< 宏调用
+    FUNCTION = 3,       ///< 函数调用
+    STREAM = 4,         ///< 流式调用
+    FORMAT = 5          ///< 格式化调用
 };
 
 /**
@@ -43,9 +56,11 @@ struct LogCallInfo {
     std::string functionName;           ///< 函数名
     LogLevel level;                     ///< 日志级别
     LogType type;                       ///< 日志类型
+    LogCallType callType;               ///< 调用类型
     ast_analyzer::LocationInfo location; ///< 位置信息
     std::string message;                ///< 日志消息
     std::string category;               ///< 日志分类（Qt分类日志使用）
+    std::string contextPath;            ///< 上下文路径
     std::vector<std::string> arguments; ///< 参数列表
     bool isFormatted;                   ///< 是否为格式化日志
     
@@ -55,6 +70,7 @@ struct LogCallInfo {
     LogCallInfo() 
         : level(LogLevel::UNKNOWN)
         , type(LogType::UNKNOWN)
+        , callType(LogCallType::UNKNOWN)
         , isFormatted(false) {}
 };
 

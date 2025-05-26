@@ -58,10 +58,38 @@ public:
     const std::unordered_map<std::string, std::vector<LogCallInfo>>& getAllLogCalls() const;
 
     /**
-     * @brief 获取所有日志函数名
-     * @return 日志函数名集合的常量引用
+     * @brief 获取日志类型
+     * @param functionName 函数名
+     * @return 日志类型
+     */
+    LogType getLogType(const std::string& functionName) const;
+
+    /**
+     * @brief 获取日志函数名称集合
+     * @return 日志函数名称集合
      */
     const std::unordered_set<std::string>& getLogFunctionNames() const;
+
+    /**
+     * @brief 获取指定函数的日志级别
+     * @param functionName 函数名
+     * @return 日志级别
+     */
+    LogLevel getLogLevel(const std::string& functionName) const;
+
+    /**
+     * @brief 提取日志消息
+     * @param node AST节点
+     * @return 日志消息
+     */
+    std::string extractLogMessage(const ast_analyzer::ASTNodeInfo* node) const;
+
+    /**
+     * @brief 从文本中提取分类信息
+     * @param text 文本内容
+     * @param logCallInfo 日志调用信息
+     */
+    void extractCategoryFromText(const std::string& text, LogCallInfo& logCallInfo);
 
 private:
     const config::Config& config_;                                              ///< 配置对象引用
@@ -119,13 +147,6 @@ private:
      * @return 分类信息
      */
     std::string extractCategoryInfo(const ast_analyzer::ASTNodeInfo* node) const;
-
-    /**
-     * @brief 提取日志消息
-     * @param node AST节点
-     * @return 日志消息
-     */
-    std::string extractLogMessage(const ast_analyzer::ASTNodeInfo* node) const;
 };
 
 } // namespace log_identifier

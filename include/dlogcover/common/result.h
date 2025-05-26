@@ -71,6 +71,22 @@ public:
     }
 
     /**
+     * @brief 检查是否失败（别名方法）
+     * @return 如果失败返回true，否则返回false
+     */
+    bool hasError() const {
+        return isError();
+    }
+
+    /**
+     * @brief explicit bool转换操作符
+     * @return 如果成功返回true，否则返回false
+     */
+    explicit operator bool() const {
+        return isSuccess();
+    }
+
+    /**
      * @brief 获取成功值
      * @return 成功值的引用
      * @throws std::bad_variant_access 如果不是成功状态
@@ -93,16 +109,16 @@ public:
      * @return 错误信息的引用
      * @throws std::bad_variant_access 如果不是错误状态
      */
-    const ErrorInfo& error() const {
+    const ErrorInfo& errorInfo() const {
         return std::get<ErrorInfo>(data_);
     }
 
     /**
-     * @brief 获取错误代码
+     * @brief 获取错误代码（兼容性方法）
      * @return 错误代码
      * @throws std::bad_variant_access 如果不是错误状态
      */
-    E errorCode() const {
+    E error() const {
         return std::get<ErrorInfo>(data_).code;
     }
 

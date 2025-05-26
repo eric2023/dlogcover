@@ -49,7 +49,8 @@ enum class ConfigError {
     ParseError = 10,                    ///< 解析错误
     EnvironmentError = 11,              ///< 环境变量错误
     UnknownOption = 12,                 ///< 未知选项
-    InvalidLogPath = 13                 ///< 无效日志路径
+    InvalidLogPath = 13,                ///< 无效日志路径
+    MISSING_VALUE = 14                  ///< 缺少值
 };
 
 /**

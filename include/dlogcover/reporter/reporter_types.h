@@ -9,6 +9,7 @@
 
 #include <dlogcover/core/ast_analyzer/ast_types.h>
 #include <string>
+#include <algorithm>
 
 namespace dlogcover {
 namespace reporter {
@@ -30,9 +31,11 @@ enum class ReporterError {
     NONE = 0,               ///< 无错误
     INVALID_PATH = 1,       ///< 无效路径
     FILE_WRITE_ERROR = 2,   ///< 文件写入错误
-    DIRECTORY_ERROR = 3,    ///< 目录错误
-    FORMAT_ERROR = 4,       ///< 格式错误
-    INTERNAL_ERROR = 5      ///< 内部错误
+    FILE_ERROR = 3,         ///< 文件错误
+    DIRECTORY_ERROR = 4,    ///< 目录错误
+    FORMAT_ERROR = 5,       ///< 格式错误
+    GENERATION_ERROR = 6,   ///< 生成错误
+    INTERNAL_ERROR = 7      ///< 内部错误
 };
 
 /**
@@ -62,14 +65,42 @@ Result<T> makeError(ReporterError error, const std::string& message) {
  * @param format 报告格式
  * @return 对应的字符串表示
  */
-std::string getReportFormatString(ReportFormat format);
+inline std::string getReportFormatString(ReportFormat format) {
+    switch (format) {
+        case ReportFormat::TEXT:
+            return "text";
+        case ReportFormat::JSON:
+            return "json";
+        case ReportFormat::HTML:
+            return "html";
+        case ReportFormat::XML:
+            return "xml";
+        default:
+            return "text";
+    }
+}
 
 /**
  * @brief 字符串转报告格式
  * @param str 字符串
  * @return 对应的报告格式
  */
-ReportFormat parseReportFormat(const std::string& str);
+inline ReportFormat parseReportFormat(const std::string& str) {
+    std::string strLower = str;
+    std::transform(strLower.begin(), strLower.end(), strLower.begin(), ::tolower);
+    
+    if (strLower == "text") {
+        return ReportFormat::TEXT;
+    } else if (strLower == "json") {
+        return ReportFormat::JSON;
+    } else if (strLower == "html") {
+        return ReportFormat::HTML;
+    } else if (strLower == "xml") {
+        return ReportFormat::XML;
+    } else {
+        return ReportFormat::TEXT; // 默认返回TEXT格式
+    }
+}
 
 } // namespace reporter
 } // namespace dlogcover
