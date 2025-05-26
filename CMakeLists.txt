@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(dlogcover VERSION 0.1.0 LANGUAGES CXX)
 
+# 在find_package(LLVM)前显式启用C语言
+enable_language(C)  # 强制激活C语言支持:ml-citation{ref="4,7" data="citationList"}
+cmake_policy(SET CMP0075 NEW)  # 强制启用新策略行为:ml-citation{ref="4,6" data="citationList"}
+
+
 # 添加cmake模块路径
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
