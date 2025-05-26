@@ -16,6 +16,35 @@ namespace config {
 constexpr const char* CURRENT_CONFIG_VERSION = "1.0";
 
 /**
+ * @brief 默认配置值
+ */
+namespace cli {
+    constexpr const char* DEFAULT_DIRECTORY = ".";
+    constexpr const char* DEFAULT_OUTPUT = "";
+    constexpr const char* DEFAULT_CONFIG = "";
+
+    // 命令行选项常量
+    constexpr const char* OPTION_HELP_SHORT = "-h";
+    constexpr const char* OPTION_HELP_LONG = "--help";
+    constexpr const char* OPTION_VERSION_SHORT = "-v";
+    constexpr const char* OPTION_VERSION_LONG = "--version";
+    constexpr const char* OPTION_DIRECTORY_SHORT = "-d";
+    constexpr const char* OPTION_DIRECTORY_LONG = "--directory";
+    constexpr const char* OPTION_OUTPUT_SHORT = "-o";
+    constexpr const char* OPTION_OUTPUT_LONG = "--output";
+    constexpr const char* OPTION_CONFIG_SHORT = "-c";
+    constexpr const char* OPTION_CONFIG_LONG = "--config";
+    constexpr const char* OPTION_EXCLUDE_SHORT = "-e";
+    constexpr const char* OPTION_EXCLUDE_LONG = "--exclude";
+    constexpr const char* OPTION_LOG_LEVEL_SHORT = "-l";
+    constexpr const char* OPTION_LOG_LEVEL_LONG = "--log-level";
+    constexpr const char* OPTION_FORMAT_SHORT = "-f";
+    constexpr const char* OPTION_FORMAT_LONG = "--format";
+    constexpr const char* OPTION_LOG_PATH_SHORT = "-p";
+    constexpr const char* OPTION_LOG_PATH_LONG = "--log-path";
+} // namespace cli
+
+/**
  * @brief JSON配置文件键名
  */
 namespace json {
@@ -63,7 +92,22 @@ namespace error {
     constexpr const char* INVALID_REPORT_FORMAT = "无效的报告格式: ";
     constexpr const char* INVALID_EXCLUDE = "无效的排除模式";
     constexpr const char* PARSE_ERROR = "配置文件解析错误";
+    constexpr const char* UNKNOWN_OPTION = "未知选项: ";
+    constexpr const char* INVALID_LOG_PATH = "无效的日志路径: ";
 } // namespace error
+
+/**
+ * @brief 环境变量常量
+ */
+namespace env {
+    constexpr const char* DIRECTORY = "DLOGCOVER_DIRECTORY";
+    constexpr const char* OUTPUT = "DLOGCOVER_OUTPUT";
+    constexpr const char* CONFIG = "DLOGCOVER_CONFIG";
+    constexpr const char* LOG_PATH = "DLOGCOVER_LOG_PATH";
+    constexpr const char* LOG_LEVEL = "DLOGCOVER_LOG_LEVEL";
+    constexpr const char* REPORT_FORMAT = "DLOGCOVER_REPORT_FORMAT";
+    constexpr const char* EXCLUDE = "DLOGCOVER_EXCLUDE";
+} // namespace env
 
 } // namespace config
 } // namespace dlogcover

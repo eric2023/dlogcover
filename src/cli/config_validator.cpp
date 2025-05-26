@@ -243,27 +243,27 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
 
     try {
         // 获取环境变量
-        if (const char* dir = std::getenv(config::env::DIRECTORY.data())) {
+        if (const char* dir = std::getenv(config::env::DIRECTORY)) {
             options.directoryPath = dir;
             LOG_DEBUG_FMT("从环境变量加载目录路径: %s", dir);
         }
 
-        if (const char* output = std::getenv(config::env::OUTPUT.data())) {
+        if (const char* output = std::getenv(config::env::OUTPUT)) {
             options.outputPath = output;
             LOG_DEBUG_FMT("从环境变量加载输出路径: %s", output);
         }
 
-        if (const char* config_path = std::getenv(config::env::CONFIG.data())) {
+        if (const char* config_path = std::getenv(config::env::CONFIG)) {
             options.configPath = config_path;
             LOG_DEBUG_FMT("从环境变量加载配置文件路径: %s", config_path);
         }
 
-        if (const char* log_path = std::getenv(config::env::LOG_PATH.data())) {
+        if (const char* log_path = std::getenv(config::env::LOG_PATH)) {
             options.logPath = log_path;
             LOG_DEBUG_FMT("从环境变量加载日志文件路径: %s", log_path);
         }
 
-        if (const char* level = std::getenv(config::env::LOG_LEVEL.data())) {
+        if (const char* level = std::getenv(config::env::LOG_LEVEL)) {
             LogLevel logLevel;
             if (parseLogLevelString(level, logLevel)) {
                 options.logLevel = logLevel;
@@ -273,7 +273,7 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
             }
         }
 
-        if (const char* format = std::getenv(config::env::REPORT_FORMAT.data())) {
+        if (const char* format = std::getenv(config::env::REPORT_FORMAT)) {
             ReportFormat reportFormat;
             if (parseReportFormatString(format, reportFormat)) {
                 options.reportFormat = reportFormat;
@@ -283,7 +283,7 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
             }
         }
 
-        if (const char* exclude = std::getenv(config::env::EXCLUDE.data())) {
+        if (const char* exclude = std::getenv(config::env::EXCLUDE)) {
             options.excludePatterns.clear();
             std::istringstream iss(exclude);
             std::string pattern;

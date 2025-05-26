@@ -31,7 +31,7 @@ public:
     /**
      * @brief 析构函数
      */
-    ~CommandLineParser() = default;
+    ~CommandLineParser();
 
     /**
      * @brief 解析命令行参数
@@ -56,12 +56,12 @@ public:
     /**
      * @brief 显示帮助信息
      */
-    static void showHelp();
+    void showHelp() const;
 
     /**
      * @brief 显示版本信息
      */
-    static void showVersion();
+    void showVersion() const;
 
 private:
     Options options_;                    ///< 解析后的选项
@@ -69,17 +69,68 @@ private:
     bool isVersionRequest_;              ///< 是否是版本请求
 
     /**
-     * @brief 处理选项参数
-     * @tparam Handler 处理函数类型
-     * @param args 参数列表
-     * @param index 当前参数索引
-     * @param option 选项名称
-     * @param handler 处理函数
+     * @brief 处理选项的通用模板方法
+     * @tparam Handler 处理器类型
+     * @param args 参数数组
+     * @param i 当前参数索引
+     * @param arg 当前参数
+     * @param handler 处理器函数
      * @return 处理结果
      */
     template<typename Handler>
-    ErrorResult handleOption(const std::vector<std::string>& args, size_t& index, 
-                           const std::string& option, Handler handler);
+    ErrorResult handleOption(const std::vector<std::string>& args, 
+                           size_t& i, 
+                           const std::string& arg, 
+                           Handler handler);
+
+    /**
+     * @brief 处理目录选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleDirectoryOption(std::string_view value);
+
+    /**
+     * @brief 处理输出选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleOutputOption(std::string_view value);
+
+    /**
+     * @brief 处理配置文件选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleConfigOption(std::string_view value);
+
+    /**
+     * @brief 处理日志路径选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleLogPathOption(std::string_view value);
+
+    /**
+     * @brief 处理排除模式选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleExcludeOption(std::string_view value);
+
+    /**
+     * @brief 处理日志级别选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleLogLevelOption(std::string_view value);
+
+    /**
+     * @brief 处理报告格式选项
+     * @param value 选项值
+     * @return 处理结果
+     */
+    ErrorResult handleFormatOption(std::string_view value);
 
     /**
      * @brief 验证路径有效性
@@ -111,6 +162,20 @@ private:
      */
     std::string generateDefaultLogPath() const;
 };
+
+// 模板方法的实现
+template<typename Handler>
+ErrorResult CommandLineParser::handleOption(const std::vector<std::string>& args, 
+                                           size_t& i, 
+                                           const std::string& arg, 
+                                           Handler handler) {
+    if (i + 1 >= args.size()) {
+        return ErrorResult::error(ConfigError::MISSING_VALUE, 
+                                "选项缺少值: " + arg);
+    }
+    ++i;
+    return handler(args[i]);
+}
 
 } // namespace cli
 } // namespace dlogcover

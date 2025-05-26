@@ -9,6 +9,7 @@
 
 #include <dlogcover/cli/error_types.h>
 #include <dlogcover/cli/options.h>
+#include <dlogcover/cli/config_constants.h>
 #include <string>
 #include <string_view>
 

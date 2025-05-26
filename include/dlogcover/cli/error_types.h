@@ -46,7 +46,10 @@ enum class ConfigError {
     InvalidLogLevel = 7,                ///< 无效日志级别
     InvalidReportFormat = 8,            ///< 无效报告格式
     InvalidExcludePattern = 9,          ///< 无效排除模式
-    ParseError = 10                     ///< 解析错误
+    ParseError = 10,                    ///< 解析错误
+    EnvironmentError = 11,              ///< 环境变量错误
+    UnknownOption = 12,                 ///< 未知选项
+    InvalidLogPath = 13                 ///< 无效日志路径
 };
 
 /**
@@ -104,36 +107,6 @@ private:
     ConfigError errorCode_;     ///< 错误代码
     std::string errorMessage_;  ///< 错误消息
 };
-
-/**
- * @brief 日志级别转字符串
- * @param level 日志级别
- * @return 对应的字符串表示
- */
-std::string_view toString(LogLevel level);
-
-/**
- * @brief 字符串转日志级别
- * @param str 字符串
- * @return 对应的日志级别
- * @throws std::invalid_argument 如果字符串无效
- */
-LogLevel parseLogLevel(std::string_view str);
-
-/**
- * @brief 报告格式转字符串
- * @param format 报告格式
- * @return 对应的字符串表示
- */
-std::string_view toString(ReportFormat format);
-
-/**
- * @brief 字符串转报告格式
- * @param str 字符串
- * @return 对应的报告格式
- * @throws std::invalid_argument 如果字符串无效
- */
-ReportFormat parseReportFormat(std::string_view str);
 
 } // namespace cli
 } // namespace dlogcover

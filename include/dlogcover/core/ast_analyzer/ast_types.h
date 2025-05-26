@@ -23,7 +23,8 @@ enum class ASTAnalyzerError {
     FILE_NOT_FOUND = 1,         ///< 文件未找到
     FILE_READ_ERROR = 2,        ///< 文件读取错误
     COMPILATION_ERROR = 3,      ///< 编译错误
-    INTERNAL_ERROR = 4          ///< 内部错误
+    INTERNAL_ERROR = 4,         ///< 内部错误
+    INVALID_AST = 5             ///< 无效的AST
 };
 
 /**
@@ -31,12 +32,15 @@ enum class ASTAnalyzerError {
  */
 enum class NodeType {
     FUNCTION = 0,               ///< 函数节点
-    BRANCH = 1,                 ///< 分支节点
-    LOOP = 2,                   ///< 循环节点
-    EXPRESSION = 3,             ///< 表达式节点
-    STATEMENT = 4,              ///< 语句节点
-    DECLARATION = 5,            ///< 声明节点
-    TRY_CATCH = 6               ///< 异常处理节点
+    METHOD = 1,                 ///< 方法节点
+    BRANCH = 2,                 ///< 分支节点
+    LOOP = 3,                   ///< 循环节点
+    EXPRESSION = 4,             ///< 表达式节点
+    STATEMENT = 5,              ///< 语句节点
+    DECLARATION = 6,            ///< 声明节点
+    TRY_CATCH = 7,              ///< 异常处理节点
+    CALL_EXPR = 8,              ///< 函数调用表达式
+    LOG_CALL_EXPR = 9           ///< 日志函数调用表达式
 };
 
 /**
@@ -56,6 +60,7 @@ struct LocationInfo {
 struct ASTNodeInfo {
     NodeType type;              ///< 节点类型
     std::string name;           ///< 节点名称
+    std::string text;           ///< 源码文本
     LocationInfo location;      ///< 位置信息
     bool hasLogging;            ///< 是否包含日志记录
     std::vector<std::unique_ptr<ASTNodeInfo>> children;  ///< 子节点列表

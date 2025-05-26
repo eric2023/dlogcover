@@ -11,85 +11,16 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <type_traits>
 
 namespace dlogcover {
 namespace cli {
 
-/**
- * @brief 日志级别枚举
- */
-enum class LogLevel {
-    DEBUG = 0,      ///< 调试级别
-    INFO = 1,       ///< 信息级别
-    WARNING = 2,    ///< 警告级别
-    CRITICAL = 3,   ///< 严重级别
-    FATAL = 4,      ///< 致命级别
-    ALL = 5         ///< 所有级别
-};
-
-/**
- * @brief 报告格式枚举
- */
-enum class ReportFormat {
-    TEXT = 0,       ///< 文本格式
-    JSON = 1        ///< JSON格式
-};
-
-/**
- * @brief 配置错误类型枚举
- */
-enum class ConfigError {
-    None = 0,                       ///< 无错误
-    DirectoryNotFound,              ///< 目录不存在
-    FileNotFound,                   ///< 文件不存在
-    OutputDirectoryNotFound,        ///< 输出目录不存在
-    InvalidExcludePattern,          ///< 无效的排除模式
-    InvalidLogLevel,                ///< 无效的日志级别
-    InvalidReportFormat,            ///< 无效的报告格式
-    InvalidPath,                    ///< 无效的路径
-    JsonParseError                  ///< JSON解析错误
-};
-
-/**
- * @brief 错误结果类
- */
-class ErrorResult {
-public:
-    /**
-     * @brief 默认构造函数（无错误）
-     */
-    ErrorResult() : error_(ConfigError::None) {}
-
-    /**
-     * @brief 构造函数（有错误）
-     * @param error 错误类型
-     * @param message 错误消息
-     */
-    ErrorResult(ConfigError error, const std::string& message) 
-        : error_(error), message_(message) {}
-
-    /**
-     * @brief 检查是否有错误
-     * @return 如果有错误返回true，否则返回false
-     */
-    bool hasError() const { return error_ != ConfigError::None; }
-
-    /**
-     * @brief 获取错误类型
-     * @return 错误类型
-     */
-    ConfigError error() const { return error_; }
-
-    /**
-     * @brief 获取错误消息
-     * @return 错误消息
-     */
-    const std::string& message() const { return message_; }
-
-private:
-    ConfigError error_;     ///< 错误类型
-    std::string message_;   ///< 错误消息
-};
+// 使用error_types.h中定义的枚举类型，避免重复定义
+using LogLevel = dlogcover::cli::LogLevel;
+using ReportFormat = dlogcover::cli::ReportFormat;
+using ConfigError = dlogcover::cli::ConfigError;
+using ErrorResult = dlogcover::cli::ErrorResult;
 
 /**
  * @brief 命令行选项结构
@@ -98,6 +29,7 @@ struct Options {
     std::string directoryPath;                  ///< 扫描目录路径
     std::string outputPath;                     ///< 输出路径
     std::string configPath;                     ///< 配置文件路径
+    std::string logPath;                        ///< 日志文件路径
     std::vector<std::string> excludePatterns;   ///< 排除模式列表
     LogLevel logLevel;                          ///< 日志级别
     ReportFormat reportFormat;                  ///< 报告格式
@@ -126,6 +58,11 @@ struct Options {
     std::string toString() const;
 
     /**
+     * @brief 重置选项为默认值
+     */
+    void reset();
+
+    /**
      * @brief 从JSON字符串解析选项
      * @param json JSON字符串
      * @return 解析结果
@@ -137,6 +74,26 @@ struct Options {
      * @return JSON字符串
      */
     std::string toJson() const;
+
+    /**
+     * @brief 检查选项是否有效
+     * @return 如果选项有效返回true，否则返回false
+     */
+    bool isValid() const;
+
+    /**
+     * @brief 等于运算符
+     * @param other 另一个选项对象
+     * @return 如果相等返回true，否则返回false
+     */
+    bool operator==(const Options& other) const;
+
+    /**
+     * @brief 不等于运算符
+     * @param other 另一个选项对象
+     * @return 如果不相等返回true，否则返回false
+     */
+    bool operator!=(const Options& other) const;
 };
 
 /**
@@ -154,6 +111,21 @@ std::string_view toString(LogLevel level);
 LogLevel parseLogLevel(std::string_view str);
 
 /**
+ * @brief 模板函数：支持任何可转换为字符串的类型
+ * @tparam T 输入类型
+ * @param value 输入值
+ * @return 日志级别
+ */
+template<typename T>
+LogLevel parseLogLevel(const T& value) {
+    if constexpr (std::is_convertible_v<T, std::string>) {
+        return parseLogLevel(std::string_view(static_cast<std::string>(value)));
+    } else {
+        return parseLogLevel(std::string_view(value.template get<std::string>()));
+    }
+}
+
+/**
  * @brief 报告格式转字符串
  * @param format 报告格式
  * @return 字符串表示
@@ -166,6 +138,21 @@ std::string_view toString(ReportFormat format);
  * @return 报告格式
  */
 ReportFormat parseReportFormat(std::string_view str);
+
+/**
+ * @brief 模板函数：支持任何可转换为字符串的类型
+ * @tparam T 输入类型
+ * @param value 输入值
+ * @return 报告格式
+ */
+template<typename T>
+ReportFormat parseReportFormat(const T& value) {
+    if constexpr (std::is_convertible_v<T, std::string>) {
+        return parseReportFormat(std::string_view(static_cast<std::string>(value)));
+    } else {
+        return parseReportFormat(std::string_view(value.template get<std::string>()));
+    }
+}
 
 } // namespace cli
 } // namespace dlogcover

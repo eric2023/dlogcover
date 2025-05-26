@@ -8,7 +8,8 @@
 #define DLOGCOVER_CORE_AST_ANALYZER_AST_ANALYZER_H
 
 #include <dlogcover/core/ast_analyzer/ast_types.h>
-#include <dlogcover/config/config.h>
+#include <dlogcover/core/ast_analyzer/ast_function_analyzer.h>
+#include <dlogcover/config/config_manager.h>
 #include <dlogcover/source_manager/source_manager.h>
 #include <string>
 #include <unordered_map>
@@ -18,6 +19,7 @@
 namespace clang {
 class ASTUnit;
 class ASTContext;
+class CallExpr;
 }
 
 namespace dlogcover {
@@ -33,10 +35,10 @@ class ASTAnalyzer {
 public:
     /**
      * @brief 构造函数
-     * @param config 配置对象引用
+     * @param config 配置管理器引用
      * @param sourceManager 源文件管理器引用
      */
-    ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager);
+    ASTAnalyzer(const config::ConfigManager& config, const source_manager::SourceManager& sourceManager);
 
     /**
      * @brief 析构函数
@@ -70,7 +72,7 @@ public:
     const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& getAllASTNodeInfo() const;
 
 private:
-    const config::Config& config_;                                              ///< 配置对象引用
+    const config::ConfigManager& config_;                                       ///< 配置管理器引用
     const source_manager::SourceManager& sourceManager_;                        ///< 源文件管理器引用
     std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>> astNodes_;    ///< AST节点信息映射表
     std::unique_ptr<clang::ASTUnit> currentASTUnit_;                            ///< 当前AST单元
@@ -90,6 +92,13 @@ private:
      * @return 分析结果
      */
     Result<std::unique_ptr<ASTNodeInfo>> analyzeASTContext(clang::ASTContext& context, const std::string& filePath);
+
+    /**
+     * @brief 判断是否为日志函数调用
+     * @param expr 调用表达式指针
+     * @return 如果是日志函数调用返回true，否则返回false
+     */
+    bool isLogFunctionCall(clang::CallExpr* expr) const;
 };
 
 } // namespace ast_analyzer
