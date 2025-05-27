@@ -5,48 +5,272 @@ alwaysApply: false
 ---
 # DLogCover 项目结构
 
-## 推荐目录结构
+## 实际项目结构（2024年12月）
 
+基于当前项目实际状态，详细的系统架构请参考Memory Bank文档：
+- **[systemPatterns.md](mdc:memory-bank/systemPatterns.md)** - 系统架构和组件关系
+- **[progress.md](mdc:memory-bank/progress.md)** - 项目实现状态和模块完成度
+
+### 完整目录结构
 ```
-dlogcover/
-├── CMakeLists.txt             # 主CMake配置文件
-├── README.md                  # 项目说明文档
-├── docs/                      # 项目文档
-│   ├── PRD.md                 # 产品需求文档
-│   └── ...
-├── src/                       # 源代码目录
-│   ├── main.cpp               # 主入口文件
-│   ├── cli/                   # 命令行接口相关代码
-│   ├── core/                  # 核心功能代码
-│   │   ├── ast/               # AST分析相关代码
-│   │   ├── log_analyzer/      # 日志分析代码
-│   │   └── coverage/          # 覆盖率计算代码
-│   ├── utils/                 # 工具函数
-│   └── reporter/              # 报告生成相关代码
-├── include/                   # 头文件目录
-│   └── dlogcover/             # 公共头文件
-├── tests/                     # 测试代码
+dlogcover/                     # 项目根目录
+├── memory-bank/               # Memory Bank文档系统（已完成）
+│   ├── projectbrief.md        # 项目基础文档
+│   ├── productContext.md      # 产品上下文和价值主张
+│   ├── systemPatterns.md      # 系统架构模式
+│   ├── techContext.md         # 技术栈和开发环境
+│   ├── activeContext.md       # 当前工作焦点
+│   └── progress.md            # 项目进展状态
+├── .cursor/                   # Cursor开发规则系统
+│   └── rules/                 # 开发规则文件
+│       ├── 00-readme.mdc      # 规则系统说明
+│       ├── 01-project-overview.mdc    # 项目概览
+│       ├── 02-features.mdc            # 功能规格
+│       ├── 03-architecture.mdc        # 技术架构
+│       ├── 04-dev-guidelines.mdc      # 开发指南
+│       ├── 05-project-structure.mdc   # 项目结构（本文件）
+│       ├── 06-code-style-guide.mdc    # 代码风格
+│       ├── 07-framework-usage.mdc     # 框架使用
+│       ├── 08-testing-and-qa.mdc      # 测试和质量保证
+│       ├── 09-development-workflow.mdc # 开发工作流
+│       ├── 10-llvm-clang-usage.mdc    # LLVM/Clang使用
+│       ├── 11-log-analysis.mdc        # 日志分析规则
+│       ├── 12-cpp-guidelines.mdc      # C++开发指南
+│       ├── 13-dtk-qt-usage.mdc        # DTK/Qt使用规则
+│       ├── 14-product-management.mdc  # 产品管理规则
+│       ├── 15-performance-optimization.mdc # 性能优化
+│       ├── avoid_hardcoding.mdc       # 避免硬编码
+│       ├── interactive-feedback.mdc   # 交互反馈
+│       ├── memery-bank.mdc           # 内存银行规则
+│       └── mode-rules.mdc            # 模式规则
+├── src/                       # 源代码目录（核心实现）
+│   ├── main.cpp               # 主程序入口
+│   ├── cli/                   # 命令行接口模块
+│   │   ├── command_line_parser.cpp    # 命令行解析器
+│   │   ├── config_validator.cpp       # 配置验证器
+│   │   └── ...
+│   ├── config/                # 配置管理模块
+│   │   ├── config_manager.cpp         # 配置管理器
+│   │   ├── config_loader.cpp          # 配置加载器
+│   │   └── ...
+│   ├── core/                  # 核心分析引擎
+│   │   ├── ast_analyzer/      # AST分析器
+│   │   │   ├── ast_analyzer.cpp       # 主分析器
+│   │   │   ├── ast_visitor.cpp        # AST访问器
+│   │   │   └── ...
+│   │   ├── log_identifier/    # 日志识别器
+│   │   │   ├── log_identifier.cpp     # 日志识别主逻辑
+│   │   │   ├── qt_log_strategy.cpp    # Qt日志策略
+│   │   │   ├── custom_log_strategy.cpp # 自定义日志策略
+│   │   │   └── ...
+│   │   └── coverage/          # 覆盖率计算器
+│   │       ├── coverage_calculator.cpp        # 覆盖率计算主逻辑
+│   │       ├── function_coverage_strategy.cpp # 函数覆盖策略
+│   │       ├── branch_coverage_strategy.cpp   # 分支覆盖策略
+│   │       └── ...
+│   ├── source_manager/        # 源文件管理器
+│   │   ├── source_manager.cpp         # 文件管理主逻辑
+│   │   ├── file_filter.cpp            # 文件过滤器
+│   │   └── ...
+│   ├── reporter/              # 报告生成器
+│   │   ├── reporter.cpp               # 报告生成主逻辑
+│   │   ├── text_reporter_strategy.cpp # 文本报告策略
+│   │   ├── json_reporter_strategy.cpp # JSON报告策略
+│   │   └── ...
+│   └── utils/                 # 工具函数库
+│       ├── file_utils.cpp             # 文件操作工具
+│       ├── string_utils.cpp           # 字符串处理工具
+│       ├── log_utils.cpp              # 日志工具
+│       └── ...
+├── include/dlogcover/         # 头文件目录（公共接口）
+│   ├── cli/                   # CLI模块头文件
+│   │   ├── config_constants.h         # 配置常量
+│   │   ├── error_types.h              # 错误类型
+│   │   ├── config_validator.h         # 配置验证器
+│   │   └── options.h                  # 命令行选项
+│   ├── utils/                 # 工具模块头文件
+│   │   ├── log_utils.h                # 日志工具
+│   │   ├── file_utils.h               # 文件工具
+│   │   └── string_utils.h             # 字符串工具
+│   ├── core/                  # 核心模块头文件
+│   │   ├── ast_analyzer/      # AST分析器头文件
+│   │   │   ├── ast_types.h            # AST类型定义
+│   │   │   └── ast_analyzer.h         # AST分析器接口
+│   │   ├── log_identifier/    # 日志识别器头文件
+│   │   │   ├── log_types.h            # 日志类型定义
+│   │   │   └── log_identifier.h       # 日志识别器接口
+│   │   └── coverage/          # 覆盖率计算器头文件
+│   │       ├── coverage_stats.h       # 覆盖率统计
+│   │       └── coverage_calculator.h  # 覆盖率计算器接口
+│   ├── source_manager/        # 源文件管理器头文件
+│   │   └── source_manager.h           # 源文件管理器接口
+│   └── reporter/              # 报告生成器头文件
+│       ├── reporter_types.h           # 报告类型定义
+│       ├── ireporter_strategy.h       # 报告策略接口
+│       └── reporter.h                 # 报告生成器接口
+├── tests/                     # 测试代码目录
 │   ├── unit/                  # 单元测试
-│   └── integration/           # 集成测试
-├── examples/                  # 示例代码
+│   │   ├── cli/               # CLI模块测试
+│   │   ├── core/              # 核心模块测试
+│   │   ├── utils/             # 工具模块测试
+│   │   └── ...
+│   ├── integration/           # 集成测试
+│   │   ├── end_to_end_test.cpp        # 端到端测试
+│   │   └── ...
+│   └── data/                  # 测试数据
+│       ├── sample_projects/           # 示例项目
+│       └── ...
+├── examples/                  # 示例项目和演示
+│   ├── basic_qt_project/      # 基本Qt项目示例
+│   ├── large_cpp_project/     # 大型C++项目示例
+│   └── custom_log_project/    # 自定义日志项目示例
+├── docs/                      # 项目文档（传统文档）
+│   ├── 产品需求文档.md          # 详细产品需求
+│   ├── API文档.md              # API参考文档
 │   └── ...
-└── third_party/               # 第三方依赖
-    └── ...
+├── cmake/                     # CMake模块和脚本
+│   ├── FindClang.cmake        # Clang查找模块
+│   ├── FindLLVM.cmake         # LLVM查找模块
+│   └── ...
+├── build/                     # 构建输出目录（临时）
+├── CMakeLists.txt             # 主CMake配置文件
+├── dlogcover.json             # 默认配置文件
+├── LICENSE                    # GPL v3许可证文件
+├── README.md                  # 项目主要说明文档
+├── .gitignore                 # Git忽略规则
+├── .clang-format              # 代码格式化配置
+├── .cursorindexingignore      # Cursor索引忽略规则
+├── build.sh                   # 构建脚本
+├── Cursor&UserRules.md        # Cursor用户规则文档
+├── testrules.md               # 测试规则文档
+└── logrules.md                # 日志规则文档
 ```
 
-## 关键组件
+## 核心模块组织原则
 
-### 命令行接口
-命令行接口负责处理用户输入的命令和参数，解析配置文件，并调用相应的功能模块。
+### 1. 分层模块设计
+```
+用户接口层 (CLI + Config)
+    ↓
+应用服务层 (Source Manager + Orchestrator)  
+    ↓
+业务逻辑层 (AST Analyzer + Log Identifier + Coverage Calculator)
+    ↓
+数据访问层 (File System + LLVM APIs)
+```
 
-### AST分析引擎
-AST分析引擎基于Clang/LLVM工具链，负责解析C++源代码，生成抽象语法树，并识别代码中的函数、条件分支、异常处理等结构。
+### 2. 命名规范和组织原则
 
-### 日志分析器
-日志分析器负责识别代码中的日志函数调用，包括Qt日志函数、分类日志函数和自定义日志函数。
+#### 目录命名规范
+- **snake_case**：所有目录名使用下划线分隔
+- **功能聚合**：按功能模块组织，而非按文件类型
+- **层次清晰**：目录层次反映模块依赖关系
 
-### 覆盖率计算器
-覆盖率计算器基于AST分析和日志分析的结果，计算各种覆盖率指标，如函数级覆盖率、分支覆盖率等。
+#### 文件命名规范
+- **头文件**：`.h` 后缀，接口定义和类型声明
+- **实现文件**：`.cpp` 后缀，具体实现逻辑
+- **配置文件**：`.json` 后缀，JSON格式配置
+- **文档文件**：`.md` 后缀，Markdown格式文档
 
-### 报告生成器
-报告生成器负责将分析结果整理成易于理解的报告，包括总体覆盖率、文件级别统计、未覆盖路径列表等。
+#### 命名空间组织
+```cpp
+namespace dlogcover {
+    namespace cli {          // 命令行接口
+        namespace config { } // 配置管理
+    }
+    namespace core {         // 核心功能
+        namespace ast { }    // AST分析
+        namespace log { }    // 日志识别
+        namespace coverage { } // 覆盖率计算
+    }
+    namespace utils {        // 工具函数
+        namespace file { }   // 文件操作
+        namespace string { } // 字符串处理
+    }
+    namespace reporter {     // 报告生成
+        namespace text { }   // 文本报告
+        namespace json { }   // JSON报告
+    }
+}
+```
+
+### 3. 依赖关系管理
+
+#### 模块依赖层次
+```
+CLI模块 → 核心模块 → 工具模块
+Reporter模块 → 核心模块 → 工具模块
+核心模块内部：Coverage → Log Identifier → AST Analyzer
+```
+
+#### 依赖注入原则
+- **接口依赖**：高层模块依赖抽象接口，不依赖具体实现
+- **配置驱动**：通过配置文件和工厂模式管理依赖
+- **循环依赖避免**：严格控制模块间的依赖方向
+
+## 文档系统组织
+
+### Memory Bank文档系统
+Memory Bank系统作为项目的智能文档中心，提供AI助手需要的完整上下文：
+- **分层信息架构**：从项目概要到具体实现的递进式信息组织
+- **实时更新机制**：与代码开发同步更新的动态文档
+- **交叉引用系统**：文档间的智能链接和引用关系
+
+### Cursor Rules规则系统  
+.cursor/rules/目录包含完整的开发规则和最佳实践：
+- **编号管理**：00-15编号的系统化规则组织
+- **功能分类**：从项目概览到具体技术指南的全覆盖
+- **扩展机制**：支持新增专业化规则文件
+
+### 传统文档系统
+docs/目录保持传统的项目文档：
+- **产品需求文档**：详细的功能需求和业务逻辑
+- **API文档**：技术接口说明和使用指南
+- **用户手册**：面向最终用户的操作指南
+
+## 配置文件管理
+
+### 配置文件层次
+```
+dlogcover.json (项目根目录) - 项目默认配置
+~/.dlogcover/config.json - 用户全局配置  
+./.dlogcover.json - 项目特定配置
+命令行参数 - 运行时覆盖配置
+```
+
+### 配置优先级
+```
+命令行参数 > 项目配置 > 用户配置 > 默认配置
+```
+
+## 构建和部署结构
+
+### CMake构建系统
+- **主配置文件**：`CMakeLists.txt` - 项目构建入口
+- **模块配置**：`cmake/` - 专用的CMake模块和脚本
+- **构建输出**：`build/` - 临时构建文件和输出
+
+### 发布包结构
+```
+dlogcover-x.x.x/
+├── bin/dlogcover              # 可执行文件
+├── share/dlogcover/           # 配置文件和文档
+│   ├── config.json.example    # 配置文件示例
+│   └── docs/                  # 文档文件
+├── include/dlogcover/         # 开发头文件（可选）
+└── lib/                       # 库文件（可选）
+```
+
+## 开发工作流支持
+
+### IDE配置支持
+- **VS Code**：`.vscode/` 配置（如果存在）
+- **CLion**：`.idea/` 配置（如果存在）  
+- **通用配置**：`.clang-format`、`.gitignore`等
+
+### 持续集成支持
+- **GitHub Actions**：`.github/workflows/` （规划中）
+- **构建脚本**：`build.sh` - 便捷构建脚本
+- **测试脚本**：自动化测试执行脚本
+
+这种项目结构设计确保了代码的可维护性、可扩展性，同时为开发者提供了清晰的导航和理解项目的路径。

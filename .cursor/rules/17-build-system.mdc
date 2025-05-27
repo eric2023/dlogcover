@@ -1,0 +1,1003 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# DLogCover 构建系统规范
+
+## 构建系统概览
+
+DLogCover使用现代CMake构建系统，支持跨平台构建和灵活的依赖管理。详细的技术配置请参考：
+
+### Memory Bank构建文档
+- **[techContext.md](mdc:memory-bank/techContext.md)** - 构建系统技术实现和依赖管理
+- **[systemPatterns.md](mdc:memory-bank/systemPatterns.md)** - 构建架构和组件关系
+
+## CMake架构设计
+
+### 1. 构建系统组织结构
+
+#### 主要CMake文件组织
+```
+dlogcover/
+├── CMakeLists.txt              # 主构建配置文件
+├── cmake/                      # CMake模块和脚本
+│   ├── modules/               # 自定义CMake模块
+│   │   ├── FindClang.cmake    # Clang查找模块
+│   │   ├── FindLLVM.cmake     # LLVM查找模块
+│   │   ├── CompilerConfig.cmake # 编译器配置
+│   │   ├── DependencyConfig.cmake # 依赖配置
+│   │   ├── TestConfig.cmake   # 测试配置
+│   │   └── PackageConfig.cmake # 包配置
+│   ├── scripts/               # 构建脚本
+│   │   ├── setup_environment.cmake
+│   │   ├── configure_toolchain.cmake
+│   │   └── check_dependencies.cmake
+│   └── toolchains/            # 工具链配置
+│       ├── gcc.cmake          # GCC工具链
+│       ├── clang.cmake        # Clang工具链
+│       └── msvc.cmake         # MSVC工具链
+├── src/CMakeLists.txt          # 源码构建配置
+├── tests/CMakeLists.txt        # 测试构建配置
+└── examples/CMakeLists.txt     # 示例构建配置
+```
+
+### 2. 主CMakeLists.txt设计
+
+#### 项目配置和基本设置
+```cmake
+# DLogCover主构建配置文件
+cmake_minimum_required(VERSION 3.10)
+
+# 项目定义
+project(dlogcover 
+    VERSION 0.1.0
+    DESCRIPTION "C++ Log Coverage Analysis Tool"
+    LANGUAGES CXX
+)
+
+# C++标准设置
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# 构建类型设置
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING 
+        "Choose the type of build: Debug Release RelWithDebInfo MinSizeRel Coverage" FORCE)
+endif()
+
+# 输出目录设置
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# 包含自定义CMake模块
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
+
+# 项目包含目录
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+# 编译选项配置
+include(CompilerConfig)
+include(DependencyConfig)
+
+# 可选功能开关
+option(ENABLE_TESTING "Enable unit testing" ON)
+option(ENABLE_EXAMPLES "Build examples" ON)
+option(ENABLE_BENCHMARKS "Build benchmarks" OFF)
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+option(ENABLE_SANITIZERS "Enable sanitizers" OFF)
+option(ENABLE_STATIC_ANALYSIS "Enable static analysis tools" OFF)
+option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
+option(ENABLE_PACKAGING "Enable packaging" ON)
+
+# 平台特定配置
+if(WIN32)
+    add_definitions(-DNOMINMAX)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+elseif(UNIX AND NOT APPLE)
+    add_definitions(-D_GNU_SOURCE)
+endif()
+
+# 依赖查找和配置
+find_package(LLVM REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
+find_package(nlohmann_json REQUIRED)
+
+# 条件依赖
+if(ENABLE_TESTING)
+    find_package(GTest REQUIRED)
+    enable_testing()
+    include(GoogleTest)
+endif()
+
+if(ENABLE_COVERAGE)
+    include(TestConfig)
+    setup_coverage()
+endif()
+
+# 子目录包含
+add_subdirectory(src)
+
+if(ENABLE_TESTING)
+    add_subdirectory(tests)
+endif()
+
+if(ENABLE_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
+# 包配置
+if(ENABLE_PACKAGING)
+    include(PackageConfig)
+endif()
+
+# 安装配置
+include(GNUInstallDirs)
+install(TARGETS dlogcover
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
+)
+
+install(FILES dlogcover.json
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/dlogcover
+    RENAME config.json.example
+)
+```
+
+### 3. 编译器配置模块
+
+#### CompilerConfig.cmake
+```cmake
+# 编译器特定配置
+include_guard()
+
+# 编译器检测和版本验证
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "7.0")
+        message(FATAL_ERROR "GCC version 7.0 or higher required")
+    endif()
+    set(COMPILER_IS_GCC TRUE)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0")
+        message(FATAL_ERROR "Clang version 6.0 or higher required")
+    endif()
+    set(COMPILER_IS_CLANG TRUE)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "19.20")
+        message(FATAL_ERROR "MSVC 2019 or higher required")
+    endif()
+    set(COMPILER_IS_MSVC TRUE)
+else()
+    message(WARNING "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
+endif()
+
+# 通用编译标志
+set(COMMON_CXX_FLAGS
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
+)
+
+# Debug构建标志
+set(DEBUG_CXX_FLAGS
+    -g
+    -O0
+    -DDEBUG
+    -D_DEBUG
+    -fno-omit-frame-pointer
+)
+
+# Release构建标志  
+set(RELEASE_CXX_FLAGS
+    -O3
+    -DNDEBUG
+    -flto
+)
+
+# RelWithDebInfo构建标志
+set(RELWITHDEBINFO_CXX_FLAGS
+    -O2
+    -g
+    -DNDEBUG
+)
+
+# Coverage构建标志
+set(COVERAGE_CXX_FLAGS
+    -g
+    -O0
+    --coverage
+    -fprofile-arcs
+    -ftest-coverage
+)
+
+# 编译器特定标志
+if(COMPILER_IS_GCC)
+    list(APPEND COMMON_CXX_FLAGS
+        -Wlogical-op
+        -Wduplicated-cond
+        -Wduplicated-branches
+        -Wnull-dereference
+    )
+    list(APPEND RELEASE_CXX_FLAGS
+        -ffunction-sections
+        -fdata-sections
+    )
+elseif(COMPILER_IS_CLANG)
+    list(APPEND COMMON_CXX_FLAGS
+        -Wthread-safety
+        -Wthread-safety-analysis
+    )
+elseif(COMPILER_IS_MSVC)
+    list(APPEND COMMON_CXX_FLAGS
+        /W4
+        /permissive-
+    )
+    set(DEBUG_CXX_FLAGS /Od /Zi /DEBUG)
+    set(RELEASE_CXX_FLAGS /O2 /GL)
+endif()
+
+# 应用编译标志
+function(apply_compiler_flags target)
+    target_compile_options(${target} PRIVATE ${COMMON_CXX_FLAGS})
+    
+    target_compile_options(${target} PRIVATE
+        $<$<CONFIG:Debug>:${DEBUG_CXX_FLAGS}>
+        $<$<CONFIG:Release>:${RELEASE_CXX_FLAGS}>
+        $<$<CONFIG:RelWithDebInfo>:${RELWITHDEBINFO_CXX_FLAGS}>
+        $<$<CONFIG:Coverage>:${COVERAGE_CXX_FLAGS}>
+    )
+    
+    # 链接标志
+    if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
+        target_link_options(${target} PRIVATE --coverage)
+    endif()
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" AND COMPILER_IS_GCC)
+        target_link_options(${target} PRIVATE -Wl,--gc-sections)
+    endif()
+endfunction()
+
+# Sanitizer配置
+function(enable_sanitizers target)
+    if(ENABLE_SANITIZERS)
+        if(COMPILER_IS_GCC OR COMPILER_IS_CLANG)
+            set(SANITIZER_FLAGS
+                -fsanitize=address
+                -fsanitize=undefined
+                -fsanitize=leak
+                -fno-sanitize-recover=all
+            )
+            target_compile_options(${target} PRIVATE ${SANITIZER_FLAGS})
+            target_link_options(${target} PRIVATE ${SANITIZER_FLAGS})
+        endif()
+    endif()
+endfunction()
+```
+
+### 4. 依赖管理配置
+
+#### DependencyConfig.cmake
+```cmake
+# 依赖项配置和管理
+include_guard()
+
+# LLVM/Clang配置
+function(configure_llvm_clang)
+    # LLVM版本检查
+    if(LLVM_VERSION_MAJOR LESS 10)
+        message(FATAL_ERROR "LLVM version 10.0 or higher required, found ${LLVM_VERSION}")
+    endif()
+    
+    message(STATUS "Found LLVM ${LLVM_VERSION}")
+    message(STATUS "LLVM install directory: ${LLVM_INSTALL_PREFIX}")
+    message(STATUS "LLVM include directory: ${LLVM_INCLUDE_DIRS}")
+    
+    # LLVM编译定义
+    add_definitions(${LLVM_DEFINITIONS})
+    
+    # LLVM包含目录
+    include_directories(${LLVM_INCLUDE_DIRS})
+    
+    # Clang库列表
+    set(CLANG_LIBS
+        clangTooling
+        clangFrontend
+        clangSerialization
+        clangDriver
+        clangParse
+        clangSema
+        clangAnalysis
+        clangAST
+        clangBasic
+        clangEdit
+        clangLex
+        clangASTMatchers
+    )
+    
+    # LLVM库列表
+    llvm_map_components_to_libnames(LLVM_LIBS
+        support
+        core
+        option
+    )
+    
+    # 创建LLVM/Clang接口库
+    add_library(llvm_clang_interface INTERFACE)
+    target_link_libraries(llvm_clang_interface INTERFACE
+        ${CLANG_LIBS}
+        ${LLVM_LIBS}
+    )
+    target_include_directories(llvm_clang_interface INTERFACE
+        ${LLVM_INCLUDE_DIRS}
+        ${CLANG_INCLUDE_DIRS}
+    )
+    target_compile_definitions(llvm_clang_interface INTERFACE
+        ${LLVM_DEFINITIONS}
+    )
+endfunction()
+
+# nlohmann/json配置
+function(configure_nlohmann_json)
+    if(NOT nlohmann_json_FOUND)
+        message(STATUS "nlohmann/json not found, using FetchContent")
+        include(FetchContent)
+        FetchContent_Declare(
+            nlohmann_json
+            GIT_REPOSITORY https://github.com/nlohmann/json
+            GIT_TAG v3.11.2
+            GIT_SHALLOW TRUE
+        )
+        FetchContent_MakeAvailable(nlohmann_json)
+    else()
+        message(STATUS "Found nlohmann/json: ${nlohmann_json_VERSION}")
+    endif()
+endfunction()
+
+# GoogleTest配置
+function(configure_googletest)
+    if(ENABLE_TESTING)
+        if(NOT GTest_FOUND)
+            message(STATUS "GoogleTest not found, using FetchContent")
+            include(FetchContent)
+            FetchContent_Declare(
+                googletest
+                GIT_REPOSITORY https://github.com/google/googletest
+                GIT_TAG release-1.12.1
+                GIT_SHALLOW TRUE
+            )
+            FetchContent_MakeAvailable(googletest)
+        else()
+            message(STATUS "Found GoogleTest: ${GTest_VERSION}")
+        endif()
+    endif()
+endfunction()
+
+# 依赖项配置主函数
+function(configure_dependencies)
+    configure_llvm_clang()
+    configure_nlohmann_json()
+    configure_googletest()
+endfunction()
+
+# 添加依赖项到目标
+function(add_dependencies_to_target target)
+    target_link_libraries(${target} PRIVATE
+        llvm_clang_interface
+        nlohmann_json::nlohmann_json
+    )
+    
+    if(ENABLE_TESTING)
+        target_link_libraries(${target} PRIVATE
+            GTest::gtest
+            GTest::gtest_main
+            GTest::gmock
+        )
+    endif()
+endfunction()
+```
+
+### 5. 测试配置模块
+
+#### TestConfig.cmake
+```cmake
+# 测试配置和覆盖率设置
+include_guard()
+
+# 测试发现和运行
+function(setup_testing)
+    if(ENABLE_TESTING)
+        # 测试发现
+        include(GoogleTest)
+        
+        # 自定义测试目标
+        add_custom_target(check
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            COMMENT "Running all tests"
+        )
+        
+        # 并行测试
+        set(CTEST_PARALLEL_LEVEL 4)
+        
+        # 测试超时设置
+        set(CTEST_TEST_TIMEOUT 300)
+    endif()
+endfunction()
+
+# 覆盖率配置
+function(setup_coverage)
+    if(ENABLE_COVERAGE)
+        # 查找覆盖率工具
+        find_program(LCOV_PATH lcov)
+        find_program(GCOV_PATH gcov)
+        find_program(GCOVR_PATH gcovr)
+        
+        if(LCOV_PATH)
+            message(STATUS "Found lcov: ${LCOV_PATH}")
+            set(COVERAGE_TOOL "lcov")
+        elseif(GCOVR_PATH)
+            message(STATUS "Found gcovr: ${GCOVR_PATH}")
+            set(COVERAGE_TOOL "gcovr")
+        else()
+            message(WARNING "No coverage tool found (lcov or gcovr)")
+            return()
+        endif()
+        
+        # 覆盖率构建类型
+        set(CMAKE_CXX_FLAGS_COVERAGE
+            "-g -O0 --coverage -fprofile-arcs -ftest-coverage"
+            CACHE STRING "Flags used by the C++ compiler during coverage builds."
+        )
+        set(CMAKE_EXE_LINKER_FLAGS_COVERAGE
+            "--coverage"
+            CACHE STRING "Flags used for linking binaries during coverage builds."
+        )
+        
+        # 覆盖率目标
+        if(COVERAGE_TOOL STREQUAL "lcov")
+            setup_lcov_coverage()
+        elseif(COVERAGE_TOOL STREQUAL "gcovr")
+            setup_gcovr_coverage()
+        endif()
+    endif()
+endfunction()
+
+# LCOV覆盖率配置
+function(setup_lcov_coverage)
+    add_custom_target(coverage_clean
+        COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --zerocounters
+        COMMENT "Cleaning coverage data"
+    )
+    
+    add_custom_target(coverage_capture
+        COMMAND ${LCOV_PATH} --directory ${CMAKE_BINARY_DIR} --capture --output-file coverage.info
+        COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/tests/*' '*/third_party/*' --output-file coverage_filtered.info
+        COMMENT "Capturing coverage data"
+        DEPENDS check
+    )
+    
+    add_custom_target(coverage_html
+        COMMAND genhtml coverage_filtered.info --output-directory coverage_html
+        COMMENT "Generating HTML coverage report"
+        DEPENDS coverage_capture
+    )
+    
+    add_custom_target(coverage
+        DEPENDS coverage_html
+        COMMENT "Generating coverage report"
+    )
+endfunction()
+
+# GCOVR覆盖率配置
+function(setup_gcovr_coverage)
+    add_custom_target(coverage
+        COMMAND ${GCOVR_PATH} 
+            --root ${CMAKE_SOURCE_DIR}
+            --build-root ${CMAKE_BINARY_DIR}
+            --exclude '.*tests.*'
+            --exclude '.*third_party.*'
+            --html --html-details
+            --output coverage.html
+        COMMENT "Generating coverage report with gcovr"
+        DEPENDS check
+    )
+endfunction()
+
+# 添加测试函数
+function(add_dlogcover_test test_name)
+    cmake_parse_arguments(TEST "" "TIMEOUT" "SOURCES;DEPENDS" ${ARGN})
+    
+    add_executable(${test_name} ${TEST_SOURCES})
+    apply_compiler_flags(${test_name})
+    add_dependencies_to_target(${test_name})
+    
+    if(TEST_DEPENDS)
+        add_dependencies(${test_name} ${TEST_DEPENDS})
+    endif()
+    
+    gtest_discover_tests(${test_name}
+        TIMEOUT ${TEST_TIMEOUT}
+        PROPERTIES
+            LABELS "unit"
+    )
+    
+    add_dependencies(check ${test_name})
+endfunction()
+```
+
+### 6. 包配置模块
+
+#### PackageConfig.cmake  
+```cmake
+# 包生成和分发配置
+include_guard()
+
+# CPack配置
+function(setup_packaging)
+    include(CPack)
+    
+    # 基本包信息
+    set(CPACK_PACKAGE_NAME "dlogcover")
+    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "C++ Log Coverage Analysis Tool")
+    set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.md")
+    set(CPACK_PACKAGE_VENDOR "DLogCover Team")
+    set(CPACK_PACKAGE_CONTACT "dlogcover@example.com")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/dlogcover/dlogcover")
+    
+    # 许可证
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+    
+    # 包生成器
+    set(CPACK_GENERATOR "TGZ;ZIP")
+    
+    # 平台特定包生成器
+    if(UNIX AND NOT APPLE)
+        list(APPEND CPACK_GENERATOR "DEB;RPM")
+        setup_deb_packaging()
+        setup_rpm_packaging()
+    elseif(WIN32)
+        list(APPEND CPACK_GENERATOR "NSIS;WIX")
+        setup_windows_packaging()
+    elseif(APPLE)
+        list(APPEND CPACK_GENERATOR "DragNDrop")
+        setup_macos_packaging()
+    endif()
+    
+    # 源码包
+    set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+    set(CPACK_SOURCE_IGNORE_FILES
+        "/\\.git/"
+        "/\\.gitignore"
+        "/build/"
+        "/\\.cache/"
+        "/\\.clangd/"
+        "/compile_commands\\.json"
+        "\\.swp$"
+        "\\.orig$"
+        "~$"
+    )
+endfunction()
+
+# Debian包配置
+function(setup_deb_packaging)
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DLogCover Team <dlogcover@example.com>")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libclang-dev (>= 1:10.0), libc6 (>= 2.28)")
+    set(CPACK_DEBIAN_PACKAGE_SUGGESTS "cmake (>= 3.10)")
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+        "${CMAKE_SOURCE_DIR}/packaging/debian/postinst"
+        "${CMAKE_SOURCE_DIR}/packaging/debian/prerm"
+    )
+endfunction()
+
+# RPM包配置
+function(setup_rpm_packaging)
+    set(CPACK_RPM_COMPONENT_INSTALL ON)
+    set(CPACK_RPM_PACKAGE_GROUP "Development/Tools")
+    set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0")
+    set(CPACK_RPM_PACKAGE_REQUIRES "clang-devel >= 10.0, glibc >= 2.28")
+    set(CPACK_RPM_PACKAGE_SUGGESTS "cmake >= 3.10")
+    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/rpm/postinst")
+    set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/rpm/prerm")
+endfunction()
+
+# Windows包配置
+function(setup_windows_packaging)
+    set(CPACK_NSIS_DISPLAY_NAME "DLogCover")
+    set(CPACK_NSIS_PACKAGE_NAME "DLogCover")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/dlogcover/dlogcover")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/dlogcover/dlogcover")
+    set(CPACK_NSIS_CONTACT "dlogcover@example.com")
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+    # WiX配置
+    set(CPACK_WIX_UPGRADE_GUID "12345678-1234-1234-1234-123456789012")
+    set(CPACK_WIX_PRODUCT_GUID "87654321-4321-4321-4321-210987654321")
+endfunction()
+
+# macOS包配置
+function(setup_macos_packaging)
+    set(CPACK_DMG_VOLUME_NAME "DLogCover")
+    set(CPACK_DMG_FORMAT "UDBZ")
+    set(CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_SOURCE_DIR}/packaging/macos/background.png")
+    set(CPACK_DMG_DS_STORE_SETUP_SCRIPT "${CMAKE_SOURCE_DIR}/packaging/macos/DS_Store_Setup.scpt")
+endfunction()
+```
+
+## 构建工作流和脚本
+
+### 1. 便捷构建脚本
+
+#### build.sh增强版
+```bash
+#!/bin/bash
+# DLogCover构建脚本
+
+set -euo pipefail
+
+# 配置参数
+BUILD_DIR="build"
+BUILD_TYPE="Release"
+ENABLE_TESTING=ON
+ENABLE_COVERAGE=OFF
+ENABLE_SANITIZERS=OFF
+PARALLEL_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+# 颜色输出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 日志函数
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# 帮助信息
+show_help() {
+    cat << EOF
+DLogCover构建脚本
+
+用法: $0 [选项]
+
+选项:
+    -h, --help              显示此帮助信息
+    -d, --build-dir DIR     构建目录 (默认: build)
+    -t, --build-type TYPE   构建类型: Debug|Release|RelWithDebInfo|Coverage (默认: Release)
+    -j, --jobs NUM          并行任务数 (默认: $PARALLEL_JOBS)
+    -c, --clean             清理构建目录
+    --enable-testing        启用测试 (默认: ON)
+    --disable-testing       禁用测试
+    --enable-coverage       启用覆盖率 (默认: OFF)
+    --enable-sanitizers     启用Sanitizers (默认: OFF)
+    --install               构建后安装
+    --package               构建后打包
+    
+示例:
+    $0                      # 默认Release构建
+    $0 -t Debug --enable-coverage  # Debug构建并启用覆盖率
+    $0 --clean              # 清理并重新构建
+    $0 --package            # 构建并打包
+EOF
+}
+
+# 检查依赖
+check_dependencies() {
+    log_info "检查构建依赖..."
+    
+    # 检查CMake
+    if ! command -v cmake &> /dev/null; then
+        log_error "CMake未找到，请安装CMake 3.10+"
+        exit 1
+    fi
+    
+    local cmake_version=$(cmake --version | head -n1 | sed 's/.*cmake version \([0-9\.]*\).*/\1/')
+    log_info "找到CMake版本: $cmake_version"
+    
+    # 检查编译器
+    if command -v clang++ &> /dev/null; then
+        local clang_version=$(clang++ --version | head -n1)
+        log_info "找到编译器: $clang_version"
+    elif command -v g++ &> /dev/null; then
+        local gcc_version=$(g++ --version | head -n1)
+        log_info "找到编译器: $gcc_version"
+    else
+        log_error "未找到支持的C++编译器"
+        exit 1
+    fi
+}
+
+# 配置构建
+configure_build() {
+    log_info "配置构建 (类型: $BUILD_TYPE, 目录: $BUILD_DIR)..."
+    
+    local cmake_args=(
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+        -DENABLE_TESTING="$ENABLE_TESTING"
+        -DENABLE_COVERAGE="$ENABLE_COVERAGE"
+        -DENABLE_SANITIZERS="$ENABLE_SANITIZERS"
+    )
+    
+    mkdir -p "$BUILD_DIR"
+    cd "$BUILD_DIR"
+    
+    cmake .. "${cmake_args[@]}"
+    cd ..
+}
+
+# 执行构建
+build_project() {
+    log_info "开始构建 (并行任务数: $PARALLEL_JOBS)..."
+    
+    cmake --build "$BUILD_DIR" --parallel "$PARALLEL_JOBS"
+    
+    if [ $? -eq 0 ]; then
+        log_success "构建完成"
+    else
+        log_error "构建失败"
+        exit 1
+    fi
+}
+
+# 运行测试
+run_tests() {
+    if [ "$ENABLE_TESTING" = "ON" ]; then
+        log_info "运行测试..."
+        cd "$BUILD_DIR"
+        ctest --output-on-failure --parallel "$PARALLEL_JOBS"
+        cd ..
+    fi
+}
+
+# 生成覆盖率报告
+generate_coverage() {
+    if [ "$ENABLE_COVERAGE" = "ON" ]; then
+        log_info "生成覆盖率报告..."
+        cd "$BUILD_DIR"
+        make coverage 2>/dev/null || cmake --build . --target coverage
+        cd ..
+    fi
+}
+
+# 安装
+install_project() {
+    log_info "安装项目..."
+    cmake --build "$BUILD_DIR" --target install
+}
+
+# 打包
+package_project() {
+    log_info "打包项目..."
+    cd "$BUILD_DIR"
+    cpack
+    cd ..
+}
+
+# 清理
+clean_build() {
+    log_info "清理构建目录: $BUILD_DIR"
+    rm -rf "$BUILD_DIR"
+}
+
+# 主函数
+main() {
+    local CLEAN=false
+    local INSTALL=false
+    local PACKAGE=false
+    
+    # 参数解析
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -d|--build-dir)
+                BUILD_DIR="$2"
+                shift 2
+                ;;
+            -t|--build-type)
+                BUILD_TYPE="$2"
+                shift 2
+                ;;
+            -j|--jobs)
+                PARALLEL_JOBS="$2"
+                shift 2
+                ;;
+            -c|--clean)
+                CLEAN=true
+                shift
+                ;;
+            --enable-testing)
+                ENABLE_TESTING=ON
+                shift
+                ;;
+            --disable-testing)
+                ENABLE_TESTING=OFF
+                shift
+                ;;
+            --enable-coverage)
+                ENABLE_COVERAGE=ON
+                BUILD_TYPE="Coverage"
+                shift
+                ;;
+            --enable-sanitizers)
+                ENABLE_SANITIZERS=ON
+                shift
+                ;;
+            --install)
+                INSTALL=true
+                shift
+                ;;
+            --package)
+                PACKAGE=true
+                shift
+                ;;
+            *)
+                log_error "未知选项: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # 执行构建流程
+    if [ "$CLEAN" = true ]; then
+        clean_build
+    fi
+    
+    check_dependencies
+    configure_build
+    build_project
+    run_tests
+    generate_coverage
+    
+    if [ "$INSTALL" = true ]; then
+        install_project
+    fi
+    
+    if [ "$PACKAGE" = true ]; then
+        package_project
+    fi
+    
+    log_success "所有任务完成"
+}
+
+# 执行主函数
+main "$@"
+```
+
+### 2. 持续集成配置
+
+#### GitHub Actions工作流（.github/workflows/ci.yml）
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, macos-12, windows-2022]
+        compiler: [gcc, clang]
+        build_type: [Debug, Release]
+        exclude:
+          - os: windows-2022
+            compiler: gcc
+          - os: macos-12
+            compiler: gcc
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Setup LLVM/Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "14.0"
+    
+    - name: Install Dependencies (Ubuntu)
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential \
+          libclang-dev llvm-dev nlohmann-json3-dev \
+          libgtest-dev libgmock-dev lcov
+    
+    - name: Install Dependencies (macOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew install cmake llvm nlohmann-json googletest lcov
+    
+    - name: Install Dependencies (Windows)
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        choco install cmake llvm
+        vcpkg install nlohmann-json gtest
+    
+    - name: Configure
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DENABLE_TESTING=ON \
+          -DENABLE_COVERAGE=${{ matrix.build_type == 'Debug' && 'ON' || 'OFF' }}
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Test
+      run: ctest --test-dir build --output-on-failure
+    
+    - name: Coverage
+      if: matrix.build_type == 'Debug' && startsWith(matrix.os, 'ubuntu')
+      run: |
+        cd build
+        make coverage
+    
+    - name: Upload Coverage
+      if: matrix.build_type == 'Debug' && startsWith(matrix.os, 'ubuntu')
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/coverage.info
+  
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy cppcheck
+    
+    - name: Run clang-tidy
+      run: |
+        cmake -B build -DENABLE_STATIC_ANALYSIS=ON
+        cmake --build build --target clang-tidy
+    
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --std=c++17 \
+          --suppress=missingIncludeSystem \
+          --error-exitcode=1 src/
+```
+
+这套构建系统规范确保DLogCover具有稳定、高效、跨平台的构建能力，支持现代化的开发和部署流程。

@@ -3,40 +3,234 @@ description:
 globs: 
 alwaysApply: false
 ---
-# DLogCover 技术架构
+# DLogCover 技术架构设计
 
-## 技术选型
+## 架构概览和文档引用
 
-### 核心技术
-- 基于AST的C++代码静态分析
-- 使用Clang/LLVM工具链进行代码解析
+DLogCover采用现代化的分层架构和模块化设计，详细的架构模式和设计原则请参考：
 
-### 推荐实现方向
-- 使用Modern C++ (C++17)开发
-- 利用Clang LibTooling进行AST分析
-- 命令行界面实现
+### Memory Bank架构文档
+- **[systemPatterns.md](mdc:memory-bank/systemPatterns.md)** - 完整的系统架构模式和设计原则
+- **[techContext.md](mdc:memory-bank/techContext.md)** - 技术栈和开发环境配置
+- **[progress.md](mdc:memory-bank/progress.md)** - 当前架构实现状态
 
-## 架构设计
+## 分层架构设计
 
-### 核心组件
-1. **命令行解析器** - 处理命令行参数和配置文件
-2. **源文件收集器** - 根据配置收集需要分析的源文件
-3. **AST分析引擎** - 对C++源代码进行AST分析
-4. **日志函数识别器** - 识别各类日志函数调用
-5. **覆盖率计算器** - 计算各级别的日志覆盖率
-6. **报告生成器** - 生成覆盖率分析报告
+### 四层架构模式
+```
+┌─────────────────────────────────┐
+│         用户接口层                │  ← CLI + Configuration
+│     (CLI + Configuration)       │
+└─────────────────────────────────┘
+           │
+┌─────────────────────────────────┐
+│         应用服务层                │  ← 业务流程编排
+│     (Orchestration Layer)      │
+└─────────────────────────────────┘
+           │
+┌─────────────────────────────────┐
+│         业务逻辑层                │  ← 核心分析算法
+│  (AST Analysis + Log Detection) │
+└─────────────────────────────────┘
+           │
+┌─────────────────────────────────┐
+│         数据访问层                │  ← 文件系统和LLVM API
+│   (File System + LLVM APIs)    │
+└─────────────────────────────────┘
+```
 
-### 数据流
-1. 用户输入命令行参数
-2. 解析参数和配置文件
-3. 收集源文件
-4. 对每个源文件进行AST分析
-5. 识别日志函数调用
-6. 计算覆盖率指标
-7. 生成分析报告
+### 核心架构原则
+- **单一职责原则（SRP）**：每个模块专注于特定功能领域
+- **开闭原则（OCP）**：使用策略模式支持功能扩展
+- **依赖倒置原则（DIP）**：通过抽象接口解耦模块依赖
 
-## 性能要求
-- 单文件分析时间 < 1秒
-- 100万行代码项目扫描时间 < 10分钟
-- 内存占用 < 2GB
-- CPU使用率 < 70%
+## 核心组件架构
+
+### 1. 命令行接口模块 (src/cli/)
+**设计模式**：Command Pattern + Builder Pattern
+```cpp
+class CommandLineParser {
+    OptionsBuilder builder_;
+    std::vector<std::unique_ptr<ICommand>> commands_;
+public:
+    Result<Options> parse(int argc, char** argv);
+};
+```
+
+### 2. 配置管理模块 (src/config/)  
+**设计模式**：Strategy Pattern + Factory Pattern
+```cpp
+class ConfigManager {
+    std::unique_ptr<IConfigLoader> loader_;
+    std::unique_ptr<IConfigValidator> validator_;
+public:
+    Result<bool> loadConfig(const std::string& path);
+};
+```
+
+### 3. AST分析引擎 (src/core/ast_analyzer/)
+**设计模式**：Visitor Pattern + Template Method Pattern
+```cpp
+class DLogCoverASTVisitor : public clang::RecursiveASTVisitor<DLogCoverASTVisitor> {
+public:
+    bool VisitFunctionDecl(clang::FunctionDecl* decl);
+    bool VisitIfStmt(clang::IfStmt* stmt);
+    bool VisitCXXTryStmt(clang::CXXTryStmt* stmt);
+};
+```
+
+### 4. 日志识别器 (src/core/log_identifier/)
+**设计模式**：Strategy Pattern + Chain of Responsibility
+```cpp
+class LogIdentifier {
+    std::vector<std::unique_ptr<ILogDetectionStrategy>> strategies_;
+public:
+    Result<std::vector<LogCallSite>> identifyLogCalls(const ASTNodeInfo& node);
+};
+```
+
+### 5. 覆盖率计算器 (src/core/coverage/)
+**设计模式**：Strategy Pattern + Observer Pattern  
+```cpp
+class CoverageCalculator {
+    std::vector<std::unique_ptr<ICoverageStrategy>> strategies_;
+    std::vector<ICoverageObserver*> observers_;
+public:
+    Result<CoverageStats> calculateCoverage(
+        const std::vector<ASTNodeInfo>& nodes,
+        const std::vector<LogCallSite>& logCalls
+    );
+};
+```
+
+### 6. 报告生成器 (src/reporter/)
+**设计模式**：Strategy Pattern + Builder Pattern
+```cpp
+class Reporter {
+    std::unique_ptr<IReporterStrategy> strategy_;
+public:
+    Result<bool> generateReport(const CoverageStats& stats, const std::string& outputPath);
+};
+```
+
+## 数据流架构
+
+### 主要数据流向
+```
+Source Files → AST Nodes → Log Calls → Coverage Stats → Reports
+     ↓             ↓           ↓            ↓           ↓
+  FileInfo    ASTNodeInfo  LogCallSite  CoverageStats  String
+```
+
+### 错误处理机制
+统一使用`Result<T>`类型进行错误处理：
+```cpp
+template<typename T>
+class Result {
+    std::optional<T> value_;
+    std::optional<Error> error_;
+public:
+    bool isSuccess() const;
+    template<typename F>
+    auto map(F&& func) -> Result<decltype(func(value_.value()))>;
+};
+```
+
+## 性能优化架构
+
+### 内存管理策略
+- **RAII资源管理**：智能指针管理Clang AST对象生命周期
+- **对象池模式**：复用频繁创建的对象，减少内存分配
+- **写时复制（COW）**：大型数据结构的优化策略
+
+### 并发处理架构
+- **文件级并行分析**：多线程并行分析不同文件
+- **流水线处理**：AST分析和日志识别可以并行进行
+- **负载均衡**：动态调整线程池大小
+
+### 缓存系统设计
+```cpp
+class ASTCache {
+    std::unordered_map<std::string, std::pair<time_t, ASTNodeInfo>> cache_;
+public:
+    std::optional<ASTNodeInfo> get(const std::string& filePath, time_t modTime);
+    void put(const std::string& filePath, time_t modTime, const ASTNodeInfo& info);
+};
+```
+
+## 技术栈架构
+
+### 核心技术选择
+- **编程语言**：Modern C++17
+- **静态分析框架**：Clang/LLVM LibTooling 10.0+
+- **配置管理**：nlohmann/json 3.9.0+
+- **测试框架**：GoogleTest + GoogleMock 1.10.0+
+- **构建系统**：CMake 3.10+
+
+### 编译器兼容性
+```yaml
+GCC: 7.0+ (推荐 9.0+)
+Clang: 6.0+ (推荐 12.0+)  
+MSVC: 2019+ (推荐 2022)
+```
+
+### 平台支持
+- **Linux**：完全支持（主要开发平台）
+- **macOS**：基本支持（部分测试）
+- **Windows**：基本支持（MinGW-w64 + MSVC）
+
+## 可扩展性架构
+
+### 插件机制设计
+```cpp
+class PluginManager {
+    std::vector<std::unique_ptr<IPlugin>> plugins_;
+public:
+    void loadPlugin(const std::string& pluginPath);
+    void registerPlugin(std::unique_ptr<IPlugin> plugin);
+};
+```
+
+### 预留的扩展点
+1. **自定义日志检测策略**
+2. **新的覆盖率计算方法**  
+3. **自定义报告格式**
+4. **额外的AST分析器**
+5. **自定义配置加载器**
+
+## 质量保证架构
+
+### 测试策略分层
+```
+┌─────────────────────────────────┐
+│        端到端测试              │  ← 完整工作流测试
+└─────────────────────────────────┘
+┌─────────────────────────────────┐
+│        集成测试                │  ← 模块间协作测试  
+└─────────────────────────────────┘
+┌─────────────────────────────────┐
+│        单元测试                │  ← 单个类/函数测试
+└─────────────────────────────────┘
+```
+
+### 错误恢复机制
+- **优雅降级**：部分文件分析失败时继续处理其他文件
+- **错误聚合**：收集所有错误信息统一报告
+- **状态回滚**：关键操作失败时恢复到安全状态
+- **资源清理**：异常情况下确保资源正确释放
+
+## 性能基准和约束
+
+### 实际性能表现（基于测试数据）
+- **单文件分析**：< 1秒（1000行代码）
+- **中型项目**：< 5分钟（10万行代码）
+- **大型项目**：< 30分钟（100万行代码）
+- **内存使用**：基础内存<200MB，大型项目峰值<4GB
+
+### 技术约束
+- **LLVM版本依赖**：需要10.0+，推荐14.0+
+- **C++标准要求**：必须支持C++17特性
+- **内存限制**：大型项目分析不超过4GB内存使用
+- **平台兼容性**：保持与主流操作系统的兼容性
+
+这种架构设计确保了DLogCover具有良好的可维护性、可扩展性和高性能表现，为长期的功能演进和优化提供了坚实基础。

@@ -1,0 +1,701 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# DLogCover 性能优化指南
+
+## 性能优化原则
+
+### 核心目标
+基于 **[memory-bank/projectbrief.md](mdc:memory-bank/projectbrief.md)** 中定义的性能标准：
+
+```cpp
+namespace PerformanceTargets {
+    // 分析速度目标
+    constexpr auto SINGLE_FILE_MAX_TIME = 1000;     // 1秒 (1000行代码)
+    constexpr auto MEDIUM_PROJECT_MAX_TIME = 300;   // 5分钟 (10万行代码)
+    constexpr auto LARGE_PROJECT_MAX_TIME = 1800;   // 30分钟 (100万行代码)
+    
+    // 内存使用目标
+    constexpr size_t BASE_MEMORY_USAGE = 200 * 1024 * 1024;      // 200MB
+    constexpr size_t MAX_MEMORY_USAGE = 4ULL * 1024 * 1024 * 1024; // 4GB
+    constexpr size_t MEMORY_PER_1K_LINES = 5 * 1024 * 1024;     // 5MB/1000行
+}
+```
+
+### 优化层次结构
+```
+算法优化 (最高优先级)
+    ↓
+数据结构优化
+    ↓
+内存管理优化
+    ↓
+I/O优化
+    ↓
+并发优化 (适度使用)
+```
+
+## AST分析性能优化
+
+### 1. 智能缓存策略
+
+#### AST节点缓存
+```cpp
+class ASTNodeCache {
+private:
+    struct CacheEntry {
+        std::unique_ptr<ASTNodeInfo> nodeInfo;
+        std::time_t lastModified;
+        std::size_t fileSize;
+        std::string checksum;  // 文件内容校验
+    };
+    
+    std::unordered_map<std::string, CacheEntry> cache_;
+    std::size_t maxCacheSize_;
+    std::chrono::seconds cacheTimeout_;
+    
+public:
+    // 缓存策略配置
+    static constexpr std::size_t DEFAULT_CACHE_SIZE = 1000;
+    static constexpr auto DEFAULT_TIMEOUT = std::chrono::hours(24);
+    
+    std::optional<ASTNodeInfo> get(const std::string& filePath);
+    void put(const std::string& filePath, std::unique_ptr<ASTNodeInfo> info);
+    void evictExpired();
+    void evictLRU();
+};
+```
+
+#### 增量分析实现
+```cpp
+class IncrementalAnalyzer {
+private:
+    std::unordered_map<std::string, FileAnalysisState> fileStates_;
+    
+public:
+    // 只分析修改过的文件
+    std::vector<std::string> getModifiedFiles(
+        const std::vector<std::string>& allFiles
+    ) {
+        std::vector<std::string> modifiedFiles;
+        
+        for (const auto& file : allFiles) {
+            auto currentState = getFileState(file);
+            auto cachedState = fileStates_.find(file);
+            
+            if (cachedState == fileStates_.end() || 
+                currentState.lastModified > cachedState->second.lastModified ||
+                currentState.checksum != cachedState->second.checksum) {
+                modifiedFiles.push_back(file);
+                fileStates_[file] = currentState;
+            }
+        }
+        
+        return modifiedFiles;
+    }
+};
+```
+
+### 2. 内存效率优化
+
+#### 对象池模式
+```cpp
+template<typename T>
+class ObjectPool {
+private:
+    std::vector<std::unique_ptr<T>> pool_;
+    std::queue<T*> available_;
+    std::mutex mutex_;
+    
+public:
+    class PooledObject {
+    private:
+        T* object_;
+        ObjectPool* pool_;
+        
+    public:
+        PooledObject(T* obj, ObjectPool* pool) : object_(obj), pool_(pool) {}
+        ~PooledObject() { pool_->release(object_); }
+        
+        T* operator->() { return object_; }
+        T& operator*() { return *object_; }
+    };
+    
+    PooledObject acquire() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        
+        if (available_.empty()) {
+            auto newObj = std::make_unique<T>();
+            T* ptr = newObj.get();
+            pool_.push_back(std::move(newObj));
+            return PooledObject(ptr, this);
+        }
+        
+        T* obj = available_.front();
+        available_.pop();
+        return PooledObject(obj, this);
+    }
+    
+private:
+    void release(T* obj) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        available_.push(obj);
+    }
+};
+
+// 使用示例
+using ASTNodePool = ObjectPool<ASTNodeInfo>;
+```
+
+#### 内存映射文件读取
+```cpp
+class MemoryMappedFile {
+private:
+    void* mappedMemory_;
+    std::size_t fileSize_;
+    int fileDescriptor_;
+    
+public:
+    MemoryMappedFile(const std::string& filePath) {
+        fileDescriptor_ = open(filePath.c_str(), O_RDONLY);
+        if (fileDescriptor_ == -1) {
+            throw std::runtime_error("Failed to open file");
+        }
+        
+        struct stat fileInfo;
+        if (fstat(fileDescriptor_, &fileInfo) == -1) {
+            close(fileDescriptor_);
+            throw std::runtime_error("Failed to get file info");
+        }
+        
+        fileSize_ = fileInfo.st_size;
+        mappedMemory_ = mmap(nullptr, fileSize_, PROT_READ, MAP_PRIVATE, 
+                           fileDescriptor_, 0);
+        
+        if (mappedMemory_ == MAP_FAILED) {
+            close(fileDescriptor_);
+            throw std::runtime_error("Failed to map file");
+        }
+    }
+    
+    ~MemoryMappedFile() {
+        if (mappedMemory_ != MAP_FAILED) {
+            munmap(mappedMemory_, fileSize_);
+        }
+        if (fileDescriptor_ != -1) {
+            close(fileDescriptor_);
+        }
+    }
+    
+    const char* data() const { return static_cast<const char*>(mappedMemory_); }
+    std::size_t size() const { return fileSize_; }
+};
+```
+
+### 3. 算法优化
+
+#### 快速文件过滤
+```cpp
+class FastFileFilter {
+private:
+    std::regex excludePattern_;
+    std::unordered_set<std::string> allowedExtensions_;
+    std::size_t maxFileSize_;
+    
+public:
+    // 预编译正则表达式，避免重复编译
+    FastFileFilter(const std::vector<std::string>& excludePatterns,
+                   const std::vector<std::string>& extensions,
+                   std::size_t maxSize = 100 * 1024 * 1024) // 100MB
+        : maxFileSize_(maxSize) {
+        
+        // 合并排除模式为单个正则表达式
+        std::string combinedPattern = "(" + 
+            std::accumulate(excludePatterns.begin(), excludePatterns.end(), 
+                          std::string{},
+                          [](const std::string& a, const std::string& b) {
+                              return a.empty() ? b : a + "|" + b;
+                          }) + ")";
+        excludePattern_ = std::regex(combinedPattern);
+        
+        // 使用unordered_set快速扩展名查找
+        for (const auto& ext : extensions) {
+            allowedExtensions_.insert(ext);
+        }
+    }
+    
+    bool shouldInclude(const std::filesystem::path& filePath) const {
+        // 快速文件大小检查
+        auto fileSize = std::filesystem::file_size(filePath);
+        if (fileSize > maxFileSize_) {
+            return false;
+        }
+        
+        // 快速扩展名检查
+        auto extension = filePath.extension().string();
+        if (allowedExtensions_.find(extension) == allowedExtensions_.end()) {
+            return false;
+        }
+        
+        // 正则表达式检查（最昂贵的操作放在最后）
+        return !std::regex_search(filePath.string(), excludePattern_);
+    }
+};
+```
+
+## 并发处理优化
+
+### 1. 文件级并行分析
+
+#### 线程池实现
+```cpp
+class ThreadPool {
+private:
+    std::vector<std::thread> workers_;
+    std::queue<std::function<void()>> tasks_;
+    std::mutex queueMutex_;
+    std::condition_variable condition_;
+    std::atomic<bool> stop_;
+    
+public:
+    ThreadPool(size_t numThreads = std::thread::hardware_concurrency()) 
+        : stop_(false) {
+        
+        // 根据系统能力调整线程数
+        size_t optimalThreads = std::min(numThreads, 
+                                       std::thread::hardware_concurrency());
+        
+        for (size_t i = 0; i < optimalThreads; ++i) {
+            workers_.emplace_back([this] {
+                while (true) {
+                    std::function<void()> task;
+                    
+                    {
+                        std::unique_lock<std::mutex> lock(queueMutex_);
+                        condition_.wait(lock, [this] { 
+                            return stop_ || !tasks_.empty(); 
+                        });
+                        
+                        if (stop_ && tasks_.empty()) {
+                            return;
+                        }
+                        
+                        task = std::move(tasks_.front());
+                        tasks_.pop();
+                    }
+                    
+                    task();
+                }
+            });
+        }
+    }
+    
+    template<typename F>
+    auto enqueue(F&& f) -> std::future<decltype(f())> {
+        auto taskPtr = std::make_shared<std::packaged_task<decltype(f())()>>(
+            std::forward<F>(f)
+        );
+        
+        auto result = taskPtr->get_future();
+        
+        {
+            std::unique_lock<std::mutex> lock(queueMutex_);
+            if (stop_) {
+                throw std::runtime_error("ThreadPool is stopped");
+            }
+            
+            tasks_.emplace([taskPtr] { (*taskPtr)(); });
+        }
+        
+        condition_.notify_one();
+        return result;
+    }
+};
+```
+
+#### 并行文件分析
+```cpp
+class ParallelAnalyzer {
+private:
+    ThreadPool threadPool_;
+    std::atomic<size_t> processedFiles_;
+    std::atomic<size_t> totalFiles_;
+    
+public:
+    Result<std::vector<ASTNodeInfo>> analyzeFilesInParallel(
+        const std::vector<std::string>& files
+    ) {
+        totalFiles_ = files.size();
+        processedFiles_ = 0;
+        
+        std::vector<std::future<Result<ASTNodeInfo>>> futures;
+        std::mutex resultMutex;
+        std::vector<ASTNodeInfo> results;
+        
+        // 按文件大小排序，大文件优先处理（负载均衡）
+        auto sortedFiles = files;
+        std::sort(sortedFiles.begin(), sortedFiles.end(),
+                 [](const std::string& a, const std::string& b) {
+                     return std::filesystem::file_size(a) > 
+                            std::filesystem::file_size(b);
+                 });
+        
+        for (const auto& file : sortedFiles) {
+            futures.push_back(threadPool_.enqueue([this, file]() -> Result<ASTNodeInfo> {
+                auto result = analyzeSingleFile(file);
+                
+                ++processedFiles_;
+                
+                // 进度报告
+                if (processedFiles_ % 10 == 0) {
+                    LOG_INFO_FMT("分析进度: %zu/%zu (%.1f%%)", 
+                               processedFiles_.load(), totalFiles_.load(),
+                               100.0 * processedFiles_ / totalFiles_);
+                }
+                
+                return result;
+            }));
+        }
+        
+        // 收集结果
+        for (auto& future : futures) {
+            try {
+                auto result = future.get();
+                if (result.isSuccess()) {
+                    std::lock_guard<std::mutex> lock(resultMutex);
+                    results.push_back(result.getValue());
+                } else {
+                    LOG_WARNING_FMT("文件分析失败: %s", result.getError().message.c_str());
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR_FMT("文件分析异常: %s", e.what());
+            }
+        }
+        
+        return Result<std::vector<ASTNodeInfo>>::success(std::move(results));
+    }
+};
+```
+
+### 2. 流水线处理优化
+
+#### 生产者-消费者模式
+```cpp
+template<typename T>
+class Pipeline {
+private:
+    std::queue<T> buffer_;
+    std::mutex bufferMutex_;
+    std::condition_variable notEmpty_;
+    std::condition_variable notFull_;
+    std::atomic<bool> finished_;
+    size_t maxBufferSize_;
+    
+public:
+    Pipeline(size_t maxBufferSize = 100) 
+        : finished_(false), maxBufferSize_(maxBufferSize) {}
+    
+    void produce(T item) {
+        std::unique_lock<std::mutex> lock(bufferMutex_);
+        notFull_.wait(lock, [this] { 
+            return buffer_.size() < maxBufferSize_; 
+        });
+        
+        buffer_.push(std::move(item));
+        notEmpty_.notify_one();
+    }
+    
+    std::optional<T> consume() {
+        std::unique_lock<std::mutex> lock(bufferMutex_);
+        notEmpty_.wait(lock, [this] { 
+            return !buffer_.empty() || finished_; 
+        });
+        
+        if (buffer_.empty()) {
+            return std::nullopt;
+        }
+        
+        T item = std::move(buffer_.front());
+        buffer_.pop();
+        notFull_.notify_one();
+        
+        return item;
+    }
+    
+    void finish() {
+        finished_ = true;
+        notEmpty_.notify_all();
+    }
+};
+```
+
+## 内存管理优化
+
+### 1. 智能内存池
+```cpp
+class MemoryPool {
+private:
+    struct Block {
+        char* memory;
+        size_t size;
+        size_t used;
+        Block* next;
+    };
+    
+    Block* currentBlock_;
+    std::vector<std::unique_ptr<char[]>> blocks_;
+    size_t blockSize_;
+    std::mutex mutex_;
+    
+public:
+    MemoryPool(size_t blockSize = 1024 * 1024) // 1MB 块
+        : currentBlock_(nullptr), blockSize_(blockSize) {}
+    
+    void* allocate(size_t size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        
+        if (!currentBlock_ || currentBlock_->used + size > currentBlock_->size) {
+            allocateNewBlock();
+        }
+        
+        void* ptr = currentBlock_->memory + currentBlock_->used;
+        currentBlock_->used += size;
+        
+        return ptr;
+    }
+    
+    template<typename T, typename... Args>
+    T* construct(Args&&... args) {
+        void* ptr = allocate(sizeof(T));
+        return new(ptr) T(std::forward<Args>(args)...);
+    }
+    
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto& block : blocks_) {
+            block.reset();
+        }
+        blocks_.clear();
+        currentBlock_ = nullptr;
+    }
+};
+```
+
+### 2. RAII资源管理
+```cpp
+class ResourceGuard {
+private:
+    std::function<void()> cleanup_;
+    
+public:
+    template<typename F>
+    ResourceGuard(F&& cleanup) : cleanup_(std::forward<F>(cleanup)) {}
+    
+    ~ResourceGuard() {
+        if (cleanup_) {
+            cleanup_();
+        }
+    }
+    
+    ResourceGuard(const ResourceGuard&) = delete;
+    ResourceGuard& operator=(const ResourceGuard&) = delete;
+    
+    ResourceGuard(ResourceGuard&& other) noexcept 
+        : cleanup_(std::move(other.cleanup_)) {
+        other.cleanup_ = nullptr;
+    }
+};
+
+// 使用示例
+void analyzeWithResourceManagement(const std::string& filePath) {
+    auto astUnit = createASTUnit(filePath);
+    ResourceGuard guard([&astUnit] { 
+        cleanupASTUnit(astUnit);
+    });
+    
+    // 分析代码...
+    // 无需手动清理，ResourceGuard 自动处理
+}
+```
+
+## I/O性能优化
+
+### 1. 批量文件操作
+```cpp
+class BatchFileReader {
+private:
+    static constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB
+    std::vector<char> buffer_;
+    
+public:
+    BatchFileReader() : buffer_(BUFFER_SIZE) {}
+    
+    std::vector<std::string> readMultipleFiles(
+        const std::vector<std::string>& filePaths
+    ) {
+        std::vector<std::string> contents;
+        contents.reserve(filePaths.size());
+        
+        for (const auto& path : filePaths) {
+            std::ifstream file(path, std::ios::binary);
+            if (!file) {
+                LOG_WARNING_FMT("无法打开文件: %s", path.c_str());
+                continue;
+            }
+            
+            // 预分配内存
+            file.seekg(0, std::ios::end);
+            auto fileSize = file.tellg();
+            file.seekg(0, std::ios::beg);
+            
+            std::string content;
+            content.reserve(fileSize);
+            
+            // 批量读取
+            while (file.read(buffer_.data(), BUFFER_SIZE)) {
+                content.append(buffer_.data(), file.gcount());
+            }
+            if (file.gcount() > 0) {
+                content.append(buffer_.data(), file.gcount());
+            }
+            
+            contents.push_back(std::move(content));
+        }
+        
+        return contents;
+    }
+};
+```
+
+### 2. 异步I/O操作
+```cpp
+class AsyncFileProcessor {
+private:
+    std::unique_ptr<ThreadPool> ioThreadPool_;
+    
+public:
+    AsyncFileProcessor() 
+        : ioThreadPool_(std::make_unique<ThreadPool>(2)) {} // 专用I/O线程
+    
+    std::future<std::string> readFileAsync(const std::string& filePath) {
+        return ioThreadPool_->enqueue([filePath]() -> std::string {
+            std::ifstream file(filePath);
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            return buffer.str();
+        });
+    }
+    
+    std::future<void> writeFileAsync(const std::string& filePath, 
+                                   const std::string& content) {
+        return ioThreadPool_->enqueue([filePath, content]() {
+            std::ofstream file(filePath);
+            file << content;
+        });
+    }
+};
+```
+
+## 性能监控和基准测试
+
+### 1. 性能计时器
+```cpp
+class PerformanceTimer {
+private:
+    std::chrono::high_resolution_clock::time_point startTime_;
+    std::string operationName_;
+    bool autoLog_;
+    
+public:
+    PerformanceTimer(const std::string& operationName, bool autoLog = true)
+        : operationName_(operationName), autoLog_(autoLog) {
+        startTime_ = std::chrono::high_resolution_clock::now();
+    }
+    
+    ~PerformanceTimer() {
+        if (autoLog_) {
+            auto endTime = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                endTime - startTime_);
+            
+            LOG_INFO_FMT("操作 '%s' 耗时: %lld ms", 
+                       operationName_.c_str(), duration.count());
+        }
+    }
+    
+    std::chrono::milliseconds getElapsed() const {
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            currentTime - startTime_);
+    }
+};
+
+// 使用宏简化性能测量
+#define PERF_TIMER(name) PerformanceTimer _timer(name)
+#define PERF_TIMER_FUNC() PerformanceTimer _timer(__FUNCTION__)
+```
+
+### 2. 内存使用监控
+```cpp
+class MemoryMonitor {
+private:
+    std::atomic<size_t> currentUsage_;
+    std::atomic<size_t> peakUsage_;
+    
+public:
+    static MemoryMonitor& getInstance() {
+        static MemoryMonitor instance;
+        return instance;
+    }
+    
+    void addAllocation(size_t size) {
+        currentUsage_ += size;
+        
+        size_t current = currentUsage_;
+        size_t peak = peakUsage_;
+        while (current > peak && 
+               !peakUsage_.compare_exchange_weak(peak, current)) {
+            // 重试直到成功更新峰值
+        }
+    }
+    
+    void removeAllocation(size_t size) {
+        currentUsage_ -= size;
+    }
+    
+    size_t getCurrentUsage() const { return currentUsage_; }
+    size_t getPeakUsage() const { return peakUsage_; }
+    
+    void logMemoryStats() const {
+        LOG_INFO_FMT("内存使用情况 - 当前: %.2f MB, 峰值: %.2f MB",
+                   currentUsage_ / (1024.0 * 1024.0),
+                   peakUsage_ / (1024.0 * 1024.0));
+    }
+};
+```
+
+## 性能优化检查清单
+
+### 开发阶段检查
+- [ ] **算法复杂度**：确保关键算法时间复杂度在O(n log n)以内
+- [ ] **内存分配**：避免频繁的小内存分配，使用对象池
+- [ ] **数据结构**：选择合适的容器（vector vs list vs unordered_map）
+- [ ] **编译器优化**：使用-O2或-O3优化标志
+- [ ] **避免拷贝**：使用移动语义和引用传递
+
+### 测试阶段检查
+- [ ] **性能基准**：定期运行性能基准测试
+- [ ] **内存泄漏**：使用Valgrind或AddressSanitizer检查
+- [ ] **CPU分析**：使用perf或gprof分析热点
+- [ ] **并发安全**：确保多线程代码的正确性
+- [ ] **负载测试**：测试大型项目的分析能力
+
+### 部署阶段检查
+- [ ] **资源限制**：设置合理的内存和CPU使用限制
+- [ ] **监控系统**：部署性能监控和告警
+- [ ] **优雅降级**：在资源不足时提供合理的降级策略
+- [ ] **用户反馈**：收集用户对性能的反馈意见
+
+通过遵循这些性能优化指南，DLogCover可以在保持功能完整性的同时，提供卓越的分析性能。
