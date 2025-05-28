@@ -70,6 +70,15 @@ const char* const OPTION_FORMAT_SHORT = "-f";
 const char* const OPTION_FORMAT_LONG = "--format";
 const char* const OPTION_LOG_PATH_SHORT = "-p";
 const char* const OPTION_LOG_PATH_LONG = "--log-path";
+const char* const OPTION_INCLUDE_PATH_SHORT = "-I";
+const char* const OPTION_INCLUDE_PATH_LONG = "--include-path";
+const char* const OPTION_QUIET_SHORT = "-q";
+const char* const OPTION_QUIET_LONG = "--quiet";
+const char* const OPTION_VERBOSE_LONG = "--verbose";
+const char* const OPTION_COMPILER_ARG_LONG = "--compiler-arg";
+const char* const OPTION_INCLUDE_SYSTEM_HEADERS_LONG = "--include-system-headers";
+const char* const OPTION_THRESHOLD_LONG = "--threshold";
+const char* const OPTION_PARALLEL_LONG = "--parallel";
 /** @} */
 
 /**
@@ -87,7 +96,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
                               VERSION + R"(
 用法: dlogcover [选项]
 
-选项:
+主要选项:
   -h, --help                 显示帮助信息
   -v, --version              显示版本信息
   -d, --directory <path>     指定扫描目录 (默认: ./)
@@ -97,6 +106,15 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fatal, all)
   -f, --format <format>      指定报告格式 (text, json)
   -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
+  -I, --include-path <path>  头文件搜索路径 (可多次使用)
+  -q, --quiet                静默模式，减少输出信息
+      --verbose              详细输出模式，显示更多调试信息
+
+高级选项:
+      --compiler-arg <arg>   传递给编译器的参数 (可多次使用)
+      --include-system-headers  包含系统头文件分析
+      --threshold <value>    覆盖率阈值设置 (0.0-1.0)
+      --parallel <num>       并行分析线程数 (默认: 1)
 
 环境变量:
   DLOGCOVER_DIRECTORY       等同于 -d 选项
@@ -113,8 +131,12 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   "output": "./report.txt",          // 可选，输出路径
   "log_level": "debug",             // 可选，日志级别
   "report_format": "text",          // 可选，报告格式
-  "exclude": ["build/*", "test/*"]  // 可选，排除模式列表
-  "log_path": "./dlogcover.log"     // 可选，日志文件路径
+  "exclude": ["build/*", "test/*"], // 可选，排除模式列表
+  "log_path": "./dlogcover.log",    // 可选，日志文件路径
+  "include_paths": ["./include"],   // 可选，头文件搜索路径
+  "compiler_args": ["-std=c++17"],  // 可选，编译器参数
+  "parallel": 4,                    // 可选，并行线程数
+  "threshold": 0.8                  // 可选，覆盖率阈值
 }
 
 优先级:
@@ -123,6 +145,8 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
 示例:
   dlogcover -d /path/to/source -o report.txt
   dlogcover -c config.json -e "build/*" -e "test/*"
+  dlogcover -I ./include --compiler-arg "-std=c++17" --parallel 4
+  dlogcover --quiet -f json -o report.json
   DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
 )";
 
@@ -276,10 +300,10 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
 
             if (arg == config::cli::OPTION_HELP_SHORT || arg == config::cli::OPTION_HELP_LONG) {
                 isHelpRequest_ = true;
-                return ErrorResult();
+                return ErrorResult(ConfigError::None, "帮助请求");
             } else if (arg == config::cli::OPTION_VERSION_SHORT || arg == config::cli::OPTION_VERSION_LONG) {
                 isVersionRequest_ = true;
-                return ErrorResult();
+                return ErrorResult(ConfigError::None, "版本请求");
             } else if (arg == config::cli::OPTION_DIRECTORY_SHORT || arg == config::cli::OPTION_DIRECTORY_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view dirPath) -> ErrorResult {
                     options_.directoryPath = std::string(dirPath);
@@ -354,6 +378,64 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 if (result.hasError()) {
                     return result;
                 }
+            } else if (arg == config::cli::OPTION_INCLUDE_PATH_SHORT || arg == config::cli::OPTION_INCLUDE_PATH_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view path) -> ErrorResult {
+                    options_.includePaths.emplace_back(path);
+                    return ErrorResult();
+                });
+                if (result.hasError()) {
+                    return result;
+                }
+            } else if (arg == config::cli::OPTION_QUIET_SHORT || arg == config::cli::OPTION_QUIET_LONG) {
+                options_.quiet = true;
+            } else if (arg == config::cli::OPTION_VERBOSE_LONG) {
+                options_.verbose = true;
+            } else if (arg == config::cli::OPTION_COMPILER_ARG_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view compilerArg) -> ErrorResult {
+                    options_.compilerArgs.emplace_back(compilerArg);
+                    return ErrorResult();
+                });
+                if (result.hasError()) {
+                    return result;
+                }
+            } else if (arg == config::cli::OPTION_INCLUDE_SYSTEM_HEADERS_LONG) {
+                options_.includeSystemHeaders = true;
+            } else if (arg == config::cli::OPTION_THRESHOLD_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view thresholdStr) -> ErrorResult {
+                    try {
+                        double value = std::stod(std::string(thresholdStr));
+                        if (value < 0.0 || value > 1.0) {
+                            return ErrorResult(ConfigError::InvalidArgument,
+                                               "覆盖率阈值必须在0.0到1.0之间: " + std::string(thresholdStr));
+                        }
+                        options_.threshold = value;
+                        return ErrorResult();
+                    } catch (const std::exception& e) {
+                        return ErrorResult(ConfigError::InvalidArgument,
+                                           "无效的阈值: " + std::string(thresholdStr));
+                    }
+                });
+                if (result.hasError()) {
+                    return result;
+                }
+            } else if (arg == config::cli::OPTION_PARALLEL_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view numStr) -> ErrorResult {
+                    try {
+                        int value = std::stoi(std::string(numStr));
+                        if (value < 1) {
+                            return ErrorResult(ConfigError::InvalidArgument,
+                                               "并行线程数必须大于0: " + std::string(numStr));
+                        }
+                        options_.parallel = value;
+                        return ErrorResult();
+                    } catch (const std::exception& e) {
+                        return ErrorResult(ConfigError::InvalidArgument,
+                                           "无效的线程数: " + std::string(numStr));
+                    }
+                });
+                if (result.hasError()) {
+                    return result;
+                }
             } else if (arg[0] == '-') {
                 return ErrorResult(ConfigError::UnknownOption,
                                    std::string(config::error::UNKNOWN_OPTION) + std::string(arg));
@@ -388,6 +470,14 @@ const Options& CommandLineParser::getOptions() const {
 
 bool CommandLineParser::isHelpOrVersionRequest() const {
     return isHelpRequest_ || isVersionRequest_;
+}
+
+bool CommandLineParser::isHelpRequest() const {
+    return isHelpRequest_;
+}
+
+bool CommandLineParser::isVersionRequest() const {
+    return isVersionRequest_;
 }
 
 /**

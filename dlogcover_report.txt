@@ -1,17 +1,17 @@
 =====================================================
             DLogCover 日志覆盖率报告                
 =====================================================
-生成时间: 2025-05-28 15:19:02
+生成时间: 2025-05-28 17:43:05
 ----------------------------------------------------
 
 总体覆盖率统计
 ----------------------------------------------------
-函数级覆盖率: 26.65% (190/713)
-分支级覆盖率: 7.93% (139/1752)
+函数级覆盖率: 26.57% (190/715)
+分支级覆盖率: 7.84% (139/1773)
 异常级覆盖率: 71.58% (68/95)
-关键路径覆盖率: 29.25% (253/865)
-总体覆盖率: 28.16%
-未覆盖路径: 2775 个
+关键路径覆盖率: 29.08% (253/870)
+总体覆盖率: 28.08%
+未覆盖路径: 2803 个
 
 
 =====================================================
@@ -229,12 +229,12 @@
   总体覆盖率: 0.00%
 ----------------------------------------------------
 文件: ./src/cli/command_line_parser.cpp
-  函数覆盖率: 30.00% (3/10)
-  分支覆盖率: 2.17% (1/46)
+  函数覆盖率: 25.00% (3/12)
+  分支覆盖率: 1.56% (1/64)
   异常覆盖率: 0.00% (0/2)
-  关键路径覆盖率: 15.00% (3/20)
-  总体覆盖率: 14.90%
-  未覆盖路径: 71 个
+  关键路径覆盖率: 12.00% (3/25)
+  总体覆盖率: 12.27%
+  未覆盖路径: 96 个
 ----------------------------------------------------
 文件: ./src/cli/config_validator.cpp
   函数覆盖率: 57.14% (4/7)
@@ -318,11 +318,11 @@
 ----------------------------------------------------
 文件: ./src/main.cpp
   函数覆盖率: 92.31% (12/13)
-  分支覆盖率: 38.10% (8/21)
+  分支覆盖率: 33.33% (8/24)
   异常覆盖率: 100.00% (3/3)
   关键路径覆盖率: 91.67% (22/24)
-  总体覆盖率: 77.10%
-  未覆盖路径: 16 个
+  总体覆盖率: 75.67%
+  未覆盖路径: 19 个
 ----------------------------------------------------
 文件: ./src/reporter/json_reporter_strategy.cpp
   函数覆盖率: 28.57% (2/7)
@@ -773,151 +773,169 @@
       ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [函数] generateLogFileName
-  位置: ./src/main.cpp:208:1
+  位置: ./src/main.cpp:217:1
   代码: std::string generateLogFileName(const cli::Options& options) {
     // 如果配置中指定了日志
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [分支] if 分支
   位置: :73:9
   代码: if (parser.isHelpOrVersionRequest()) {
-            return false;  // 帮助或版本请求，正常�...
+            // 显示相应信息
+            if (parser.isHe...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :188:5
+  位置: :75:13
+  代码: if (parser.isHelpRequest()) {
+                parser.showHelp();
+            } else if (parser.isVer...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :77:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :77:20
+  代码: if (parser.isVersionRequest()) {
+                parser.showVersion();
+            }
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: :197:5
   代码: if (options.reportFormat == cli::ReportFormat::TEXT) {
         format = reporter::ReportFormat::TEXT...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :190:7
+  位置: :199:7
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :190:12
+  位置: :199:12
   代码: if (options.reportFormat == cli::ReportFormat::JSON) {
         format = reporter::ReportFormat::JSON...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :192:7
+  位置: :201:7
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :210:5
+  位置: :219:5
   代码: if (!options.logPath.empty()) {
         return options.logPath;
     }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :229:9
+  位置: :238:9
   代码: if (!parseCommandLine(argc, argv, commandLineParser)) {
             // 正常退出（帮助或版�...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :243:9
+  位置: :252:9
   代码: if (!loadAndValidateConfig(options, configManager)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :251:9
+  位置: :260:9
   代码: if (!collectSourceFiles(config, sourceManager)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :257:9
+  位置: :266:9
   代码: if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :263:9
+  位置: :272:9
   代码: if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :269:9
+  位置: :278:9
   代码: if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
             return...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :274:9
+  位置: :283:9
   代码: if (!generateReport(config, options, coverageCalculator)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [关键路径] generateLogFileName
-  位置: ./src/main.cpp:208:1
+  位置: ./src/main.cpp:217:1
   代码: std::string generateLogFileName(const cli::Options& options) {
     // 如果配置中指定了日志...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] if
   位置: :73:9
   代码: if (parser.isHelpOrVersionRequest()) {
-            return false;  // 帮助或版本请求，正常�...
+            // 显示相应信息
+            if (parser.isHe...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [函数] ErrorResult::ErrorResult
-  位置: ./include/dlogcover/cli/error_types.h:65:5
+  位置: ./include/dlogcover/cli/error_types.h:67:5
   代码: ErrorResult() : errorCode_(ConfigError::None) {
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ErrorResult::ErrorResult
-  位置: ./include/dlogcover/cli/error_types.h:72:5
+  位置: ./include/dlogcover/cli/error_types.h:74:5
   代码: ErrorResult(ConfigError error, const std::string& message)
         : errorCode_(error), errorMessage
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ErrorResult::hasError
-  位置: ./include/dlogcover/cli/error_types.h:79:5
+  位置: ./include/dlogcover/cli/error_types.h:81:5
   代码: bool hasError() const {
         return errorCode_ != ConfigError::None;
     
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ErrorResult::error
-  位置: ./include/dlogcover/cli/error_types.h:87:5
+  位置: ./include/dlogcover/cli/error_types.h:89:5
   代码: ConfigError error() const {
         return errorCode_;
     
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ErrorResult::message
-  位置: ./include/dlogcover/cli/error_types.h:95:5
+  位置: ./include/dlogcover/cli/error_types.h:97:5
   代码: const std::string& message() const {
         return errorMessage_;
     
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ErrorResult::errorMessage
-  位置: ./include/dlogcover/cli/error_types.h:103:5
+  位置: ./include/dlogcover/cli/error_types.h:105:5
   代码: const std::string& errorMessage() const {
         return errorMessage_;
     
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [关键路径] ErrorResult::ErrorResult
-  位置: ./include/dlogcover/cli/error_types.h:65:5
+  位置: ./include/dlogcover/cli/error_types.h:67:5
   代码: ErrorResult() : errorCode_(ConfigError::None) {
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ErrorResult::ErrorResult
-  位置: ./include/dlogcover/cli/error_types.h:72:5
+  位置: ./include/dlogcover/cli/error_types.h:74:5
   代码: ErrorResult(ConfigError error, const std::string& message)
         : errorCode_(error), errorMessage...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ErrorResult::hasError
-  位置: ./include/dlogcover/cli/error_types.h:79:5
+  位置: ./include/dlogcover/cli/error_types.h:81:5
   代码: bool hasError() const {
         return errorCode_ != ConfigError::None;
     
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ErrorResult::error
-  位置: ./include/dlogcover/cli/error_types.h:87:5
+  位置: ./include/dlogcover/cli/error_types.h:89:5
   代码: ConfigError error() const {
         return errorCode_;
     
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ErrorResult::message
-  位置: ./include/dlogcover/cli/error_types.h:95:5
+  位置: ./include/dlogcover/cli/error_types.h:97:5
   代码: const std::string& message() const {
         return errorMessage_;
     
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ErrorResult::errorMessage
-  位置: ./include/dlogcover/cli/error_types.h:103:5
+  位置: ./include/dlogcover/cli/error_types.h:105:5
   代码: const std::string& errorMessage() const {
         return errorMessage_;
     
@@ -1982,370 +2000,496 @@ ConfigM...
         , callTyp...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [函数] parseLogLevelImpl
-  位置: ./src/cli/command_line_parser.cpp:149:1
+  位置: ./src/cli/command_line_parser.cpp:173:1
   代码: LogLevel parseLogLevelImpl(std::string_view level) {
     std::string levelLower{level};
     std::tra
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] parseReportFormatImpl
-  位置: ./src/cli/command_line_parser.cpp:174:1
+  位置: ./src/cli/command_line_parser.cpp:198:1
   代码: ReportFormat parseReportFormatImpl(std::string_view format) {
     std::string formatLower{format};
  
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] CommandLineParser::showHelp
-  位置: ./src/cli/command_line_parser.cpp:373:1
+  位置: ./src/cli/command_line_parser.cpp:455:1
   代码: void CommandLineParser::showHelp() const {
     std::cout << HELP_TEXT << std::endl;
 
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] CommandLineParser::showVersion
-  位置: ./src/cli/command_line_parser.cpp:381:1
+  位置: ./src/cli/command_line_parser.cpp:463:1
   代码: void CommandLineParser::showVersion() const {
     std::cout << "DLogCover v" << VERSION << std::endl
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] CommandLineParser::getOptions
-  位置: ./src/cli/command_line_parser.cpp:385:1
+  位置: ./src/cli/command_line_parser.cpp:467:1
   代码: const Options& CommandLineParser::getOptions() const {
     return options_;
 
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] CommandLineParser::isHelpOrVersionRequest
-  位置: ./src/cli/command_line_parser.cpp:389:1
+  位置: ./src/cli/command_line_parser.cpp:471:1
   代码: bool CommandLineParser::isHelpOrVersionRequest() const {
     return isHelpRequest_ || isVersionReque
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] CommandLineParser::isHelpRequest
+  位置: ./src/cli/command_line_parser.cpp:475:1
+  代码: bool CommandLineParser::isHelpRequest() const {
+    return isHelpRequest_;
+
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
+[函数] CommandLineParser::isVersionRequest
+  位置: ./src/cli/command_line_parser.cpp:479:1
+  代码: bool CommandLineParser::isVersionRequest() const {
+    return isVersionRequest_;
+
+  建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] CommandLineParser::validatePath
-  位置: ./src/cli/command_line_parser.cpp:399:1
+  位置: ./src/cli/command_line_parser.cpp:489:1
   代码: ErrorResult CommandLineParser::validatePath(std::string_view path, bool isDirectory) {
     if (path.
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [分支] if 分支
-  位置: :153:5
+  位置: :177:5
   代码: if (levelLower == config::log::DEBUG)
         return LogLevel::DEBUG;
     else if (levelLower == con...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :155:5
+  位置: :179:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :155:10
+  位置: :179:10
   代码: if (levelLower == config::log::INFO)
         return LogLevel::INFO;
     else if (levelLower == confi...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :157:5
+  位置: :181:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :157:10
+  位置: :181:10
   代码: if (levelLower == config::log::WARNING)
         return LogLevel::WARNING;
     else if (levelLower ==...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :159:5
+  位置: :183:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :159:10
+  位置: :183:10
   代码: if (levelLower == config::log::CRITICAL)
         return LogLevel::CRITICAL;
     else if (levelLower ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :161:5
+  位置: :185:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :161:10
+  位置: :185:10
   代码: if (levelLower == config::log::FATAL)
         return LogLevel::FATAL;
     else if (levelLower == con...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :163:5
+  位置: :187:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :163:10
+  位置: :187:10
   代码: if (levelLower == config::log::ALL)
         return LogLevel::ALL
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :178:5
+  位置: :202:5
   代码: if (formatLower == config::report::TEXT)
         return ReportFormat::TEXT;
     else if (formatLower...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :180:5
+  位置: :204:5
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :180:10
+  位置: :204:10
   代码: if (formatLower == config::report::JSON)
         return ReportFormat::JSON
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :236:5
+  位置: :260:5
   代码: if (!validator.loadFromEnvironment(options_)) {
         return ErrorResult(validator.getErrorCode(),...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :255:13
+  位置: :279:13
   代码: if (arg == config::cli::OPTION_CONFIG_SHORT || arg == config::cli::OPTION_CONFIG_LONG) {
            ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :267:17
+  位置: :291:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :277:13
+  位置: :301:13
   代码: if (arg == config::cli::OPTION_HELP_SHORT || arg == config::cli::OPTION_HELP_LONG) {
                ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :280:15
+  位置: :304:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :280:20
+  位置: :304:20
   代码: if (arg == config::cli::OPTION_VERSION_SHORT || arg == config::cli::OPTION_VERSION_LONG) {
          ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :283:15
+  位置: :307:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :283:20
+  位置: :307:20
   代码: if (arg == config::cli::OPTION_DIRECTORY_SHORT || arg == config::cli::OPTION_DIRECTORY_LONG) {
      ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :288:17
+  位置: :312:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :291:15
+  位置: :315:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :291:20
+  位置: :315:20
   代码: if (arg == config::cli::OPTION_OUTPUT_SHORT || arg == config::cli::OPTION_OUTPUT_LONG) {
            ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :302:17
+  位置: :326:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :305:15
+  位置: :329:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :305:20
+  位置: :329:20
   代码: if (arg == config::cli::OPTION_LOG_PATH_SHORT || arg == config::cli::OPTION_LOG_PATH_LONG) {
        ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :316:17
+  位置: :340:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :319:15
+  位置: :343:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :319:20
+  位置: :343:20
   代码: if (arg == config::cli::OPTION_EXCLUDE_SHORT || arg == config::cli::OPTION_EXCLUDE_LONG) {
          ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :328:17
+  位置: :352:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :331:15
+  位置: :355:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :331:20
+  位置: :355:20
   代码: if (arg == config::cli::OPTION_LOG_LEVEL_SHORT || arg == config::cli::OPTION_LOG_LEVEL_LONG) {
      ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :341:17
+  位置: :365:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :344:15
+  位置: :368:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :344:20
+  位置: :368:20
   代码: if (arg == config::cli::OPTION_FORMAT_SHORT || arg == config::cli::OPTION_FORMAT_LONG) {
            ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :354:17
+  位置: :378:17
   代码: if (result.hasError()) {
                     return result;
                 }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :357:15
+  位置: :381:15
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :357:20
+  位置: :381:20
+  代码: if (arg == config::cli::OPTION_INCLUDE_PATH_SHORT || arg == config::cli::OPTION_INCLUDE_PATH_LONG) {...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: :386:17
+  代码: if (result.hasError()) {
+                    return result;
+                }
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :389:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :389:20
+  代码: if (arg == config::cli::OPTION_QUIET_SHORT || arg == config::cli::OPTION_QUIET_LONG) {
+             ...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :391:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :391:20
+  代码: if (arg == config::cli::OPTION_VERBOSE_LONG) {
+                options_.verbose = true;
+            ...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :393:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :393:20
+  代码: if (arg == config::cli::OPTION_COMPILER_ARG_LONG) {
+                auto result = handleOption(args,...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: :398:17
+  代码: if (result.hasError()) {
+                    return result;
+                }
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :401:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :401:20
+  代码: if (arg == config::cli::OPTION_INCLUDE_SYSTEM_HEADERS_LONG) {
+                options_.includeSystem...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :403:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :403:20
+  代码: if (arg == config::cli::OPTION_THRESHOLD_LONG) {
+                auto result = handleOption(args, i,...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: :418:17
+  代码: if (result.hasError()) {
+                    return result;
+                }
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :421:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :421:20
+  代码: if (arg == config::cli::OPTION_PARALLEL_LONG) {
+                auto result = handleOption(args, i, ...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] if 分支
+  位置: :436:17
+  代码: if (result.hasError()) {
+                    return result;
+                }
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :439:15
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :439:20
   代码: if (arg[0] == '-') {
                 return ErrorResult(ConfigError::UnknownOption,
                 ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :400:5
+  位置: :490:5
   代码: if (path.empty()) {
         return ErrorResult();  // 空路径允许使用默认值
     }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :405:5
+  位置: :495:5
   代码: if (!std::filesystem::exists(fsPath)) {
         if (isDirectory) {
             return ErrorResult(Co...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :406:9
+  位置: :496:9
   代码: if (isDirectory) {
             return ErrorResult(ConfigError::DirectoryNotFound,
                   ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :409:11
+  位置: :499:11
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :415:5
+  位置: :505:5
   代码: if (isDirectory && !std::filesystem::is_directory(fsPath)) {
         return ErrorResult(ConfigError:...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [异常] try
-  位置: :251:5
+  位置: :275:5
   代码: try {
         // 首先处理配置文件参数，因为其他参数可能会覆盖配置文件中�...
   建议: 在try块中关键位置添加日志记录，记录可能导致异常的操作
 [异常] catch
-  位置: :364:7
+  位置: :446:7
   代码: catch (const std::exception& e) {
         return ErrorResult(ConfigError::ParseError, std::string(co...
   建议: 在catch块中添加日志记录，记录捕获到的异常信息和相关上下文
 [关键路径] parseLogLevelImpl
-  位置: ./src/cli/command_line_parser.cpp:149:1
+  位置: ./src/cli/command_line_parser.cpp:173:1
   代码: LogLevel parseLogLevelImpl(std::string_view level) {
     std::string levelLower{level};
     std::tra...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] parseReportFormatImpl
-  位置: ./src/cli/command_line_parser.cpp:174:1
+  位置: ./src/cli/command_line_parser.cpp:198:1
   代码: ReportFormat parseReportFormatImpl(std::string_view format) {
     std::string formatLower{format};
  ...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] CommandLineParser::showHelp
-  位置: ./src/cli/command_line_parser.cpp:373:1
+  位置: ./src/cli/command_line_parser.cpp:455:1
   代码: void CommandLineParser::showHelp() const {
     std::cout << HELP_TEXT << std::endl;
 
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] CommandLineParser::showVersion
-  位置: ./src/cli/command_line_parser.cpp:381:1
+  位置: ./src/cli/command_line_parser.cpp:463:1
   代码: void CommandLineParser::showVersion() const {
     std::cout << "DLogCover v" << VERSION << std::endl...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] CommandLineParser::getOptions
-  位置: ./src/cli/command_line_parser.cpp:385:1
+  位置: ./src/cli/command_line_parser.cpp:467:1
   代码: const Options& CommandLineParser::getOptions() const {
     return options_;
 
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] CommandLineParser::isHelpOrVersionRequest
-  位置: ./src/cli/command_line_parser.cpp:389:1
+  位置: ./src/cli/command_line_parser.cpp:471:1
   代码: bool CommandLineParser::isHelpOrVersionRequest() const {
     return isHelpRequest_ || isVersionReque...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] CommandLineParser::isHelpRequest
+  位置: ./src/cli/command_line_parser.cpp:475:1
+  代码: bool CommandLineParser::isHelpRequest() const {
+    return isHelpRequest_;
+
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
+[关键路径] CommandLineParser::isVersionRequest
+  位置: ./src/cli/command_line_parser.cpp:479:1
+  代码: bool CommandLineParser::isVersionRequest() const {
+    return isVersionRequest_;
+
+  建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] CommandLineParser::validatePath
-  位置: ./src/cli/command_line_parser.cpp:399:1
+  位置: ./src/cli/command_line_parser.cpp:489:1
   代码: ErrorResult CommandLineParser::validatePath(std::string_view path, bool isDirectory) {
     if (path....
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] catch
-  位置: :364:7
+  位置: :446:7
   代码: catch (const std::exception& e) {
         return ErrorResult(ConfigError::ParseError, std::string(co...
   建议: 此catch块是关键异常处理路径，应详细记录异常信息和处理步骤
 [关键路径] if
-  位置: :291:20
+  位置: :315:20
   代码: if (arg == config::cli::OPTION_OUTPUT_SHORT || arg == config::cli::OPTION_OUTPUT_LONG) {
            ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :305:20
+  位置: :329:20
   代码: if (arg == config::cli::OPTION_LOG_PATH_SHORT || arg == config::cli::OPTION_LOG_PATH_LONG) {
        ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :319:20
+  位置: :343:20
   代码: if (arg == config::cli::OPTION_EXCLUDE_SHORT || arg == config::cli::OPTION_EXCLUDE_LONG) {
          ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :331:20
+  位置: :355:20
   代码: if (arg == config::cli::OPTION_LOG_LEVEL_SHORT || arg == config::cli::OPTION_LOG_LEVEL_LONG) {
      ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :344:20
+  位置: :368:20
   代码: if (arg == config::cli::OPTION_FORMAT_SHORT || arg == config::cli::OPTION_FORMAT_LONG) {
            ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :357:20
+  位置: :401:20
+  代码: if (arg == config::cli::OPTION_INCLUDE_SYSTEM_HEADERS_LONG) {
+                options_.includeSystem...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: :403:20
+  代码: if (arg == config::cli::OPTION_THRESHOLD_LONG) {
+                auto result = handleOption(args, i,...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: :421:20
+  代码: if (arg == config::cli::OPTION_PARALLEL_LONG) {
+                auto result = handleOption(args, i, ...
+  建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
+[关键路径] if
+  位置: :439:20
   代码: if (arg[0] == '-') {
                 return ErrorResult(ConfigError::UnknownOption,
                 ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :405:5
+  位置: :495:5
   代码: if (!std::filesystem::exists(fsPath)) {
         if (isDirectory) {
             return ErrorResult(Co...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :406:9
+  位置: :496:9
   代码: if (isDirectory) {
             return ErrorResult(ConfigError::DirectoryNotFound,
                   ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :415:5
+  位置: :505:5
   代码: if (isDirectory && !std::filesystem::is_directory(fsPath)) {
         return ErrorResult(ConfigError:...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
@@ -2387,7 +2531,7 @@ LogAnalysisTest_QtLogFunctionIde
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_             U               
+LogAnalysisTest_                `b8��U   W�1
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -2707,7 +2851,7 @@ LogAnalysisTest_QtLogFunctionIde...
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_             U               ...
+LogAnalysisTest_                `b8��U   W�1...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -9609,14 +9753,14 @@ ConfigWorkflowTest_CommandLineOver...
     
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [函数] Options::Options
-  位置: ./include/dlogcover/cli/options.h:42:5
+  位置: ./include/dlogcover/cli/options.h:49:5
   代码: Options() 
         : logLevel(LogLevel::ALL)
         , reportFormat(ReportFormat::TEXT)
         , sh
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [关键路径] Options::Options
-  位置: ./include/dlogcover/cli/options.h:42:5
+  位置: ./include/dlogcover/cli/options.h:49:5
   代码: Options() 
         : logLevel(LogLevel::ALL)
         , reportFormat(ReportFormat::TEXT)
@@ -10200,7 +10344,7 @@ ConfigWorkflowTest_CommandLineOver...
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      P���
+ASTAnalyzerTestFixture_                      p̫��
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5
@@ -10786,7 +10930,7 @@ ASTAnalyzer
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      P���...
+ASTAnalyzerTestFixture_                      p̫��...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5
@@ -12326,7 +12470,7 @@ CoverageCalculatorTestFixtur...
 4. 函数级覆盖率较低，建议在函数入口添加debug级别日志，记录函数调用及参数。
 5. 分支覆盖率较低，建议在关键条件分支添加合适级别的日志，记录分支执行情况。
 6. 异常覆盖率不足，建议在所有异常处理块中添加warning或error级别日志。
-7. 有 2775 个未覆盖路径需要添加日志记录，请参考上述未覆盖路径列表。
+7. 有 2803 个未覆盖路径需要添加日志记录，请参考上述未覆盖路径列表。
 
 日志记录最佳实践：
 - 函数入口应使用debug级别日志，记录函数名和关键参数

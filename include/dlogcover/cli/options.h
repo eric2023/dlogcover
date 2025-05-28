@@ -31,10 +31,17 @@ struct Options {
     std::string configPath;                     ///< 配置文件路径
     std::string logPath;                        ///< 日志文件路径
     std::vector<std::string> excludePatterns;   ///< 排除模式列表
+    std::vector<std::string> includePaths;      ///< 头文件搜索路径列表
+    std::vector<std::string> compilerArgs;      ///< 编译器参数列表
     LogLevel logLevel;                          ///< 日志级别
     ReportFormat reportFormat;                  ///< 报告格式
     bool showHelp;                              ///< 是否显示帮助
     bool showVersion;                           ///< 是否显示版本
+    bool quiet;                                 ///< 静默模式
+    bool verbose;                               ///< 详细输出模式
+    bool includeSystemHeaders;                  ///< 是否包含系统头文件分析
+    int parallel;                               ///< 并行分析线程数
+    double threshold;                           ///< 覆盖率阈值 (0.0-1.0)
 
     /**
      * @brief 默认构造函数
@@ -43,7 +50,12 @@ struct Options {
         : logLevel(LogLevel::ALL)
         , reportFormat(ReportFormat::TEXT)
         , showHelp(false)
-        , showVersion(false) {}
+        , showVersion(false)
+        , quiet(false)
+        , verbose(false)
+        , includeSystemHeaders(false)
+        , parallel(1)
+        , threshold(0.0) {}
 
     /**
      * @brief 验证选项有效性

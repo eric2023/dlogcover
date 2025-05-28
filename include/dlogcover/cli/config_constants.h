@@ -42,6 +42,15 @@ namespace cli {
     constexpr const char* OPTION_FORMAT_LONG = "--format";
     constexpr const char* OPTION_LOG_PATH_SHORT = "-p";
     constexpr const char* OPTION_LOG_PATH_LONG = "--log-path";
+    constexpr const char* OPTION_INCLUDE_PATH_SHORT = "-I";
+    constexpr const char* OPTION_INCLUDE_PATH_LONG = "--include-path";
+    constexpr const char* OPTION_QUIET_SHORT = "-q";
+    constexpr const char* OPTION_QUIET_LONG = "--quiet";
+    constexpr const char* OPTION_VERBOSE_LONG = "--verbose";
+    constexpr const char* OPTION_COMPILER_ARG_LONG = "--compiler-arg";
+    constexpr const char* OPTION_PARALLEL_LONG = "--parallel";
+    constexpr const char* OPTION_THRESHOLD_LONG = "--threshold";
+    constexpr const char* OPTION_INCLUDE_SYSTEM_HEADERS_LONG = "--include-system-headers";
 } // namespace cli
 
 /**

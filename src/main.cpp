@@ -68,11 +68,22 @@ bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
     Timer timer("命令行解析");
 
     auto result = parser.parse(argc, argv);
-    if (result.hasError()) {
-        // 检查是否是帮助或版本请求
-        if (parser.isHelpOrVersionRequest()) {
-            return false;  // 帮助或版本请求，正常退出
+    
+    // 首先检查是否是帮助或版本请求（无论是否有错误）
+    if (parser.isHelpOrVersionRequest()) {
+        if (parser.isHelpRequest()) {
+            parser.showHelp();
+        } else if (parser.isVersionRequest()) {
+            parser.showVersion();
         }
+        return false;  // 帮助或版本请求，正常退出
+    }
+    
+    // 然后检查其他错误
+    if (result.hasError()) {
+        // 显示错误信息和帮助提示
+        std::cerr << "错误: " << result.errorMessage() << std::endl;
+        std::cerr << "使用 --help 查看使用说明" << std::endl;
         LOG_ERROR("命令行参数解析失败");
         return false;  // 其他解析错误
     }

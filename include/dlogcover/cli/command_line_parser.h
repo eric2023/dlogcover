@@ -54,6 +54,18 @@ public:
     bool isHelpOrVersionRequest() const;
 
     /**
+     * @brief 检查是否是帮助请求
+     * @return 如果是帮助请求返回true
+     */
+    bool isHelpRequest() const;
+
+    /**
+     * @brief 检查是否是版本请求  
+     * @return 如果是版本请求返回true
+     */
+    bool isVersionRequest() const;
+
+    /**
      * @brief 显示帮助信息
      */
     void showHelp() const;

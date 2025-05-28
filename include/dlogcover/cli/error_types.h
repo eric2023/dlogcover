@@ -50,7 +50,9 @@ enum class ConfigError {
     EnvironmentError = 11,              ///< 环境变量错误
     UnknownOption = 12,                 ///< 未知选项
     InvalidLogPath = 13,                ///< 无效日志路径
-    MISSING_VALUE = 14                  ///< 缺少值
+    MISSING_VALUE = 14,                 ///< 缺少值
+    InvalidArgument = 15,               ///< 无效参数
+    MissingArgument = 16                ///< 缺少参数
 };
 
 /**
