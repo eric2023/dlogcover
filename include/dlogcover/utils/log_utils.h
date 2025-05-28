@@ -23,7 +23,8 @@ enum class LogLevel {
     INFO = 1,       ///< 信息级别
     WARNING = 2,    ///< 警告级别
     ERROR = 3,      ///< 错误级别
-    FATAL = 4       ///< 致命级别
+    FATAL = 4,      ///< 致命级别
+    CUSTOM = 5      ///< 自定义级别
 };
 
 /**

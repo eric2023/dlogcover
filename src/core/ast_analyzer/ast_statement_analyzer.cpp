@@ -131,7 +131,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeIfStmt(clang::
             auto& thenNode = result.value();
             if (thenNode && thenNode->hasLogging) {
                 nodeInfo->hasLogging = true;
-                LOG_DEBUG_FMT("if语句的then分支包含日志调用");
+                LOG_DEBUG("if语句的then分支包含日志调用");
             }
             if (thenNode) {
                 nodeInfo->children.push_back(std::move(thenNode));
@@ -149,7 +149,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeIfStmt(clang::
                 if (elseStmtNode && elseStmtNode->hasLogging) {
                     elseNode->hasLogging = true;
                     nodeInfo->hasLogging = true;
-                    LOG_DEBUG_FMT("if语句的else分支包含日志调用");
+                    LOG_DEBUG("if语句的else分支包含日志调用");
                 }
                 if (elseStmtNode) {
                     elseNode->children.push_back(std::move(elseStmtNode));
@@ -302,7 +302,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang:
             auto& tryNode = result.value();
             if (tryNode && tryNode->hasLogging) {
                 nodeInfo->hasLogging = true;
-                LOG_DEBUG_FMT("try块包含日志调用");
+                LOG_DEBUG("try块包含日志调用");
             }
             if (tryNode) {
                 nodeInfo->children.push_back(std::move(tryNode));
@@ -318,7 +318,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang:
             auto& catchNode = result.value();
             if (catchNode && catchNode->hasLogging) {
                 nodeInfo->hasLogging = true;
-                LOG_DEBUG_FMT("catch块包含日志调用");
+                LOG_DEBUG("catch块包含日志调用");
             }
             if (catchNode) {
                 nodeInfo->children.push_back(std::move(catchNode));

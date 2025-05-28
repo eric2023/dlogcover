@@ -27,6 +27,7 @@
 #include <llvm/Support/Host.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
@@ -71,6 +72,7 @@ Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
     }
 
     // 分析AST上下文
+    LOG_INFO_FMT("准备调用analyzeASTContext: %s", filePath.c_str());
     auto result = analyzeASTContext(currentASTUnit_->getASTContext(), filePath);
     if (result.hasError()) {
         return makeError<bool>(result.error(), result.errorMessage());
@@ -127,6 +129,18 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
     args.push_back("-ferror-limit=0");  // 不限制错误数量
     args.push_back("-fsyntax-only");    // 仅进行语法检查
 
+    // 添加系统头文件路径
+    args.push_back("-I/usr/include");
+    args.push_back("-I/usr/include/c++/11");
+    args.push_back("-I/usr/include/x86_64-linux-gnu/c++/11");
+    args.push_back("-I/usr/include/c++/11/backward");
+    args.push_back("-I/usr/lib/gcc/x86_64-linux-gnu/11/include");
+    args.push_back("-I/usr/local/include");
+    args.push_back("-I/usr/lib/gcc/x86_64-linux-gnu/11/include-fixed");
+    args.push_back("-I/usr/include/x86_64-linux-gnu");
+
+    args.push_back("-I/usr/lib/llvm-17/include");
+
     // 添加包含路径
     if (!config_.scan.includePathsStr.empty()) {
         std::istringstream iss(config_.scan.includePathsStr);
@@ -173,34 +187,39 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTContext& context,
                                                                     const std::string& filePath) {
-    LOG_DEBUG_FMT("分析AST上下文: %s", filePath.c_str());
+    LOG_INFO_FMT("分析AST上下文: %s", filePath.c_str());
 
     // 创建函数分析器
     ASTFunctionAnalyzer functionAnalyzer(context, filePath, config_);
-
     // 创建根节点
     auto rootNode = std::make_unique<ASTNodeInfo>();
-    rootNode->type = NodeType::FUNCTION;  // 根节点类型设为FUNCTION只是作为容器
-    rootNode->name = "root";
+    rootNode->type = NodeType::UNKNOWN;  // 根节点类型设为FILE，表示文件级别的节点
+    rootNode->name = std::filesystem::path(filePath).filename().string();
     rootNode->location.filePath = filePath;
     rootNode->location.line = 1;
     rootNode->location.column = 1;
 
     // 遍历顶层声明
+    LOG_INFO_FMT("开始遍历翻译单元声明，文件: %s", filePath.c_str());
     for (auto* decl : context.getTranslationUnitDecl()->decls()) {
         // 分析是否是函数声明
         if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
             // 检查函数是否在当前源文件中定义
             if (funcDecl->hasBody() && context.getSourceManager().isInMainFile(funcDecl->getBeginLoc())) {
+                LOG_DEBUG_FMT("分析函数: %s", funcDecl->getNameAsString().c_str());
                 auto result = functionAnalyzer.analyzeFunctionDecl(funcDecl);
                 if (!result.hasError()) {
                     auto& funcNode = result.value();
-                    if (funcNode && funcNode->hasLogging) {
-                        rootNode->hasLogging = true;
+                    if (funcNode) {
+                        if (funcNode->hasLogging) {
+                            rootNode->hasLogging = true;
+                        }
+                        rootNode->children.push_back(std::move(funcNode));
                     }
-                if (funcNode) {
-                    rootNode->children.push_back(std::move(funcNode));
-                    }
+                } else {
+                    LOG_WARNING_FMT("函数分析失败: %s, 错误: %s", 
+                                   funcDecl->getNameAsString().c_str(), 
+                                   result.errorMessage().c_str());
                 }
             }
         }
@@ -208,17 +227,58 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
         else if (auto* classDecl = llvm::dyn_cast<clang::CXXRecordDecl>(decl)) {
             // 检查类是否在当前源文件中定义
             if (classDecl->hasDefinition() && context.getSourceManager().isInMainFile(classDecl->getBeginLoc())) {
+                LOG_DEBUG_FMT("分析类: %s", classDecl->getNameAsString().c_str());
                 // 遍历类中的方法
                 for (auto* method : classDecl->methods()) {
                     if (method->hasBody()) {
+                        LOG_DEBUG_FMT("分析类方法: %s::%s", 
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str());
                         auto result = functionAnalyzer.analyzeMethodDecl(method);
                         if (!result.hasError()) {
                             auto& methodNode = result.value();
-                            if (methodNode && methodNode->hasLogging) {
-                                rootNode->hasLogging = true;
+                            if (methodNode) {
+                                if (methodNode->hasLogging) {
+                                    rootNode->hasLogging = true;
+                                }
+                                rootNode->children.push_back(std::move(methodNode));
                             }
-                        if (methodNode) {
-                            rootNode->children.push_back(std::move(methodNode));
+                        } else {
+                            LOG_WARNING_FMT("方法分析失败: %s::%s, 错误: %s", 
+                                           classDecl->getNameAsString().c_str(),
+                                           method->getNameAsString().c_str(),
+                                           result.errorMessage().c_str());
+                        }
+                    }
+                }
+            }
+        }
+        // 分析是否是命名空间
+        else if (auto* namespaceDecl = llvm::dyn_cast<clang::NamespaceDecl>(decl)) {
+            // 检查命名空间是否在当前源文件中定义
+            if (context.getSourceManager().isInMainFile(namespaceDecl->getBeginLoc())) {
+                LOG_DEBUG_FMT("分析命名空间: %s", namespaceDecl->getNameAsString().c_str());
+                // 递归遍历命名空间中的声明
+                for (auto* innerDecl : namespaceDecl->decls()) {
+                    if (auto* innerFuncDecl = llvm::dyn_cast<clang::FunctionDecl>(innerDecl)) {
+                        if (innerFuncDecl->hasBody()) {
+                            LOG_DEBUG_FMT("分析命名空间函数: %s::%s", 
+                                         namespaceDecl->getNameAsString().c_str(),
+                                         innerFuncDecl->getNameAsString().c_str());
+                            auto result = functionAnalyzer.analyzeFunctionDecl(innerFuncDecl);
+                            if (!result.hasError()) {
+                                auto& funcNode = result.value();
+                                if (funcNode) {
+                                    if (funcNode->hasLogging) {
+                                        rootNode->hasLogging = true;
+                                    }
+                                    rootNode->children.push_back(std::move(funcNode));
+                                }
+                            } else {
+                                LOG_WARNING_FMT("命名空间函数分析失败: %s::%s, 错误: %s", 
+                                               namespaceDecl->getNameAsString().c_str(),
+                                               innerFuncDecl->getNameAsString().c_str(),
+                                               result.errorMessage().c_str());
                             }
                         }
                     }

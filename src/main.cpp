@@ -236,7 +236,7 @@ int main(int argc, char* argv[]) {
 
         // 根据配置生成日志文件名并初始化日志系统
         std::string logFileName = generateLogFileName(options);
-        LogManager logManager(logFileName, true, utils::LogLevel::INFO);
+        LogManager logManager(logFileName, true, utils::LogLevel::CUSTOM);
 
         // 加载配置文件
         config::ConfigManager configManager;
