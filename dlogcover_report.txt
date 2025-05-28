@@ -1,7 +1,7 @@
 =====================================================
             DLogCover 日志覆盖率报告                
 =====================================================
-生成时间: 2025-05-28 17:43:05
+生成时间: 2025-05-29 18:53:28
 ----------------------------------------------------
 
 总体覆盖率统计
@@ -773,106 +773,106 @@
       ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [函数] generateLogFileName
-  位置: ./src/main.cpp:217:1
+  位置: ./src/main.cpp:219:1
   代码: std::string generateLogFileName(const cli::Options& options) {
     // 如果配置中指定了日志
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [分支] if 分支
-  位置: :73:9
+  位置: :73:5
   代码: if (parser.isHelpOrVersionRequest()) {
-            // 显示相应信息
-            if (parser.isHe...
+        if (parser.isHelpRequest()) {
+            parser.show...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :75:13
+  位置: :74:9
   代码: if (parser.isHelpRequest()) {
-                parser.showHelp();
-            } else if (parser.isVer...
+            parser.showHelp();
+        } else if (parser.isVersionRequ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :77:15
+  位置: :76:11
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :77:20
+  位置: :76:16
   代码: if (parser.isVersionRequest()) {
-                parser.showVersion();
-            }
+            parser.showVersion();
+        }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :197:5
+  位置: :199:5
   代码: if (options.reportFormat == cli::ReportFormat::TEXT) {
         format = reporter::ReportFormat::TEXT...
-  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
-[分支] else 分支
-  位置: :199:7
-  代码: else {...}
-  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
-[分支] if 分支
-  位置: :199:12
-  代码: if (options.reportFormat == cli::ReportFormat::JSON) {
-        format = reporter::ReportFormat::JSON...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
   位置: :201:7
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :219:5
+  位置: :201:12
+  代码: if (options.reportFormat == cli::ReportFormat::JSON) {
+        format = reporter::ReportFormat::JSON...
+  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
+[分支] else 分支
+  位置: :203:7
+  代码: else {...}
+  建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
+[分支] if 分支
+  位置: :221:5
   代码: if (!options.logPath.empty()) {
         return options.logPath;
     }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :238:9
+  位置: :240:9
   代码: if (!parseCommandLine(argc, argv, commandLineParser)) {
             // 正常退出（帮助或版�...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :252:9
+  位置: :254:9
   代码: if (!loadAndValidateConfig(options, configManager)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :260:9
+  位置: :262:9
   代码: if (!collectSourceFiles(config, sourceManager)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :266:9
+  位置: :268:9
   代码: if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :272:9
+  位置: :274:9
   代码: if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :278:9
+  位置: :280:9
   代码: if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
             return...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :283:9
+  位置: :285:9
   代码: if (!generateReport(config, options, coverageCalculator)) {
             return 1;
         }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [关键路径] generateLogFileName
-  位置: ./src/main.cpp:217:1
+  位置: ./src/main.cpp:219:1
   代码: std::string generateLogFileName(const cli::Options& options) {
     // 如果配置中指定了日志...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] if
-  位置: :73:9
+  位置: :73:5
   代码: if (parser.isHelpOrVersionRequest()) {
-            // 显示相应信息
-            if (parser.isHe...
+        if (parser.isHelpRequest()) {
+            parser.show...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [函数] ErrorResult::ErrorResult
   位置: ./include/dlogcover/cli/error_types.h:67:5
@@ -2531,7 +2531,7 @@ LogAnalysisTest_QtLogFunctionIde
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_                `b8��U   W�1
+LogAnalysisTest_                 ��8�U   ˞1�~
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -2851,7 +2851,7 @@ LogAnalysisTest_QtLogFunctionIde...
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_                `b8��U   W�1...
+LogAnalysisTest_                 ��8�U   ˞1�~...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -10344,7 +10344,7 @@ ConfigWorkflowTest_CommandLineOver...
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      p̫��
+ASTAnalyzerTestFixture_                      �}��
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5
@@ -10930,7 +10930,7 @@ ASTAnalyzer
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      p̫��...
+ASTAnalyzerTestFixture_                      �}��...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5

@@ -534,7 +534,7 @@ make test
 
 - 项目主页: https://github.com/dlogcover/dlogcover
 - 问题反馈: https://github.com/dlogcover/dlogcover/issues
-- 邮箱: dlogcover@example.com
+- 邮箱: eric2023@163.com
 
 ## 更新日志
 

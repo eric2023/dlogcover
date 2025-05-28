@@ -143,7 +143,7 @@ void Logger::fatal(const std::string& message) {
 
 void Logger::log(LogLevel level, const char* format, ...) {
     // 快速检查日志级别，避免不必要的格式化
-    if (level > currentLogLevel_) {
+    if (level < currentLogLevel_) {
         return;
     }
 
@@ -182,7 +182,7 @@ void Logger::log(LogLevel level, const char* format, ...) {
 void Logger::logOutput(LogLevel level, const std::string& message) {
     // 如果未初始化，则尝试初始化
     if (!isInitialized_.load(std::memory_order_acquire)) {
-        init("dlogcover.log", true, LogLevel::CUSTOM);
+        init("dlogcover.log", true, LogLevel::INFO);
     }
 
     std::lock_guard<std::mutex> lock(logMutex_);
