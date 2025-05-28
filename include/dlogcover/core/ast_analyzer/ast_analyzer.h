@@ -120,6 +120,22 @@ private:
     bool isLogFunctionCall(clang::CallExpr* call) const;
 
     /**
+     * @brief 递归分析命名空间的辅助函数
+     * @param namespaceDecl 命名空间声明
+     * @param namespacePath 命名空间路径（如 "dlogcover::core::ast_analyzer"）
+     * @param filePath 文件路径
+     * @param sourceManager 源代码管理器
+     * @param functionAnalyzer 函数分析器
+     * @param rootNode 根节点用于添加分析结果
+     */
+    void analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDecl, 
+                                    const std::string& namespacePath,
+                                    const std::string& filePath,
+                                    clang::SourceManager& sourceManager,
+                                    ASTFunctionAnalyzer& functionAnalyzer,
+                                    std::unique_ptr<ASTNodeInfo>& rootNode);
+
+    /**
      * @brief 获取编译参数
      * @return 编译参数列表
      */
