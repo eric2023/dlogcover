@@ -34,7 +34,7 @@ Thumbs.db
 *.exe
 *.out
 *.app
-dlogcover
+/dlogcover
 
 # 生成的报告
 *_report_* 

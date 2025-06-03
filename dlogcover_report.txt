@@ -1,7 +1,7 @@
 =====================================================
             DLogCover 日志覆盖率报告                
 =====================================================
-生成时间: 2025-05-29 18:53:28
+生成时间: 2025-05-29 20:23:42
 ----------------------------------------------------
 
 总体覆盖率统计
@@ -2531,7 +2531,7 @@ LogAnalysisTest_QtLogFunctionIde
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_                 ��8�U   ˞1�~
+LogAnalysisTest_                `�_��U   �5V
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -2851,7 +2851,7 @@ LogAnalysisTest_QtLogFunctionIde...
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:152:1
   代码: LogAnalysisTest_CustomLogFunctionIdentification_Test 
-LogAnalysisTest_                 ��8�U   ˞1�~...
+LogAnalysisTest_                `�_��U   �5V...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] LogAnalysisTest_CustomLogFunctionIdentification_Test::~LogAnalysisTest_CustomLogFunctionIdentification_Test
   位置: ./tests/integration/log_analysis_test.cpp:1540:5
@@ -10344,7 +10344,7 @@ ConfigWorkflowTest_CommandLineOver...
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      �}��
+ASTAnalyzerTestFixture_                      �]�o�
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5
@@ -10930,7 +10930,7 @@ ASTAnalyzer
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:254:1
   代码: ASTAnalyzerTestFixture_InitializeAndDestroy_Test 
-ASTAnalyzerTestFixture_                      �}��...
+ASTAnalyzerTestFixture_                      �]�o�...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzerTestFixture_InitializeAndDestroy_Test::~ASTAnalyzerTestFixture_InitializeAndDestroy_Test
   位置: ./tests/unit/ast_analyzer_test.cpp:1540:5
