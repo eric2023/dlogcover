@@ -28,7 +28,15 @@
             "-ferror-limit=0",
             "-fsyntax-only",
             "-std=c++17"
-        ]
+        ],
+        "cmake": {
+            "enabled": true,
+            "cmake_lists_path": "",
+            "target_name": "",
+            "use_compile_commands": true,
+            "compile_commands_path": "",
+            "verbose_logging": false
+        }
     },
     "log_functions": {
         "qt": {

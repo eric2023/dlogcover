@@ -387,6 +387,13 @@ sudo cmake --install .
 - `include_paths`: 头文件搜索路径 (冒号分隔)
 - `is_qt_project`: 是否为Qt项目
 - `compiler_args`: 编译器参数列表
+- `cmake`: CMake自动配置选项
+  - `enabled`: 是否启用CMake参数自动检测
+  - `cmake_lists_path`: CMakeLists.txt文件路径（空则自动查找）
+  - `target_name`: 目标名称（空则使用全局参数）
+  - `use_compile_commands`: 是否使用compile_commands.json
+  - `compile_commands_path`: compile_commands.json路径
+  - `verbose_logging`: 是否启用详细日志
 
 #### 日志函数配置 (`log_functions`)
 - `qt.enabled`: 是否启用Qt日志检测
@@ -447,6 +454,113 @@ sudo cmake --install .
 # 并行分析大型项目
 ./dlogcover -d ./large_project --parallel 8 --quiet
 ```
+
+## CMake集成功能
+
+### 自动编译参数检测
+DLogCover支持自动从CMakeLists.txt文件中提取编译参数，大大简化了配置过程。
+
+#### 功能特性
+- **自动查找CMakeLists.txt**: 从当前文件目录向上递归查找
+- **全局参数提取**: 自动提取项目级别的编译设置
+- **目标特定参数**: 支持提取特定目标的编译参数
+- **智能参数合并**: 避免重复参数，优化编译命令
+- **详细日志支持**: 可启用详细日志查看解析过程
+
+#### 支持的CMake命令
+- `project()` - 项目名称和版本
+- `set(CMAKE_CXX_STANDARD)` - C++标准设置
+- `include_directories()` - 全局包含目录
+- `add_definitions()` - 全局编译定义
+- `add_executable()` / `add_library()` - 目标定义
+- `target_include_directories()` - 目标包含目录
+- `target_compile_definitions()` - 目标编译定义
+- `target_compile_options()` - 目标编译选项
+- `target_link_libraries()` - 目标链接库
+- `find_package()` - 包查找（基础支持）
+
+#### 配置示例
+```json
+{
+    "scan": {
+        "cmake": {
+            "enabled": true,
+            "cmake_lists_path": "",
+            "target_name": "my_app",
+            "use_compile_commands": true,
+            "compile_commands_path": "./build/compile_commands.json",
+            "verbose_logging": false
+        }
+    }
+}
+```
+
+#### 使用场景
+
+**场景1: 自动检测项目配置**
+```json
+{
+    "scan": {
+        "cmake": {
+            "enabled": true
+        }
+    }
+}
+```
+DLogCover将自动查找CMakeLists.txt并提取全局编译参数。
+
+**场景2: 分析特定目标**
+```json
+{
+    "scan": {
+        "cmake": {
+            "enabled": true,
+            "target_name": "my_library"
+        }
+    }
+}
+```
+只提取指定目标的编译参数，包括目标特定的包含目录、编译定义等。
+
+**场景3: 使用编译数据库**
+```json
+{
+    "scan": {
+        "cmake": {
+            "enabled": true,
+            "use_compile_commands": true,
+            "compile_commands_path": "./build/compile_commands.json"
+        }
+    }
+}
+```
+优先使用CMake生成的compile_commands.json文件。
+
+**场景4: 调试CMake解析**
+```json
+{
+    "scan": {
+        "cmake": {
+            "enabled": true,
+            "verbose_logging": true
+        }
+    }
+}
+```
+启用详细日志，查看CMake解析的详细过程。
+
+#### 工作流程
+1. **查找CMakeLists.txt**: 从源文件目录开始向上查找
+2. **解析CMake命令**: 提取项目配置、目标定义等
+3. **生成编译参数**: 转换为Clang可用的编译参数
+4. **参数合并**: 与用户配置的参数合并，避免重复
+5. **AST生成**: 使用完整的编译参数生成AST
+
+#### 优势
+- **零配置**: 对于标准CMake项目，无需手动配置编译参数
+- **准确性**: 使用项目实际的编译设置，确保AST分析准确性
+- **灵活性**: 支持全局和目标特定的参数提取
+- **兼容性**: 与现有配置系统完全兼容，可以混合使用
 
 ## 报告示例
 

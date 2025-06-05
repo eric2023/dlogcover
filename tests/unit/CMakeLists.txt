@@ -10,6 +10,7 @@ set(TEST_SOURCES
     reporter_test.cpp
     coverage_calculator_test.cpp
     config_manager_test.cpp
+    cmake_parser_test.cpp
 )
 
 # 收集项目源文件（排除main.cpp）

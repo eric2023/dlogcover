@@ -15,6 +15,18 @@ namespace dlogcover {
 namespace config {
 
 /**
+ * @brief CMake配置
+ */
+struct CMakeConfig {
+    bool enabled;                            ///< 是否启用CMake参数自动检测
+    std::string cmakeListsPath;              ///< CMakeLists.txt文件路径（空则自动查找）
+    std::string targetName;                  ///< 目标名称（空则使用全局参数）
+    bool useCompileCommands;                 ///< 是否使用compile_commands.json
+    std::string compileCommandsPath;         ///< compile_commands.json路径
+    bool verboseLogging;                     ///< 是否启用详细日志
+};
+
+/**
  * @brief 扫描配置
  */
 struct ScanConfig {
@@ -24,6 +36,7 @@ struct ScanConfig {
     std::string includePathsStr;             ///< 包含路径字符串
     bool isQtProject;                        ///< 是否为Qt项目
     std::vector<std::string> compilerArgs;   ///< 编译器参数
+    CMakeConfig cmake;                       ///< CMake配置
 };
 
 /**

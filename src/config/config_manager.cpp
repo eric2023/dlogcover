@@ -102,6 +102,41 @@ bool ConfigManager::parseScanConfig(const nlohmann::json& jsonConfig) {
             LOG_DEBUG_FMT("添加了 %zu 个编译器参数", config_.scan.compilerArgs.size());
         }
 
+        // 添加对cmake配置的解析
+        if (hasValidField(scan, "cmake", nlohmann::json::value_t::object)) {
+            const auto& cmake = scan["cmake"];
+            
+            if (hasValidField(cmake, "enabled", nlohmann::json::value_t::boolean)) {
+                config_.scan.cmake.enabled = cmake["enabled"].get<bool>();
+                LOG_DEBUG_FMT("CMake自动检测设置为: %s", config_.scan.cmake.enabled ? "启用" : "禁用");
+            }
+            
+            if (hasValidField(cmake, "cmake_lists_path", nlohmann::json::value_t::string)) {
+                config_.scan.cmake.cmakeListsPath = cmake["cmake_lists_path"].get<std::string>();
+                LOG_DEBUG_FMT("CMakeLists.txt路径设置为: %s", config_.scan.cmake.cmakeListsPath.c_str());
+            }
+            
+            if (hasValidField(cmake, "target_name", nlohmann::json::value_t::string)) {
+                config_.scan.cmake.targetName = cmake["target_name"].get<std::string>();
+                LOG_DEBUG_FMT("CMake目标名称设置为: %s", config_.scan.cmake.targetName.c_str());
+            }
+            
+            if (hasValidField(cmake, "use_compile_commands", nlohmann::json::value_t::boolean)) {
+                config_.scan.cmake.useCompileCommands = cmake["use_compile_commands"].get<bool>();
+                LOG_DEBUG_FMT("使用compile_commands.json设置为: %s", config_.scan.cmake.useCompileCommands ? "启用" : "禁用");
+            }
+            
+            if (hasValidField(cmake, "compile_commands_path", nlohmann::json::value_t::string)) {
+                config_.scan.cmake.compileCommandsPath = cmake["compile_commands_path"].get<std::string>();
+                LOG_DEBUG_FMT("compile_commands.json路径设置为: %s", config_.scan.cmake.compileCommandsPath.c_str());
+            }
+            
+            if (hasValidField(cmake, "verbose_logging", nlohmann::json::value_t::boolean)) {
+                config_.scan.cmake.verboseLogging = cmake["verbose_logging"].get<bool>();
+                LOG_DEBUG_FMT("CMake详细日志设置为: %s", config_.scan.cmake.verboseLogging ? "启用" : "禁用");
+            }
+        }
+
         return true;
     } catch (const std::exception& e) {
         LOG_ERROR_FMT("解析扫描配置失败: %s", e.what());
@@ -344,6 +379,14 @@ Config ConfigManager::getDefaultConfig() {
     config.scan.isQtProject = false;                  // 默认不是Qt项目
     config.scan.compilerArgs = {                      // 默认编译参数
                                 "-Wno-everything", "-xc++", "-ferror-limit=0", "-fsyntax-only"};
+    
+    // 默认CMake配置
+    config.scan.cmake.enabled = true;                 // 默认启用CMake参数自动检测
+    config.scan.cmake.cmakeListsPath = "";            // 空则自动查找
+    config.scan.cmake.targetName = "";                // 空则使用全局参数
+    config.scan.cmake.useCompileCommands = true;      // 默认使用compile_commands.json
+    config.scan.cmake.compileCommandsPath = "";       // 空则自动查找
+    config.scan.cmake.verboseLogging = false;         // 默认不启用详细日志
 
     // 默认Qt日志函数配置
     config.logFunctions.qt.enabled = true;

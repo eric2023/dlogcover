@@ -6,6 +6,7 @@
 
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
 #include <dlogcover/utils/log_utils.h>
+#include <dlogcover/utils/cmake_parser.h>
 
 // 使用Clang/LLVM头文件
 #include <clang/AST/ASTContext.h>
@@ -210,6 +211,64 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
         args.push_back("-DQ_CREATOR_RUN");
         args.push_back("-D_REENTRANT");
         LOG_DEBUG("添加Qt项目相关定义");
+    }
+
+    // 添加CMake参数（如果启用）
+    if (config_.scan.cmake.enabled) {
+        LOG_DEBUG("CMake参数自动检测已启用，开始解析CMake配置");
+        
+        utils::CMakeParser cmakeParser;
+        cmakeParser.setVerboseLogging(config_.scan.cmake.verboseLogging);
+        
+        // 确定CMakeLists.txt路径
+        std::string cmakeListsPath = config_.scan.cmake.cmakeListsPath;
+        if (cmakeListsPath.empty()) {
+            // 自动查找CMakeLists.txt
+            std::filesystem::path currentPath = std::filesystem::path(filePath).parent_path();
+            while (!currentPath.empty() && currentPath != currentPath.parent_path()) {
+                std::filesystem::path cmakeFile = currentPath / "CMakeLists.txt";
+                if (std::filesystem::exists(cmakeFile)) {
+                    cmakeListsPath = cmakeFile.string();
+                    LOG_DEBUG_FMT("自动找到CMakeLists.txt: %s", cmakeListsPath.c_str());
+                    break;
+                }
+                currentPath = currentPath.parent_path();
+            }
+        }
+        
+        if (!cmakeListsPath.empty()) {
+            auto parseResult = cmakeParser.parse(cmakeListsPath);
+            if (!parseResult.hasError()) {
+                const auto& cmakeResult = parseResult.value();
+                
+                // 获取编译参数
+                std::vector<std::string> cmakeArgs;
+                if (!config_.scan.cmake.targetName.empty()) {
+                    // 使用指定目标的参数
+                    cmakeArgs = cmakeResult.getTargetCompilerArgs(config_.scan.cmake.targetName);
+                    LOG_DEBUG_FMT("使用目标 %s 的编译参数", config_.scan.cmake.targetName.c_str());
+                } else {
+                    // 使用全局参数
+                    cmakeArgs = cmakeResult.getAllCompilerArgs();
+                    LOG_DEBUG("使用全局编译参数");
+                }
+                
+                // 添加CMake参数到编译命令
+                for (const auto& arg : cmakeArgs) {
+                    // 避免重复添加已存在的参数
+                    if (std::find(args.begin(), args.end(), arg) == args.end()) {
+                        args.push_back(arg);
+                        LOG_DEBUG_FMT("添加CMake参数: %s", arg.c_str());
+                    }
+                }
+                
+                LOG_INFO_FMT("从CMake配置中添加了 %zu 个编译参数", cmakeArgs.size());
+            } else {
+                LOG_WARNING_FMT("解析CMakeLists.txt失败: %s", parseResult.errorMessage().c_str());
+            }
+        } else {
+            LOG_WARNING("未找到CMakeLists.txt文件，跳过CMake参数自动检测");
+        }
     }
 
     // 添加用户自定义的编译参数
