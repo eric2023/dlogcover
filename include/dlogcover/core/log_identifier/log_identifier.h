@@ -7,7 +7,7 @@
 #ifndef DLOGCOVER_CORE_LOG_IDENTIFIER_LOG_IDENTIFIER_H
 #define DLOGCOVER_CORE_LOG_IDENTIFIER_LOG_IDENTIFIER_H
 
-#include <dlogcover/core/log_identifier/log_types.h>
+#include <dlogcover/core/log_identifier/identifier_types.h>
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
 #include <dlogcover/config/config.h>
 #include <string>

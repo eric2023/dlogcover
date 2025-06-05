@@ -7,6 +7,7 @@
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/string_utils.h>
+#include <dlogcover/common/log_types.h>
 
 #include <atomic>
 #include <chrono>
@@ -17,17 +18,19 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace dlogcover {
 namespace utils {
 
-// 静态成员变量定义 - 使用静态成员而不是匿名命名空间可以更好地控制访问权限
-LogLevel Logger::currentLogLevel_ = LogLevel::INFO;
+// 静态成员变量定义 - 使用原子变量确保线程安全
+std::atomic<LogLevel> Logger::currentLogLevel_{common::getDefaultLogLevel()};
 std::string Logger::logFilePath_;
 bool Logger::enableConsoleOutput_ = true;
 std::mutex Logger::logMutex_;
 std::ofstream Logger::logFileStream_;
 std::atomic<bool> Logger::isInitialized_{false};
+std::atomic<bool> Logger::hasBeenInitialized_{false};
 std::mutex Logger::initMutex_;
 
 bool Logger::init(const std::string& logFileName, bool consoleOutput, LogLevel level) {
@@ -47,7 +50,7 @@ bool Logger::init(const std::string& logFileName, bool consoleOutput, LogLevel l
     }
 
     // 设置日志级别
-    currentLogLevel_ = level;
+    currentLogLevel_.store(level, std::memory_order_relaxed);
 
     // 设置控制台输出
     enableConsoleOutput_ = consoleOutput;
@@ -71,15 +74,17 @@ bool Logger::init(const std::string& logFileName, bool consoleOutput, LogLevel l
     }
 
     isInitialized_.store(true, std::memory_order_release);
+    hasBeenInitialized_.store(true, std::memory_order_release);
 
     // 记录初始化消息 - 直接输出避免递归调用
+    LogLevel currentLevel = currentLogLevel_.load(std::memory_order_relaxed);
     if (enableConsoleOutput_) {
         std::cout << getCurrentTimeString() << " [INFO] 日志系统初始化，级别: " 
-                  << getLevelName(currentLogLevel_) << std::endl;
+                  << getLevelName(currentLevel) << std::endl;
     }
     if (logFileStream_.is_open()) {
         logFileStream_ << getCurrentTimeString() << " [INFO] 日志系统初始化，级别: " 
-                       << getLevelName(currentLogLevel_) << std::endl;
+                       << getLevelName(currentLevel) << std::endl;
         logFileStream_.flush();
     }
 
@@ -120,13 +125,24 @@ void Logger::shutdown() {
 }
 
 void Logger::setLogLevel(LogLevel level) {
-    std::lock_guard<std::mutex> lock(logMutex_);
-    currentLogLevel_ = level;
+    if (!common::isValidLogLevel(level)) {
+        // 如果级别无效，记录警告并使用默认级别
+        if (isInitialized_.load(std::memory_order_acquire)) {
+            logOutput(LogLevel::WARNING, "设置的日志级别无效，使用默认级别INFO");
+        }
+        level = common::getDefaultLogLevel();
+    }
+    
+    currentLogLevel_.store(level, std::memory_order_relaxed);
+    
+    // 记录级别变更
+    if (isInitialized_.load(std::memory_order_acquire)) {
+        logOutput(LogLevel::INFO, "日志级别已更改为: " + std::string(common::toString(level)));
+    }
 }
 
 LogLevel Logger::getLogLevel() {
-    std::lock_guard<std::mutex> lock(logMutex_);
-    return currentLogLevel_;
+    return currentLogLevel_.load(std::memory_order_relaxed);
 }
 
 bool Logger::isInitialized() {
@@ -156,12 +172,12 @@ void Logger::fatal(const std::string& message) {
 void Logger::log(LogLevel level, const char* format, ...) {
     // 如果未初始化，先进行初始化
     if (!isInitialized_.load(std::memory_order_acquire)) {
-        // 使用更高的默认级别以减少测试期间的日志输出
-        init("", false, LogLevel::ERROR);
+        return;
     }
     
     // 快速检查日志级别，避免不必要的格式化
-    if (level < currentLogLevel_) {
+    LogLevel currentLevel = currentLogLevel_.load(std::memory_order_relaxed);
+    if (!common::shouldLog(level, currentLevel)) {
         return;
     }
 
@@ -199,7 +215,8 @@ void Logger::log(LogLevel level, const char* format, ...) {
 
 void Logger::logOutput(LogLevel level, const std::string& message) {
     // 再次检查日志级别，避免输出低级别日志
-    if (level < currentLogLevel_) {
+    LogLevel currentLevel = currentLogLevel_.load(std::memory_order_relaxed);
+    if (!common::shouldLog(level, currentLevel)) {
         return;
     }
 
@@ -223,20 +240,10 @@ void Logger::logOutput(LogLevel level, const std::string& message) {
 }
 
 std::string Logger::getLevelName(LogLevel level) {
-    switch (level) {
-        case LogLevel::DEBUG:
-            return "DEBUG";
-        case LogLevel::INFO:
-            return "INFO";
-        case LogLevel::WARNING:
-            return "WARNING";
-        case LogLevel::ERROR:
-            return "ERROR";
-        case LogLevel::FATAL:
-            return "FATAL";
-        default:
-            return "UNKNOWN";
-    }
+    // 使用统一的toString函数，并转换为大写
+    std::string levelStr{common::toString(level)};
+    std::transform(levelStr.begin(), levelStr.end(), levelStr.begin(), ::toupper);
+    return levelStr;
 }
 
 std::string Logger::getCurrentTimeString() {

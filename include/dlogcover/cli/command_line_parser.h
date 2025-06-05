@@ -75,6 +75,12 @@ public:
      */
     void showVersion() const;
 
+    /**
+     * @brief 将解析后的参数输出到日志文件
+     * @details 该函数需要在日志系统初始化后调用，用于记录命令行参数解析结果
+     */
+    void logParsedOptions() const;
+
 private:
     Options options_;                    ///< 解析后的选项
     bool isHelpRequest_;                 ///< 是否是帮助请求

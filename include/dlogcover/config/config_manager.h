@@ -17,7 +17,6 @@
 namespace dlogcover {
 namespace cli {
     class Options;
-    enum class LogLevel;
 }
 }
 

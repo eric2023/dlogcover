@@ -7,22 +7,14 @@
 #ifndef DLOGCOVER_CLI_ERROR_TYPES_H
 #define DLOGCOVER_CLI_ERROR_TYPES_H
 
+#include <dlogcover/common/log_types.h>
 #include <string>
 
 namespace dlogcover {
 namespace cli {
 
-/**
- * @brief 日志级别枚举
- */
-enum class LogLevel {
-    DEBUG = 0,      ///< 调试级别
-    INFO = 1,       ///< 信息级别
-    WARNING = 2,    ///< 警告级别
-    CRITICAL = 3,   ///< 严重级别
-    FATAL = 4,      ///< 致命级别
-    ALL = 5         ///< 所有级别
-};
+// 使用统一的日志级别定义
+using LogLevel = dlogcover::common::LogLevel;
 
 /**
  * @brief 报告格式枚举

@@ -1,13 +1,14 @@
 /**
- * @file log_types.h
- * @brief 日志类型定义
+ * @file identifier_types.h
+ * @brief 日志识别器类型定义
  * @copyright Copyright (c) 2023 DLogCover Team
  */
 
-#ifndef DLOGCOVER_CORE_LOG_IDENTIFIER_LOG_TYPES_H
-#define DLOGCOVER_CORE_LOG_IDENTIFIER_LOG_TYPES_H
+#ifndef DLOGCOVER_CORE_LOG_IDENTIFIER_IDENTIFIER_TYPES_H
+#define DLOGCOVER_CORE_LOG_IDENTIFIER_IDENTIFIER_TYPES_H
 
 #include <dlogcover/core/ast_analyzer/ast_types.h>
+#include <dlogcover/common/log_types.h>
 #include <string>
 #include <vector>
 
@@ -15,17 +16,8 @@ namespace dlogcover {
 namespace core {
 namespace log_identifier {
 
-/**
- * @brief 日志级别枚举
- */
-enum class LogLevel {
-    UNKNOWN = -1,       ///< 未知级别
-    DEBUG = 0,          ///< 调试级别
-    INFO = 1,           ///< 信息级别
-    WARNING = 2,        ///< 警告级别
-    CRITICAL = 3,       ///< 严重级别
-    FATAL = 4           ///< 致命级别
-};
+// 使用统一的日志级别定义
+using LogLevel = common::LogLevel;
 
 /**
  * @brief 日志类型枚举
@@ -106,4 +98,4 @@ LogType parseLogType(const std::string& str);
 } // namespace core
 } // namespace dlogcover
 
-#endif // DLOGCOVER_CORE_LOG_IDENTIFIER_LOG_TYPES_H 
+#endif // DLOGCOVER_CORE_LOG_IDENTIFIER_IDENTIFIER_TYPES_H 

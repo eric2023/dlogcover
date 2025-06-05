@@ -7,6 +7,7 @@
 #ifndef DLOGCOVER_UTILS_LOG_UTILS_H
 #define DLOGCOVER_UTILS_LOG_UTILS_H
 
+#include <dlogcover/common/log_types.h>
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -15,17 +16,8 @@
 namespace dlogcover {
 namespace utils {
 
-/**
- * @brief 日志级别枚举
- */
-enum class LogLevel {
-    DEBUG = 0,      ///< 调试级别
-    INFO = 1,       ///< 信息级别
-    WARNING = 2,    ///< 警告级别
-    ERROR = 3,      ///< 错误级别
-    FATAL = 4,      ///< 致命级别
-    CUSTOM = 5      ///< 自定义级别
-};
+// 使用统一的日志级别定义
+using LogLevel = common::LogLevel;
 
 /**
  * @brief 日志记录器类
@@ -105,12 +97,13 @@ public:
     static void log(LogLevel level, const char* format, ...);
 
 private:
-    static LogLevel currentLogLevel_;           ///< 当前日志级别
+    static std::atomic<LogLevel> currentLogLevel_;  ///< 当前日志级别（原子变量确保线程安全）
     static std::string logFilePath_;            ///< 日志文件路径
     static bool enableConsoleOutput_;           ///< 是否启用控制台输出
     static std::mutex logMutex_;                ///< 日志互斥锁
     static std::ofstream logFileStream_;        ///< 日志文件流
     static std::atomic<bool> isInitialized_;    ///< 是否已初始化
+    static std::atomic<bool> hasBeenInitialized_; ///< 是否曾经被初始化过
     static std::mutex initMutex_;               ///< 初始化互斥锁
 
     /**

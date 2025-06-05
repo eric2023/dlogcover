@@ -26,7 +26,6 @@
 
 #include <dlogcover/cli/command_line_parser.h>
 #include <dlogcover/cli/config_validator.h>
-#include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/string_utils.h>
 
 #include <algorithm>
@@ -37,6 +36,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+// 包含日志工具，但仅在logParsedOptions函数中使用
+// 在其他地方不应该使用日志函数，因为日志系统可能未初始化
+#include <dlogcover/utils/log_utils.h>
 
 namespace dlogcover {
 namespace cli {
@@ -213,7 +216,6 @@ ReportFormat parseReportFormatImpl(std::string_view format) {
  * @details 初始化命令行解析器，设置所有选项的默认值
  */
 CommandLineParser::CommandLineParser() {
-    LOG_DEBUG("创建命令行解析器实例");
     // 设置默认值
     options_.directoryPath = DEFAULT_DIRECTORY;
     options_.outputPath = DEFAULT_OUTPUT;
@@ -231,7 +233,6 @@ CommandLineParser::CommandLineParser() {
  * @brief 析构函数
  */
 CommandLineParser::~CommandLineParser() {
-    LOG_DEBUG("销毁命令行解析器实例");
 }
 
 /**
@@ -253,8 +254,6 @@ CommandLineParser::~CommandLineParser() {
  * @warning 该函数会验证文件和目录路径的有效性，如果路径无效会返回false
  */
 ErrorResult CommandLineParser::parse(int argc, char** argv) {
-    LOG_DEBUG_FMT("开始解析命令行参数，参数数量: %d", argc);
-
     // 首先从环境变量加载选项
     ConfigValidator validator;
     if (!validator.loadFromEnvironment(options_)) {
@@ -262,7 +261,6 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
     }
 
     if (argc <= 1) {
-        LOG_INFO("无命令行参数，使用默认配置");
         return ErrorResult();  // 使用默认值和环境变量
     }
 
@@ -508,6 +506,83 @@ ErrorResult CommandLineParser::validatePath(std::string_view path, bool isDirect
     }
 
     return ErrorResult();
+}
+
+/**
+ * @brief 将解析后的参数输出到日志文件
+ * @details 该函数需要在日志系统初始化后调用，用于记录命令行参数解析结果
+ */
+void CommandLineParser::logParsedOptions() const {
+    // 检查日志系统是否已初始化
+    if (!utils::Logger::isInitialized()) {
+        return;  // 日志系统未初始化，直接返回
+    }
+    
+    LOG_INFO("=== 命令行参数解析结果 ===");
+    LOG_INFO_FMT("扫描目录: %s", options_.directoryPath.c_str());
+    LOG_INFO_FMT("输出路径: %s", options_.outputPath.c_str());
+    LOG_INFO_FMT("配置文件: %s", options_.configPath.c_str());
+    
+    // 记录日志级别
+    std::string logLevelStr;
+    switch (options_.logLevel) {
+        case LogLevel::DEBUG: logLevelStr = "DEBUG"; break;
+        case LogLevel::INFO: logLevelStr = "INFO"; break;
+        case LogLevel::WARNING: logLevelStr = "WARNING"; break;
+        case LogLevel::CRITICAL: logLevelStr = "CRITICAL"; break;
+        case LogLevel::FATAL: logLevelStr = "FATAL"; break;
+        case LogLevel::ALL: logLevelStr = "ALL"; break;
+        default: logLevelStr = "UNKNOWN"; break;
+    }
+    LOG_INFO_FMT("日志级别: %s", logLevelStr.c_str());
+    
+    // 记录报告格式
+    std::string formatStr = (options_.reportFormat == ReportFormat::TEXT) ? "TEXT" : "JSON";
+    LOG_INFO_FMT("报告格式: %s", formatStr.c_str());
+    
+    // 记录日志文件路径
+    if (!options_.logPath.empty()) {
+        LOG_INFO_FMT("日志文件: %s", options_.logPath.c_str());
+    }
+    
+    // 记录排除模式
+    if (!options_.excludePatterns.empty()) {
+        LOG_INFO("排除模式:");
+        for (const auto& pattern : options_.excludePatterns) {
+            LOG_INFO_FMT("  - %s", pattern.c_str());
+        }
+    }
+    
+    // 记录包含路径
+    if (!options_.includePaths.empty()) {
+        LOG_INFO("包含路径:");
+        for (const auto& path : options_.includePaths) {
+            LOG_INFO_FMT("  - %s", path.c_str());
+        }
+    }
+    
+    // 记录编译器参数
+    if (!options_.compilerArgs.empty()) {
+        LOG_INFO("编译器参数:");
+        for (const auto& arg : options_.compilerArgs) {
+            LOG_INFO_FMT("  - %s", arg.c_str());
+        }
+    }
+    
+    // 记录其他选项
+    LOG_INFO_FMT("静默模式: %s", options_.quiet ? "是" : "否");
+    LOG_INFO_FMT("详细模式: %s", options_.verbose ? "是" : "否");
+    LOG_INFO_FMT("包含系统头文件: %s", options_.includeSystemHeaders ? "是" : "否");
+    
+    if (options_.threshold >= 0.0) {
+        LOG_INFO_FMT("覆盖率阈值: %.2f", options_.threshold);
+    }
+    
+    if (options_.parallel > 0) {
+        LOG_INFO_FMT("并行线程数: %d", options_.parallel);
+    }
+    
+    LOG_INFO("=== 命令行参数记录完成 ===");
 }
 
 }  // namespace cli

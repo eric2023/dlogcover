@@ -18,6 +18,8 @@ namespace dlogcover {
 namespace core {
 namespace log_identifier {
 
+
+
 LogIdentifier::LogIdentifier(const config::Config& config, const ast_analyzer::ASTAnalyzer& astAnalyzer)
     : config_(config), astAnalyzer_(astAnalyzer) {
     LOG_DEBUG("日志识别器初始化");

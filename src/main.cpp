@@ -30,19 +30,7 @@
 
 using namespace dlogcover;
 
-// RAII日志管理类，确保日志系统正确关闭
-class LogManager {
-public:
-    LogManager(const std::string& logFileName, bool console, utils::LogLevel level) {
-        utils::Logger::init(logFileName, console, level);
-        LOG_INFO_FMT("DLogCover v%s 启动", DLOGCOVER_VERSION_STR);
-    }
 
-    ~LogManager() {
-        LOG_INFO("DLogCover 关闭日志系统");
-        utils::Logger::shutdown();
-    }
-};
 
 // 计时工具类
 class Timer {
@@ -53,9 +41,12 @@ public:
     }
 
     ~Timer() {
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start_).count();
-        LOG_INFO_FMT("%s 执行完成, 耗时: %.2f 秒", operationName_.c_str(), duration / 1000.0);
+        // 只有在日志系统已初始化时才输出日志，避免在shutdown后重新初始化
+        if (utils::Logger::isInitialized()) {
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start_).count();
+            LOG_INFO_FMT("%s 执行完成, 耗时: %.2f 秒", operationName_.c_str(), duration / 1000.0);
+        }
     }
 
 private:
@@ -64,9 +55,14 @@ private:
 };
 
 // 解析命令行并获取选项
-bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
-    Timer timer("命令行解析");
+// 命令行解析结果枚举
+enum class ParseResult {
+    SUCCESS,        // 解析成功，继续执行
+    HELP_VERSION,   // 帮助或版本请求，正常退出
+    ERROR          // 解析错误，错误退出
+};
 
+ParseResult parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
     auto result = parser.parse(argc, argv);
     
     // 首先检查是否是帮助或版本请求（无论是否有错误）
@@ -76,7 +72,7 @@ bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
         } else if (parser.isVersionRequest()) {
             parser.showVersion();
         }
-        return false;  // 帮助或版本请求，正常退出
+        return ParseResult::HELP_VERSION;  // 帮助或版本请求，正常退出
     }
     
     // 然后检查其他错误
@@ -84,10 +80,9 @@ bool parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
         // 显示错误信息和帮助提示
         std::cerr << "错误: " << result.errorMessage() << std::endl;
         std::cerr << "使用 --help 查看使用说明" << std::endl;
-        LOG_ERROR("命令行参数解析失败");
-        return false;  // 其他解析错误
+        return ParseResult::ERROR;  // 其他解析错误
     }
-    return true;
+    return ParseResult::SUCCESS;
 }
 
 // 加载和验证配置
@@ -230,6 +225,48 @@ std::string generateLogFileName(const cli::Options& options) {
     return ss.str();
 }
 
+// 初始化日志系统
+bool initializeLogging(const cli::Options& options) {
+    Timer timer("日志系统初始化");
+    
+    // 转换日志级别
+    utils::LogLevel logLevel = common::getDefaultLogLevel(); // 默认级别
+    switch (options.logLevel) {
+        case cli::LogLevel::DEBUG:
+            logLevel = utils::LogLevel::DEBUG;
+            break;
+        case cli::LogLevel::INFO:
+            logLevel = utils::LogLevel::INFO;
+            break;
+        case cli::LogLevel::WARNING:
+            logLevel = utils::LogLevel::WARNING;
+            break;
+        case cli::LogLevel::CRITICAL:
+            logLevel = utils::LogLevel::ERROR; // CRITICAL映射到ERROR
+            break;
+        case cli::LogLevel::FATAL:
+            logLevel = utils::LogLevel::FATAL;
+            break;
+        case cli::LogLevel::ALL:
+            logLevel = utils::LogLevel::DEBUG; // ALL映射到DEBUG（输出所有日志）
+            break;
+        default:
+            logLevel = utils::LogLevel::INFO;
+            break;
+    }
+    
+    // 生成日志文件名
+    std::string logFileName = generateLogFileName(options);
+    
+    // 初始化日志系统
+    utils::Logger::init(logFileName, true, logLevel);
+    
+    // 输出启动信息
+    LOG_INFO_FMT("DLogCover v%s 启动", DLOGCOVER_VERSION_STR);
+    
+    return true;
+}
+
 int main(int argc, char* argv[]) {
     // 记录程序开始时间
     auto programStart = std::chrono::high_resolution_clock::now();
@@ -237,68 +274,94 @@ int main(int argc, char* argv[]) {
     try {
         // 解析命令行参数
         cli::CommandLineParser commandLineParser;
-        if (!parseCommandLine(argc, argv, commandLineParser)) {
-            // 正常退出（帮助或版本信息）或解析错误
-            return commandLineParser.isHelpOrVersionRequest() ? 0 : 1;
+        ParseResult parseResult = parseCommandLine(argc, argv, commandLineParser);
+        if (parseResult == ParseResult::HELP_VERSION) {
+            return 0;  // 帮助或版本请求，正常退出
+        } else if (parseResult == ParseResult::ERROR) {
+            return 1;  // 解析错误，错误退出
         }
-
+        
         // 获取命令行选项
         const cli::Options& options = commandLineParser.getOptions();
-
-        // 根据配置生成日志文件名并初始化日志系统
-        std::string logFileName = generateLogFileName(options);
-        LogManager logManager(logFileName, true, utils::LogLevel::CUSTOM);
-
-        // 加载配置文件
-        config::ConfigManager configManager;
-        if (!loadAndValidateConfig(options, configManager)) {
+        
+        // 初始化日志系统
+        if (!initializeLogging(options)) {
+            std::cerr << "日志系统初始化失败" << std::endl;
             return 1;
         }
+        
+        // 记录命令行参数到日志文件
+        commandLineParser.logParsedOptions();
 
-        const config::Config& config = configManager.getConfig();
+        int exitCode = 0;  // 用于跟踪退出代码
+        
+        // 使用作用域块来确保正确的资源管理
+        {
+            // 加载配置文件
+            config::ConfigManager configManager;
+            if (!loadAndValidateConfig(options, configManager)) {
+                exitCode = 1;
+            } else {
+                const config::Config& config = configManager.getConfig();
 
-        // 创建源文件管理器
-        source_manager::SourceManager sourceManager(config);
-        if (!collectSourceFiles(config, sourceManager)) {
-            return 1;
-        }
-
-        // 创建AST分析器
-        core::ast_analyzer::ASTAnalyzer astAnalyzer(config, sourceManager);
-        if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
-            return 1;
-        }
-
-        // 创建日志识别器
-        core::log_identifier::LogIdentifier logIdentifier(config, astAnalyzer);
-        if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
-            return 1;
-        }
-
-        // 创建覆盖率计算器
-        core::coverage::CoverageCalculator coverageCalculator(config, astAnalyzer, logIdentifier);
-        if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
-            return 1;
-        }
-
-        // 生成报告
-        if (!generateReport(config, options, coverageCalculator)) {
-            return 1;
+                // 创建源文件管理器
+                source_manager::SourceManager sourceManager(config);
+                if (!collectSourceFiles(config, sourceManager)) {
+                    exitCode = 1;
+                } else {
+                    // 创建AST分析器
+                    core::ast_analyzer::ASTAnalyzer astAnalyzer(config, sourceManager);
+                    if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
+                        exitCode = 1;
+                    } else {
+                        // 创建日志识别器
+                        core::log_identifier::LogIdentifier logIdentifier(config, astAnalyzer);
+                        if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
+                            exitCode = 1;
+                        } else {
+                            // 创建覆盖率计算器
+                            core::coverage::CoverageCalculator coverageCalculator(config, astAnalyzer, logIdentifier);
+                            if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
+                                exitCode = 1;
+                            } else {
+                                // 生成报告
+                                if (!generateReport(config, options, coverageCalculator)) {
+                                    exitCode = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // 计算并记录总执行时间
         auto programEnd = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(programEnd - programStart).count();
-        LOG_INFO_FMT("DLogCover执行完成，总耗时: %.2f 秒", duration / 1000.0);
+        
+        // 只有在日志系统已初始化时才输出日志，避免在shutdown后重新初始化
+        if (utils::Logger::isInitialized()) {
+            if (exitCode == 0) {
+                LOG_INFO_FMT("DLogCover执行完成，总耗时: %.2f 秒", duration / 1000.0);
+            } else {
+                LOG_ERROR_FMT("DLogCover执行失败，总耗时: %.2f 秒", duration / 1000.0);
+            }
+            // 显式关闭日志系统，确保所有日志都被正确写入
+            utils::Logger::shutdown();
+        }
 
-        return 0;
+        return exitCode;
     } catch (const std::exception& e) {
         std::cerr << "错误: " << e.what() << std::endl;
-        LOG_ERROR_FMT("标准异常: %s", e.what());
+        if (utils::Logger::isInitialized()) {
+            LOG_ERROR_FMT("标准异常: %s", e.what());
+        }
         return 1;
     } catch (...) {
         std::cerr << "未知错误" << std::endl;
-        LOG_ERROR("未知异常");
+        if (utils::Logger::isInitialized()) {
+            LOG_ERROR("未知异常");
+        }
         return 1;
     }
 }

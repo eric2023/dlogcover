@@ -239,37 +239,52 @@ bool ConfigValidator::loadFromConfig(std::string_view configPath, Options& optio
 }
 
 bool ConfigValidator::loadFromEnvironment(Options& options) {
-    LOG_DEBUG("从环境变量加载选项");
+    // 只有在日志系统已初始化时才记录日志
+    if (utils::Logger::isInitialized()) {
+        LOG_DEBUG("从环境变量加载选项");
+    }
 
     try {
         // 获取环境变量
         if (const char* dir = std::getenv(config::env::DIRECTORY)) {
             options.directoryPath = dir;
-            LOG_DEBUG_FMT("从环境变量加载目录路径: %s", dir);
+            if (utils::Logger::isInitialized()) {
+                LOG_DEBUG_FMT("从环境变量加载目录路径: %s", dir);
+            }
         }
 
         if (const char* output = std::getenv(config::env::OUTPUT)) {
             options.outputPath = output;
-            LOG_DEBUG_FMT("从环境变量加载输出路径: %s", output);
+            if (utils::Logger::isInitialized()) {
+                LOG_DEBUG_FMT("从环境变量加载输出路径: %s", output);
+            }
         }
 
         if (const char* config_path = std::getenv(config::env::CONFIG)) {
             options.configPath = config_path;
-            LOG_DEBUG_FMT("从环境变量加载配置文件路径: %s", config_path);
+            if (utils::Logger::isInitialized()) {
+                LOG_DEBUG_FMT("从环境变量加载配置文件路径: %s", config_path);
+            }
         }
 
         if (const char* log_path = std::getenv(config::env::LOG_PATH)) {
             options.logPath = log_path;
-            LOG_DEBUG_FMT("从环境变量加载日志文件路径: %s", log_path);
+            if (utils::Logger::isInitialized()) {
+                LOG_DEBUG_FMT("从环境变量加载日志文件路径: %s", log_path);
+            }
         }
 
         if (const char* level = std::getenv(config::env::LOG_LEVEL)) {
             LogLevel logLevel;
             if (parseLogLevelString(level, logLevel)) {
                 options.logLevel = logLevel;
-                LOG_DEBUG_FMT("从环境变量加载日志级别: %s", level);
+                if (utils::Logger::isInitialized()) {
+                    LOG_DEBUG_FMT("从环境变量加载日志级别: %s", level);
+                }
             } else {
-                LOG_WARNING_FMT("无效的环境变量日志级别: %s", level);
+                if (utils::Logger::isInitialized()) {
+                    LOG_WARNING_FMT("无效的环境变量日志级别: %s", level);
+                }
             }
         }
 
@@ -277,9 +292,13 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
             ReportFormat reportFormat;
             if (parseReportFormatString(format, reportFormat)) {
                 options.reportFormat = reportFormat;
-                LOG_DEBUG_FMT("从环境变量加载报告格式: %s", format);
+                if (utils::Logger::isInitialized()) {
+                    LOG_DEBUG_FMT("从环境变量加载报告格式: %s", format);
+                }
             } else {
-                LOG_WARNING_FMT("无效的环境变量报告格式: %s", format);
+                if (utils::Logger::isInitialized()) {
+                    LOG_WARNING_FMT("无效的环境变量报告格式: %s", format);
+                }
             }
         }
 
@@ -290,12 +309,16 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
             while (std::getline(iss, pattern, ',')) {
                 if (!pattern.empty()) {
                     options.excludePatterns.push_back(pattern);
-                    LOG_DEBUG_FMT("从环境变量加载排除模式: %s", pattern.c_str());
+                    if (utils::Logger::isInitialized()) {
+                        LOG_DEBUG_FMT("从环境变量加载排除模式: %s", pattern.c_str());
+                    }
                 }
             }
         }
 
-        LOG_INFO("成功从环境变量加载选项");
+        if (utils::Logger::isInitialized()) {
+            LOG_INFO("成功从环境变量加载选项");
+        }
         return true;
     } catch (const std::exception& e) {
         setError(ConfigError::EnvironmentError, e.what());

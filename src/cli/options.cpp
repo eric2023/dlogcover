@@ -22,6 +22,7 @@
 #include <dlogcover/cli/config_constants.h>
 #include <dlogcover/cli/error_types.h>
 #include <dlogcover/cli/options.h>
+#include <dlogcover/common/log_types.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/string_utils.h>
 
@@ -99,42 +100,13 @@ ErrorResult validateFilePath(std::string_view path, bool checkParentDir) {
 }  // namespace
 
 std::string_view toString(LogLevel level) {
-    switch (level) {
-        case LogLevel::DEBUG:
-            return config::log::DEBUG;
-        case LogLevel::INFO:
-            return config::log::INFO;
-        case LogLevel::WARNING:
-            return config::log::WARNING;
-        case LogLevel::CRITICAL:
-            return config::log::CRITICAL;
-        case LogLevel::FATAL:
-            return config::log::FATAL;
-        case LogLevel::ALL:
-            return config::log::ALL;
-        default:
-            return config::log::ALL;
-    }
+    // 使用统一的toString函数
+    return common::toString(level);
 }
 
 LogLevel parseLogLevel(std::string_view str) {
-    std::string strLower{str};
-    std::transform(strLower.begin(), strLower.end(), strLower.begin(), ::tolower);
-
-    if (strLower == config::log::DEBUG)
-        return LogLevel::DEBUG;
-    else if (strLower == config::log::INFO)
-        return LogLevel::INFO;
-    else if (strLower == config::log::WARNING)
-        return LogLevel::WARNING;
-    else if (strLower == config::log::CRITICAL)
-        return LogLevel::CRITICAL;
-    else if (strLower == config::log::FATAL)
-        return LogLevel::FATAL;
-    else if (strLower == config::log::ALL)
-        return LogLevel::ALL;
-
-    throw std::invalid_argument(std::string(config::error::INVALID_LOG_LEVEL) + std::string(str));
+    // 使用统一的parseLogLevel函数
+    return common::parseLogLevel(str);
 }
 
 std::string_view toString(ReportFormat format) {
