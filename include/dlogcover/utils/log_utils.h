@@ -61,6 +61,12 @@ public:
     static LogLevel getLogLevel();
 
     /**
+     * @brief 检查日志系统是否已初始化
+     * @return 已初始化返回true，否则返回false
+     */
+    static bool isInitialized();
+
+    /**
      * @brief 记录调试日志
      * @param message 日志消息
      */

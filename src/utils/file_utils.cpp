@@ -29,10 +29,14 @@ std::mutex tempFilesMutex;
 bool FileUtils::fileExists(const std::string& path) {
     try {
         bool exists = fs::exists(path) && fs::is_regular_file(path);
-        LOG_DEBUG_FMT("检查文件是否存在: %s, 结果: %s", path.c_str(), exists ? "存在" : "不存在");
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("检查文件是否存在: %s, 结果: %s", path.c_str(), exists ? "存在" : "不存在");
+        }
         return exists;
     } catch (const std::filesystem::filesystem_error& e) {
-        LOG_ERROR_FMT("检查文件存在性失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("检查文件存在性失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return false;
     }
 }
@@ -40,26 +44,37 @@ bool FileUtils::fileExists(const std::string& path) {
 bool FileUtils::directoryExists(const std::string& path) {
     try {
         bool exists = fs::exists(path) && fs::is_directory(path);
-        LOG_DEBUG_FMT("检查目录是否存在: %s, 结果: %s", path.c_str(), exists ? "存在" : "不存在");
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("检查目录是否存在: %s, 结果: %s", path.c_str(), exists ? "存在" : "不存在");
+        }
         return exists;
     } catch (const std::filesystem::filesystem_error& e) {
-        LOG_ERROR_FMT("检查目录存在性失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("检查目录存在性失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return false;
     }
 }
 
 bool FileUtils::createDirectory(const std::string& path) {
     try {
-        LOG_DEBUG_FMT("创建目录: %s", path.c_str());
+        // 避免在日志系统初始化期间产生循环依赖，只在日志系统已初始化时记录日志
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("创建目录: %s", path.c_str());
+        }
         bool result = fs::create_directories(path);
-        if (result) {
-            LOG_INFO_FMT("已成功创建目录: %s", path.c_str());
-        } else {
-            LOG_WARNING_FMT("目录可能已存在: %s", path.c_str());
+        if (Logger::isInitialized()) {
+            if (result) {
+                LOG_INFO_FMT("已成功创建目录: %s", path.c_str());
+            } else {
+                LOG_WARNING_FMT("目录可能已存在: %s", path.c_str());
+            }
         }
         return result;
     } catch (const std::filesystem::filesystem_error& e) {
-        LOG_ERROR_FMT("创建目录失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("创建目录失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return false;
     }
 }
@@ -146,10 +161,14 @@ size_t FileUtils::getFileSize(const std::string& path) {
 std::string FileUtils::getFileExtension(const std::string& path) {
     try {
         std::string ext = fs::path(path).extension().string();
-        LOG_DEBUG_FMT("文件扩展名: %s, %s", path.c_str(), ext.c_str());
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("文件扩展名: %s, %s", path.c_str(), ext.c_str());
+        }
         return ext;
     } catch (const std::exception& e) {
-        LOG_ERROR_FMT("获取文件扩展名失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("获取文件扩展名失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return "";
     }
 }
@@ -157,10 +176,14 @@ std::string FileUtils::getFileExtension(const std::string& path) {
 std::string FileUtils::getFileName(const std::string& path) {
     try {
         std::string name = fs::path(path).stem().string();
-        LOG_DEBUG_FMT("文件名: %s, %s", path.c_str(), name.c_str());
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("文件名: %s, %s", path.c_str(), name.c_str());
+        }
         return name;
     } catch (const std::exception& e) {
-        LOG_ERROR_FMT("获取文件名失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("获取文件名失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return "";
     }
 }
@@ -168,10 +191,14 @@ std::string FileUtils::getFileName(const std::string& path) {
 std::string FileUtils::getDirectoryName(const std::string& path) {
     try {
         std::string dir = fs::path(path).parent_path().string();
-        LOG_DEBUG_FMT("目录名: %s, %s", path.c_str(), dir.c_str());
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("目录名: %s, %s", path.c_str(), dir.c_str());
+        }
         return dir;
     } catch (const std::exception& e) {
-        LOG_ERROR_FMT("获取目录名失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("获取目录名失败: %s, 错误: %s", path.c_str(), e.what());
+        }
         return "";
     }
 }
@@ -180,11 +207,16 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path, const std
     std::vector<std::string> files;
 
     try {
-        LOG_DEBUG_FMT("列出文件: 目录: %s, 模式: %s, 递归: %s", path.c_str(),
-                      pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
+        // 避免在日志系统初始化期间产生循环依赖
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("列出文件: 目录: %s, 模式: %s, 递归: %s", path.c_str(),
+                          pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
+        }
 
         if (!directoryExists(path)) {
-            LOG_WARNING_FMT("目录不存在: %s", path.c_str());
+            if (Logger::isInitialized()) {
+                LOG_WARNING_FMT("目录不存在: %s", path.c_str());
+            }
             return files;
         }
 
@@ -194,7 +226,9 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path, const std
             try {
                 patternRegex = std::regex(pattern, std::regex::ECMAScript);
             } catch (const std::regex_error& e) {
-                LOG_ERROR_FMT("无效的正则表达式模式: %s, 错误: %s", pattern.c_str(), e.what());
+                if (Logger::isInitialized()) {
+                    LOG_ERROR_FMT("无效的正则表达式模式: %s, 错误: %s", pattern.c_str(), e.what());
+                }
                 hasPattern = false;
             }
         }
@@ -219,9 +253,13 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path, const std
             }
         }
 
-        LOG_DEBUG_FMT("已找到 %zu 个文件", files.size());
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("已找到 %zu 个文件", files.size());
+        }
     } catch (const std::filesystem::filesystem_error& e) {
-        LOG_ERROR_FMT("列出文件失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("列出文件失败: %s, 错误: %s", path.c_str(), e.what());
+        }
     }
 
     return files;
@@ -232,11 +270,16 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path,
                                               const std::string& pattern, bool recursive) {
     std::vector<std::string> result;
     try {
-        LOG_DEBUG_FMT("列出文件(带过滤器): 目录: %s, 模式: %s, 递归: %s", path.c_str(),
-                      pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
+        // 避免在日志系统初始化期间产生循环依赖
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("列出文件(带过滤器): 目录: %s, 模式: %s, 递归: %s", path.c_str(),
+                          pattern.empty() ? "<无>" : pattern.c_str(), recursive ? "是" : "否");
+        }
 
         if (!directoryExists(path)) {
-            LOG_WARNING_FMT("目录不存在: %s", path.c_str());
+            if (Logger::isInitialized()) {
+                LOG_WARNING_FMT("目录不存在: %s", path.c_str());
+            }
             return result;
         }
 
@@ -246,7 +289,9 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path,
             try {
                 patternRegex = std::regex(pattern, std::regex::ECMAScript);
             } catch (const std::regex_error& e) {
-                LOG_ERROR_FMT("无效的正则表达式模式: %s, 错误: %s", pattern.c_str(), e.what());
+                if (Logger::isInitialized()) {
+                    LOG_ERROR_FMT("无效的正则表达式模式: %s, 错误: %s", pattern.c_str(), e.what());
+                }
                 hasPattern = false;
             }
         }
@@ -271,9 +316,13 @@ std::vector<std::string> FileUtils::listFiles(const std::string& path,
             }
         }
 
-        LOG_DEBUG_FMT("已找到 %zu 个符合过滤条件的文件", result.size());
+        if (Logger::isInitialized()) {
+            LOG_DEBUG_FMT("已找到 %zu 个符合过滤条件的文件", result.size());
+        }
     } catch (const std::filesystem::filesystem_error& e) {
-        LOG_ERROR_FMT("列出文件(带过滤器)失败: %s, 错误: %s", path.c_str(), e.what());
+        if (Logger::isInitialized()) {
+            LOG_ERROR_FMT("列出文件(带过滤器)失败: %s, 错误: %s", path.c_str(), e.what());
+        }
     }
 
     return result;

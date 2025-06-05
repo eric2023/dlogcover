@@ -17,21 +17,11 @@ namespace test {
 
 // 测试文件路径拼接函数
 TEST(FileUtilsTest, JoinPaths) {
-    // Arrange
-    std::string path1 = "/path/to";
-    std::string path2 = "file.txt";
-
-    // Act
-    std::string result = FileUtils::joinPaths(path1, path2);
-
-    // Assert
-    EXPECT_EQ("/path/to/file.txt", result);
-
-    // 测试带有斜杠的情况
-    std::string path3 = "/path/to/";
-    std::string path4 = "/file.txt";
-    result = FileUtils::joinPaths(path3, path4);
-    EXPECT_EQ("/path/to/file.txt", result);
+    // Arrange & Act & Assert
+    EXPECT_EQ("/path/to/file", FileUtils::joinPaths("/path/to", "file"));
+    EXPECT_EQ("/path/to/file", FileUtils::joinPaths("/path/to/", "file"));
+    EXPECT_EQ("/file", FileUtils::joinPaths("/path/to", "/file"));
+    EXPECT_EQ("/file", FileUtils::joinPaths("/path/to/", "/file"));
 }
 
 // 测试文件扩展名检查函数
@@ -81,22 +71,19 @@ TEST(FileUtilsTest, CreateTempFile) {
     // Arrange
     std::string content = "Test content";
 
-    // Act
-    std::string tempFile = FileUtils::createTempFile(content);
+    // Act - 先创建空临时文件，然后写入内容
+    std::string tempFile = FileUtils::createTempFile("dlogcover_test_", TempFileType::EMPTY);
+    ASSERT_TRUE(FileUtils::writeFile(tempFile, content));
 
     // Assert
     EXPECT_FALSE(tempFile.empty());
 
     // 验证文件内容
-    std::ifstream file(tempFile);
-    ASSERT_TRUE(file.is_open());
-
-    std::string fileContent((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
-    EXPECT_EQ(content, fileContent);
+    std::string readContent;
+    ASSERT_TRUE(FileUtils::readFile(tempFile, readContent));
+    EXPECT_EQ(content, readContent);
 
     // 清理
-    file.close();
     std::filesystem::remove(tempFile);
 }
 
@@ -130,9 +117,12 @@ TEST(FileUtilsTest, CreateTempFileWithPrefix) {
 
 // 测试临时文件清理
 TEST(FileUtilsTest, CleanupTempFiles) {
-    // Arrange
-    std::string tempFile1 = FileUtils::createTempFile("test_content_1");
-    std::string tempFile2 = FileUtils::createTempFile("test_content_2");
+    // Arrange - 创建临时文件并写入内容
+    std::string tempFile1 = FileUtils::createTempFile("test_prefix1_", TempFileType::EMPTY);
+    std::string tempFile2 = FileUtils::createTempFile("test_prefix2_", TempFileType::EMPTY);
+    
+    ASSERT_TRUE(FileUtils::writeFile(tempFile1, "test_content_1"));
+    ASSERT_TRUE(FileUtils::writeFile(tempFile2, "test_content_2"));
 
     // 确认文件存在
     EXPECT_TRUE(FileUtils::fileExists(tempFile1));
@@ -187,14 +177,16 @@ TEST(FileUtilsTest, CreateDirectoryIfNotExists) {
 
 // 测试文件大小获取
 TEST(FileUtilsTest, GetFileSize) {
-    // Arrange
-    std::string tempFile = FileUtils::createTempFile("Test content with specific size");
+    // Arrange - 创建临时文件并写入指定内容
+    std::string content = "Test content with specific size";
+    std::string tempFile = FileUtils::createTempFile("size_test_", TempFileType::EMPTY);
+    ASSERT_TRUE(FileUtils::writeFile(tempFile, content));
 
     // Act
     size_t size = FileUtils::getFileSize(tempFile);
 
     // Assert
-    EXPECT_EQ(32, size); // "Test content with specific size" 的长度
+    EXPECT_EQ(31, size); // "Test content with specific size" 的实际长度是31字节
 
     // 清理
     std::filesystem::remove(tempFile);

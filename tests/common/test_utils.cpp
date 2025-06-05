@@ -37,11 +37,11 @@ std::string TestUtils::createTestTempDir(const std::string& prefix, std::chrono:
             return temp_path.string();
         }
 
-        // 如果目录已存在，等待一小段时间后重试
-        if (ec) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            continue;
-        }
+        // 如果目录已存在或创建失败，等待一小段时间后重试
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
+        // 清除错误代码以便下次尝试
+        ec.clear();
     }
 }
 

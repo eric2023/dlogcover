@@ -72,8 +72,16 @@ bool Logger::init(const std::string& logFileName, bool consoleOutput, LogLevel l
 
     isInitialized_.store(true, std::memory_order_release);
 
-    // 记录初始化消息
-    log(LogLevel::INFO, "日志系统初始化，级别: %s", getLevelName(currentLogLevel_).c_str());
+    // 记录初始化消息 - 直接输出避免递归调用
+    if (enableConsoleOutput_) {
+        std::cout << getCurrentTimeString() << " [INFO] 日志系统初始化，级别: " 
+                  << getLevelName(currentLogLevel_) << std::endl;
+    }
+    if (logFileStream_.is_open()) {
+        logFileStream_ << getCurrentTimeString() << " [INFO] 日志系统初始化，级别: " 
+                       << getLevelName(currentLogLevel_) << std::endl;
+        logFileStream_.flush();
+    }
 
     return true;
 }
@@ -121,6 +129,10 @@ LogLevel Logger::getLogLevel() {
     return currentLogLevel_;
 }
 
+bool Logger::isInitialized() {
+    return isInitialized_.load(std::memory_order_acquire);
+}
+
 void Logger::debug(const std::string& message) {
     log(LogLevel::DEBUG, "%s", message.c_str());
 }
@@ -142,6 +154,12 @@ void Logger::fatal(const std::string& message) {
 }
 
 void Logger::log(LogLevel level, const char* format, ...) {
+    // 如果未初始化，先进行初始化
+    if (!isInitialized_.load(std::memory_order_acquire)) {
+        // 使用更高的默认级别以减少测试期间的日志输出
+        init("", false, LogLevel::ERROR);
+    }
+    
     // 快速检查日志级别，避免不必要的格式化
     if (level < currentLogLevel_) {
         return;
@@ -180,9 +198,9 @@ void Logger::log(LogLevel level, const char* format, ...) {
 }
 
 void Logger::logOutput(LogLevel level, const std::string& message) {
-    // 如果未初始化，则尝试初始化
-    if (!isInitialized_.load(std::memory_order_acquire)) {
-        init("dlogcover.log", true, LogLevel::INFO);
+    // 再次检查日志级别，避免输出低级别日志
+    if (level < currentLogLevel_) {
+        return;
     }
 
     std::lock_guard<std::mutex> lock(logMutex_);

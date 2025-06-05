@@ -663,10 +663,16 @@ std::vector<std::string> CMakeParseResult::getAllCompilerArgs() const {
     
     // 添加编译定义
     for (const auto& def : compileDefinitions) {
-        if (def.find('=') != std::string::npos) {
-            args.push_back("-D" + def);
+        // 过滤掉以 '-' 开头的编译选项，这些不应该是宏定义
+        if (!def.empty() && def[0] != '-') {
+            if (def.find('=') != std::string::npos) {
+                args.push_back("-D" + def);
+            } else {
+                args.push_back("-D" + def);
+            }
         } else {
-            args.push_back("-D" + def);
+            // 如果是以 '-' 开头的，直接作为编译选项添加
+            args.push_back(def);
         }
     }
     
@@ -692,7 +698,13 @@ std::vector<std::string> CMakeParseResult::getTargetCompilerArgs(const std::stri
         
         // 添加目标特定的编译定义
         for (const auto& def : target.compileDefinitions) {
-            args.push_back("-D" + def);
+            // 过滤掉以 '-' 开头的编译选项，这些不应该是宏定义
+            if (!def.empty() && def[0] != '-') {
+                args.push_back("-D" + def);
+            } else {
+                // 如果是以 '-' 开头的，直接作为编译选项添加
+                args.push_back(def);
+            }
         }
         
         // 添加目标特定的编译选项

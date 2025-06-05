@@ -9,6 +9,7 @@
 #include <dlogcover/core/log_identifier/log_identifier.h>
 #include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/file_utils.h>
+#include <dlogcover/utils/log_utils.h>
 
 #include <gtest/gtest.h>
 
@@ -40,9 +41,11 @@ bool hasLogCallWithCategory(const std::vector<LogCallInfo>& calls, const std::st
 class LogIdentifierTestFixture : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 创建临时测试目录
-        testDir_ = std::filesystem::temp_directory_path().string() + "/dlogcover_test_" +
-                   std::to_string(static_cast<long long>(std::chrono::system_clock::now().time_since_epoch().count()));
+        // 初始化日志系统，设置为ERROR级别以减少测试期间的日志输出
+        utils::Logger::init("", false, utils::LogLevel::ERROR);
+        
+        // 创建测试目录
+        testDir_ = "/tmp/dlogcover_log_test";
         std::filesystem::create_directory(testDir_);
 
         // 创建测试文件
@@ -71,8 +74,13 @@ protected:
     }
 
     void TearDown() override {
-        // 清理测试目录和数据
-        std::filesystem::remove_all(testDir_);
+        // 关闭日志系统，确保所有资源正确释放
+        utils::Logger::shutdown();
+        
+        // 清理测试目录
+        if (std::filesystem::exists(testDir_)) {
+            std::filesystem::remove_all(testDir_);
+        }
         logIdentifier_.reset();
         astAnalyzer_.reset();
         sourceManager_.reset();

@@ -12,6 +12,7 @@
 #include <dlogcover/reporter/reporter_factory.h>
 #include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/file_utils.h>
+#include <dlogcover/utils/log_utils.h>
 
 #include <gtest/gtest.h>
 
@@ -28,8 +29,11 @@ namespace test {
 class ReporterTestFixture : public ::testing::Test {
 protected:
     void SetUp() override {
+        // 初始化日志系统，设置为ERROR级别以减少测试期间的日志输出
+        utils::Logger::init("", false, utils::LogLevel::ERROR);
+        
         // 创建测试目录
-        testDir_ = std::filesystem::temp_directory_path().string() + "/dlogcover_reporter_test";
+        testDir_ = "/tmp/dlogcover_reporter_test";
         utils::FileUtils::createDirectory(testDir_);
         outputDir_ = testDir_ + "/output";
         utils::FileUtils::createDirectory(outputDir_);
@@ -127,8 +131,13 @@ int main() {
     }
 
     void TearDown() override {
-        // 清理测试目录和数据
-        std::filesystem::remove_all(testDir_);
+        // 关闭日志系统，确保所有资源正确释放
+        utils::Logger::shutdown();
+        
+        // 清理测试目录
+        if (std::filesystem::exists(testDir_)) {
+            std::filesystem::remove_all(testDir_);
+        }
         reporter_.reset();
         coverageCalculator_.reset();
         logIdentifier_.reset();
