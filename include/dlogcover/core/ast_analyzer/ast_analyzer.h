@@ -27,6 +27,9 @@ namespace dlogcover {
 namespace core {
 namespace ast_analyzer {
 
+// 前向声明
+class FileOwnershipValidator;
+
 /**
  * @brief AST分析器主类
  * 
@@ -93,6 +96,7 @@ private:
     // cpp文件中使用的成员变量
     std::unique_ptr<clang::ASTUnit> currentASTUnit_;        ///< 当前AST单元
     std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>> astNodes_;  ///< AST节点缓存
+    std::unique_ptr<FileOwnershipValidator> fileValidator_; ///< 文件归属验证器
 
     /**
      * @brief 创建AST单元

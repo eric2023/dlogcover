@@ -11,10 +11,13 @@ set(TEST_SOURCES
     coverage_calculator_test.cpp
     config_manager_test.cpp
     cmake_parser_test.cpp
+    file_ownership_validator_test.cpp
+    path_normalizer_test.cpp
 )
 
 # 收集项目源文件（排除main.cpp）
 file(GLOB_RECURSE PROJECT_SOURCES
+    "${CMAKE_SOURCE_DIR}/src/common/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/config/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/source_manager/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/utils/*.cpp"

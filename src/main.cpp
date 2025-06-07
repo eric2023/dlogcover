@@ -221,7 +221,8 @@ std::string generateLogFileName(const cli::Options& options) {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
-    ss << "dlogcover_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".log";
+    ///ss << "dlogcover_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".log";
+    ss << "dlogcover.log";
     return ss.str();
 }
 

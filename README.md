@@ -246,99 +246,490 @@ DLogCover通过分析C++源代码的抽象语法树(AST)，识别代码中的函
 ## 安装和构建
 
 ### 系统依赖项
-项目需要以下系统依赖：
 
-#### 核心依赖
-- **LLVM/Clang开发库**: 用于AST分析
-- **nlohmann/json**: JSON配置文件处理
-- **GoogleTest**: 单元测试框架（必需）
-- **lcov**: 代码覆盖率报告生成
+#### 编译时依赖（必需）
+
+##### 核心依赖
+- **LLVM/Clang开发库** (≥6.0): 用于C++ AST分析和代码解析
+- **nlohmann/json** (≥3.0): JSON配置文件处理
+- **GoogleTest** (≥1.8): 单元测试框架（项目强制要求80%+测试覆盖率）
+- **CMake** (≥3.10): 构建系统
+- **C++17编译器**: GCC 7.0+ 或 Clang 6.0+
+
+##### Clang库组件要求
+项目需要以下Clang库组件（通过libclang-dev安装）：
+- `clangTooling` - 代码分析工具支持
+- `clangBasic` - 基础Clang功能
+- `clangAST` - 抽象语法树处理
+- `clangASTMatchers` - AST模式匹配
+- `clangFrontend` - 编译器前端
+- `clangLex` - 词法分析
+- `clangParse` - 语法分析
+- `clangSema` - 语义分析
+- `clangAnalysis` - 静态分析
+- `clangDriver` - 编译器驱动
+- `clangEdit` - 代码编辑支持
+- `clangRewrite` - 代码重写支持
+- `clangSerialization` - 序列化支持
+- `clangOpenMP` - OpenMP支持（可选）
+
+#### 运行时依赖（可选但推荐）
+- **lcov** (≥1.13): 代码覆盖率报告生成
+- **genhtml**: HTML覆盖率报告生成（lcov包含）
 
 #### Ubuntu/Debian 安装命令
+
+##### 方法1：一键安装所有依赖（推荐）
 ```bash
-# 基础构建工具
+# 更新包管理器
 sudo apt-get update
-sudo apt-get install build-essential cmake
 
-# LLVM/Clang开发库
-sudo apt-get install libclang-dev llvm-dev clang
+# 安装所有必需依赖
+sudo apt-get install -y \
+    build-essential \
+    cmake \
+    libclang-dev \
+    llvm-dev \
+    clang \
+    clang-tools \
+    libc++-dev \
+    libc++abi-dev \
+    nlohmann-json3-dev \
+    libgtest-dev \
+    lcov \
+    gcov
 
-# Clang库组件 (项目需要以下库)
-# clangTooling, clangBasic, clangAST, clangASTMatchers
-# clangFrontend, clangLex, clangParse, clangSema
-# clangAnalysis, clangDriver, clangEdit, clangRewrite, clangSerialization
-
-# JSON库
-sudo apt-get install nlohmann-json3-dev
-
-# 测试和覆盖率工具
-sudo apt-get install libgtest-dev lcov
-
-# 可选：安装完整的clang工具链
-sudo apt-get install clang-tools
+# 验证安装
+clang --version
+cmake --version
+lcov --version
 ```
 
-#### CentOS/RHEL 安装命令
+##### 方法2：分步安装
 ```bash
-# 基础构建工具
-sudo yum groupinstall "Development Tools"
-sudo yum install cmake
+# 1. 基础构建工具
+sudo apt-get update
+sudo apt-get install -y build-essential cmake
 
-# LLVM/Clang开发库
-sudo yum install clang-devel llvm-devel
+# 2. LLVM/Clang开发库（核心依赖）
+sudo apt-get install -y libclang-dev llvm-dev clang clang-tools
 
-# JSON库
-sudo yum install nlohmann-json-devel
+# 3. C++标准库支持
+sudo apt-get install -y libc++-dev libc++abi-dev
 
-# 测试工具
-sudo yum install gtest-devel lcov
+# 4. JSON库
+sudo apt-get install -y nlohmann-json3-dev
+
+# 5. 测试框架（必需）
+sudo apt-get install -y libgtest-dev
+
+# 6. 覆盖率工具（推荐）
+sudo apt-get install -y lcov gcov
+
+# 7. 可选：额外的开发工具
+sudo apt-get install -y gdb valgrind
+```
+
+##### 特定版本安装（如需要）
+```bash
+# 安装特定版本的LLVM/Clang（例如LLVM 14）
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 14
+
+# 安装对应版本的开发库
+sudo apt-get install -y libclang-14-dev llvm-14-dev
+```
+
+#### CentOS/RHEL/Fedora 安装命令
+
+##### CentOS 8/RHEL 8/Rocky Linux 8
+```bash
+# 启用PowerTools仓库（CentOS 8）或CodeReady仓库（RHEL 8）
+sudo dnf config-manager --set-enabled powertools  # CentOS 8
+# 或者
+sudo subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms  # RHEL 8
+
+# 安装EPEL仓库
+sudo dnf install -y epel-release
+
+# 安装所有依赖
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y \
+    cmake \
+    clang-devel \
+    llvm-devel \
+    clang \
+    clang-tools-extra \
+    json-devel \
+    gtest-devel \
+    lcov \
+    gcov
+```
+
+##### Fedora
+```bash
+# 安装所有依赖
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y \
+    cmake \
+    clang-devel \
+    llvm-devel \
+    clang \
+    clang-tools-extra \
+    json-devel \
+    gtest-devel \
+    lcov \
+    gcov
+```
+
+##### CentOS 7/RHEL 7（需要额外步骤）
+```bash
+# 安装开发工具
+sudo yum groupinstall -y "Development Tools"
+sudo yum install -y epel-release
+
+# 安装较新版本的CMake
+sudo yum install -y cmake3
+sudo alternatives --install /usr/bin/cmake cmake /usr/bin/cmake3 20
+
+# 安装LLVM/Clang（可能需要从源码编译或使用第三方仓库）
+sudo yum install -y centos-release-scl
+sudo yum install -y llvm-toolset-7-clang-devel llvm-toolset-7-llvm-devel
+
+# 其他依赖
+sudo yum install -y json-devel gtest-devel lcov
+```
+
+#### Arch Linux 安装命令
+```bash
+# 安装所有依赖
+sudo pacman -S --needed \
+    base-devel \
+    cmake \
+    clang \
+    llvm \
+    nlohmann-json \
+    gtest \
+    lcov
+```
+
+#### macOS 安装命令（使用Homebrew）
+```bash
+# 安装Homebrew（如果未安装）
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装依赖
+brew install \
+    cmake \
+    llvm \
+    nlohmann-json \
+    googletest \
+    lcov
+
+# 设置环境变量
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
+```
+
+#### 验证安装
+安装完成后，验证关键依赖是否正确安装：
+
+```bash
+# 检查编译器版本
+gcc --version
+clang --version
+
+# 检查CMake版本
+cmake --version
+
+# 检查LLVM配置
+llvm-config --version
+llvm-config --cxxflags
+llvm-config --ldflags
+
+# 检查Clang库
+pkg-config --exists clang && echo "Clang库已安装" || echo "Clang库未找到"
+
+# 检查JSON库
+echo '#include <nlohmann/json.hpp>' | g++ -x c++ -c - && echo "nlohmann/json已安装" || echo "nlohmann/json未找到"
+
+# 检查GoogleTest
+echo '#include <gtest/gtest.h>' | g++ -x c++ -c - && echo "GoogleTest已安装" || echo "GoogleTest未找到"
+
+# 检查覆盖率工具
+lcov --version
+gcov --version
+```
+
+#### 常见问题和故障排除
+
+##### 问题1：找不到Clang库
+```bash
+# 错误信息：Could not find clang libraries
+# 解决方案：
+sudo apt-get install -y libclang-dev clang-tools
+# 或者指定版本
+sudo apt-get install -y libclang-12-dev
+
+# 验证安装
+find /usr -name "libclang*.so" 2>/dev/null
+```
+
+##### 问题2：nlohmann/json未找到
+```bash
+# 错误信息：nlohmann/json.hpp: No such file or directory
+# 解决方案1：使用包管理器
+sudo apt-get install -y nlohmann-json3-dev
+
+# 解决方案2：手动下载头文件
+sudo mkdir -p /usr/local/include/nlohmann
+sudo wget -O /usr/local/include/nlohmann/json.hpp \
+    https://github.com/nlohmann/json/releases/latest/download/json.hpp
+```
+
+##### 问题3：GoogleTest编译错误
+```bash
+# 错误信息：gtest/gtest.h: No such file or directory
+# Ubuntu/Debian解决方案：
+sudo apt-get install -y libgtest-dev
+cd /usr/src/gtest
+sudo cmake CMakeLists.txt
+sudo make
+sudo cp lib/*.a /usr/lib
+
+# 或者使用现代方式：
+sudo apt-get install -y googletest
+```
+
+##### 问题4：CMake版本过低
+```bash
+# 错误信息：CMake 3.10 or higher is required
+# Ubuntu 18.04及更早版本：
+sudo apt-get remove cmake
+sudo snap install cmake --classic
+
+# 或者从源码编译：
+wget https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0.tar.gz
+tar -xzf cmake-3.25.0.tar.gz
+cd cmake-3.25.0
+./bootstrap && make && sudo make install
+```
+
+##### 问题5：C++17支持问题
+```bash
+# 错误信息：This file requires compiler and library support for C++17
+# 解决方案：更新编译器
+sudo apt-get install -y gcc-9 g++-9
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 90
+```
+
+##### 问题6：lcov版本过低
+```bash
+# 错误信息：lcov version too old
+# 解决方案：从源码安装最新版本
+wget https://github.com/linux-test-project/lcov/releases/download/v1.16/lcov-1.16.tar.gz
+tar -xzf lcov-1.16.tar.gz
+cd lcov-1.16
+sudo make install
+```
+
+##### 问题7：权限问题
+```bash
+# 错误信息：Permission denied
+# 解决方案：确保用户在正确的组中
+sudo usermod -a -G sudo $USER
+# 重新登录或使用：
+newgrp sudo
+```
+
+##### 问题8：内存不足
+```bash
+# 错误信息：virtual memory exhausted
+# 解决方案：增加交换空间
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# 或者减少并行编译线程：
+make -j2  # 而不是 make -j$(nproc)
+```
+
+#### 环境变量配置
+某些情况下可能需要设置环境变量：
+
+```bash
+# 添加到 ~/.bashrc 或 ~/.zshrc
+export LLVM_DIR=/usr/lib/llvm-12
+export Clang_DIR=/usr/lib/cmake/clang-12
+export PATH=$LLVM_DIR/bin:$PATH
+export LD_LIBRARY_PATH=$LLVM_DIR/lib:$LD_LIBRARY_PATH
+
+# 重新加载配置
+source ~/.bashrc
+```
+
+#### Docker环境（推荐用于CI/CD）
+如果遇到依赖问题，可以使用Docker环境：
+
+```dockerfile
+# Dockerfile.dlogcover
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libclang-dev \
+    llvm-dev \
+    clang \
+    clang-tools \
+    nlohmann-json3-dev \
+    libgtest-dev \
+    lcov \
+    gcov \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . .
+RUN ./build.sh --test
+```
+
+```bash
+# 使用Docker构建
+docker build -f Dockerfile.dlogcover -t dlogcover .
+docker run --rm -v $(pwd):/workspace dlogcover
 ```
 
 ### 构建步骤
 
+#### 前置检查
+在开始构建之前，请确保已安装所有依赖：
+
+```bash
+# 快速依赖检查脚本
+./scripts/check_dependencies.sh  # 如果存在
+# 或者手动检查：
+clang --version && cmake --version && lcov --version
+```
+
 #### 方法1: 使用CMake手动构建
+
+##### 基本构建（Release版本）
 ```bash
 # 创建构建目录
 mkdir build && cd build
 
-# 配置项目
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON ..
+# 配置项目（Release版本，不包含测试）
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_TESTS=OFF \
+      -DENABLE_COVERAGE=OFF \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+      ..
 
 # 编译项目
-cmake --build . -- -j$(nproc)
+cmake --build . --parallel $(nproc)
 
-# 运行测试
-ctest --verbose
-
-# 安装(可选)
+# 安装（可选）
 sudo cmake --install .
 ```
 
-#### 方法2: 使用构建脚本(推荐)
-项目提供了便捷的构建脚本 `build.sh`：
-
+##### 开发构建（Debug版本 + 测试 + 覆盖率）
 ```bash
-# 显示帮助信息
+# 创建构建目录
+mkdir build && cd build
+
+# 配置项目（Debug版本，包含测试和覆盖率）
+cmake -DCMAKE_BUILD_TYPE=Debug \
+      -DBUILD_TESTS=ON \
+      -DENABLE_COVERAGE=ON \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+      ..
+
+# 编译项目和测试
+cmake --build . --parallel $(nproc)
+
+# 运行测试
+ctest --verbose --parallel $(nproc)
+
+# 生成覆盖率报告（如果启用了覆盖率）
+cmake --build . --target coverage
+
+# 查看覆盖率报告
+firefox build/coverage_report/index.html  # 或使用其他浏览器
+```
+
+##### 高级构建选项
+```bash
+# 指定特定的LLVM版本
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_DIR=/usr/lib/llvm-12/lib/cmake/llvm \
+      -DClang_DIR=/usr/lib/cmake/clang-12 \
+      ..
+
+# 启用详细编译输出
+cmake --build . --verbose
+
+# 只编译特定目标
+cmake --build . --target dlogcover
+
+# 并行测试执行
+ctest --parallel 4 --output-on-failure
+```
+
+#### 方法2: 使用构建脚本（推荐）
+项目提供了便捷的构建脚本 `build.sh`，自动处理依赖检查和构建流程：
+
+##### 基本使用
+```bash
+# 显示帮助信息和所有可用选项
 ./build.sh --help
 
-# 基本构建
+# 基本构建（Debug版本，无测试）
 ./build.sh
 
 # 构建并运行测试
 ./build.sh --test
 
-# 构建发布版本
+# 构建Release版本
 ./build.sh --release
 
-# 执行完整流程(编译→测试→覆盖率统计)
+# 执行完整流程：编译→测试→覆盖率统计→报告生成
 ./build.sh --full-process
 
-# 清理并重新构建
+# 清理构建目录并重新构建
 ./build.sh --clean --test
 
 # 安装到指定路径
 ./build.sh --install --prefix=/opt/dlogcover
 ```
+
+##### 高级使用场景
+```bash
+# 开发者完整工作流
+./build.sh --clean --debug --test --full-process
+
+# CI/CD流水线使用
+./build.sh --release --test --install --prefix=/usr/local
+
+# 快速验证构建
+./build.sh --release
+
+# 性能测试构建
+./build.sh --release --install
+
+# 调试构建（包含所有调试信息）
+./build.sh --debug --test
+```
+
+##### 构建脚本特性
+- **自动依赖检查**: 构建前验证所有必需依赖
+- **智能并行构建**: 自动检测CPU核心数并优化编译速度
+- **覆盖率集成**: 一键生成完整的覆盖率报告
+- **错误处理**: 详细的错误信息和建议解决方案
+- **进度显示**: 实时显示构建进度和耗时统计
 
 #### 构建脚本选项说明
 | 选项 | 描述 |
@@ -353,10 +744,119 @@ sudo cmake --install .
 | `--prefix=<path>` | 安装路径前缀(默认: /usr/local) |
 
 ### 构建输出
-成功构建后将生成：
-- `build/bin/dlogcover` - 主程序可执行文件
-- `build/lib/` - 静态库文件(如果有)
-- `build/coverage_report/` - 覆盖率报告(使用--full-process时)
+
+#### 标准构建输出
+成功构建后将在 `build/` 目录下生成：
+
+```
+build/
+├── bin/
+│   └── dlogcover              # 主程序可执行文件
+├── lib/                       # 静态库文件（如果有）
+├── compile_commands.json      # 编译命令数据库（用于IDE和分析工具）
+├── CMakeCache.txt            # CMake缓存文件
+└── CMakeFiles/               # CMake内部文件
+```
+
+#### 测试构建输出（使用 --test）
+```
+build/
+├── bin/
+│   ├── dlogcover              # 主程序
+│   └── tests/                 # 测试可执行文件
+│       ├── unit_tests         # 单元测试
+│       └── integration_tests  # 集成测试
+├── Testing/                   # CTest输出
+└── test_results/              # 测试结果文件
+```
+
+#### 覆盖率构建输出（使用 --full-process）
+```
+build/
+├── bin/dlogcover              # 主程序
+├── coverage.info              # 原始覆盖率数据
+├── coverage.filtered.info     # 过滤后的覆盖率数据
+├── coverage_report/           # HTML覆盖率报告
+│   ├── index.html            # 主报告页面
+│   ├── src/                  # 源码覆盖率详情
+│   └── tests/                # 测试覆盖率详情
+└── *.gcda, *.gcno            # GCC覆盖率数据文件
+```
+
+#### 安装输出（使用 --install）
+默认安装到 `/usr/local/`（可通过 --prefix 修改）：
+
+```
+/usr/local/
+├── bin/
+│   └── dlogcover              # 主程序
+├── share/
+│   └── dlogcover/
+│       ├── dlogcover.json     # 示例配置文件
+│       └── examples/          # 使用示例
+└── include/                   # 头文件（如果作为库使用）
+    └── dlogcover/
+```
+
+#### 验证构建结果
+```bash
+# 检查可执行文件
+ls -la build/bin/dlogcover
+file build/bin/dlogcover
+
+# 运行版本检查
+./build/bin/dlogcover --version
+
+# 检查依赖库
+ldd build/bin/dlogcover
+
+# 验证覆盖率报告（如果生成）
+ls -la build/coverage_report/
+```
+
+## 快速开始
+
+### 一分钟快速体验
+
+#### Ubuntu/Debian 用户
+```bash
+# 1. 安装依赖（一键安装）
+sudo apt-get update && sudo apt-get install -y \
+    build-essential cmake libclang-dev llvm-dev clang \
+    nlohmann-json3-dev libgtest-dev lcov
+
+# 2. 克隆项目
+git clone https://github.com/dlogcover/dlogcover.git
+cd dlogcover
+
+# 3. 构建和测试
+./build.sh --full-process
+
+# 4. 运行示例
+./build/bin/dlogcover --help
+./build/bin/dlogcover -d ./examples
+```
+
+#### 其他系统用户
+```bash
+# 1. 参考上面的"系统依赖项"部分安装依赖
+# 2. 克隆和构建
+git clone https://github.com/dlogcover/dlogcover.git
+cd dlogcover
+./build.sh --full-process
+```
+
+### 验证安装
+```bash
+# 检查版本
+./build/bin/dlogcover --version
+
+# 查看覆盖率报告
+firefox build/coverage_report/index.html
+
+# 运行示例分析
+./build/bin/dlogcover -d ./src -f json -o coverage_report.json
+```
 
 ## 使用方法
 

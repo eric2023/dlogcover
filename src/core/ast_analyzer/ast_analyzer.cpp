@@ -5,6 +5,7 @@
  */
 
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
+#include <dlogcover/core/ast_analyzer/file_ownership_validator.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/cmake_parser.h>
 
@@ -32,18 +33,66 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
+#include <iostream>
 
 namespace dlogcover {
 namespace core {
 namespace ast_analyzer {
 
 ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager)
-    : config_(config), sourceManager_(sourceManager) {
+    : config_(config), sourceManager_(sourceManager), 
+      fileValidator_(std::make_unique<FileOwnershipValidator>()) {
     LOG_DEBUG("AST分析器初始化");
+    
+    // 配置文件归属验证器
+    // 使用当前工作目录作为项目根目录
+    try {
+        std::string currentDir = std::filesystem::current_path().string();
+        fileValidator_->setProjectRoot(currentDir);
+    } catch (const std::exception& e) {
+        LOG_WARNING_FMT("无法获取当前工作目录: %s", e.what());
+    }
+    
+    // 添加包含目录
+    if (!config_.scan.includePathsStr.empty()) {
+        std::istringstream iss(config_.scan.includePathsStr);
+        std::string includePath;
+        while (std::getline(iss, includePath, ':')) {
+            if (!includePath.empty()) {
+                fileValidator_->addIncludeDirectory(includePath);
+            }
+        }
+    }
+    
+    // 添加扫描目录作为包含目录
+    for (const auto& dir : config_.scan.directories) {
+        fileValidator_->addIncludeDirectory(dir);
+    }
+    
+    // 添加排除模式
+    fileValidator_->addExcludePattern(".*/tests/.*");
+    fileValidator_->addExcludePattern(".*/test/.*");
+    fileValidator_->addExcludePattern(".*/build/.*");
+    fileValidator_->addExcludePattern(".*/cmake-build-.*/.*");
+    
+    // 添加配置中的排除模式
+    for (const auto& exclude : config_.scan.excludes) {
+        fileValidator_->addExcludePattern(exclude);
+    }
+    
+    // 启用调试模式（如果CMake配置中启用了详细日志）
+    fileValidator_->setDebugMode(config_.scan.cmake.verboseLogging);
 }
 
 ASTAnalyzer::~ASTAnalyzer() {
     LOG_DEBUG("AST分析器销毁");
+    
+    // 输出文件归属验证器的统计信息
+    if (fileValidator_) {
+        std::string stats = fileValidator_->getStatistics();
+        LOG_INFO("文件归属验证器统计信息:");
+        LOG_INFO(stats.c_str());
+    }
 }
 
 Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
@@ -424,13 +473,18 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
             funcDecls++;
             bool hasBody = funcDecl->hasBody();
             
-            // 放宽主文件检查条件 - 检查文件名是否匹配
+            // 使用新的文件归属验证器进行精确判断
             bool isRelevantFile = isInMainFile;
             if (!isRelevantFile && !declFilePath.empty()) {
-                std::filesystem::path declPath(declFilePath);
-                std::filesystem::path targetPath(filePath);
-                // 检查文件名是否匹配（忽略路径差异）
-                isRelevantFile = (declPath.filename() == targetPath.filename());
+                auto validationResult = fileValidator_->validateOwnership(
+                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
+                isRelevantFile = validationResult.isOwned;
+                
+                LOG_DEBUG_FMT("文件归属验证结果: %s -> %s, 结果=%s, 置信度=%.2f, 原因=%s",
+                             filePath.c_str(), declFilePath.c_str(),
+                             isRelevantFile ? "属于" : "不属于",
+                             validationResult.confidence,
+                             validationResult.reason.c_str());
             }
             
             // 特别处理类方法（CXXMethodDecl）
@@ -443,13 +497,18 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                          isInMainFile ? "是" : "否",
                          isRelevantFile ? "是" : "否");
             
-            // 对于类方法，即使不在主文件中，如果文件名匹配也应该分析
+            // 对于类方法，使用更严格的验证逻辑
             if (isMethodDecl && hasBody && !isRelevantFile && !declFilePath.empty()) {
-                std::filesystem::path declPath(declFilePath);
-                std::filesystem::path targetPath(filePath);
-                if (declPath.filename() == targetPath.filename()) {
+                auto validationResult = fileValidator_->validateOwnership(
+                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::CANONICAL);
+                if (validationResult.isOwned && validationResult.confidence > 0.8) {
                     isRelevantFile = true;
-                    LOG_INFO_FMT("类方法 %s 文件名匹配，强制设为相关文件", funcDecl->getNameAsString().c_str());
+                    LOG_INFO_FMT("类方法 %s 通过严格验证，设为相关文件 (置信度=%.2f)", 
+                                funcDecl->getNameAsString().c_str(), validationResult.confidence);
+                } else {
+                    LOG_DEBUG_FMT("类方法 %s 未通过严格验证，跳过 (置信度=%.2f, 原因=%s)", 
+                                 funcDecl->getNameAsString().c_str(), 
+                                 validationResult.confidence, validationResult.reason.c_str());
                 }
             }
             
@@ -509,12 +568,17 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
             classDecls++;
             bool hasDefinition = classDecl->hasDefinition();
             
-            // 放宽主文件检查条件
+            // 使用文件归属验证器进行类声明的归属判断
             bool isRelevantFile = isInMainFile;
             if (!isRelevantFile && !declFilePath.empty()) {
-                std::filesystem::path declPath(declFilePath);
-                std::filesystem::path targetPath(filePath);
-                isRelevantFile = (declPath.filename() == targetPath.filename());
+                auto validationResult = fileValidator_->validateOwnership(
+                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
+                isRelevantFile = validationResult.isOwned;
+                
+                LOG_DEBUG_FMT("类声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
+                             filePath.c_str(), declFilePath.c_str(),
+                             isRelevantFile ? "属于" : "不属于",
+                             validationResult.confidence);
             }
             
             LOG_INFO_FMT("发现类声明 #%d: %s, 有定义=%s, 在主文件=%s, 文件匹配=%s", 
@@ -571,12 +635,17 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
         else if (auto* namespaceDecl = llvm::dyn_cast<clang::NamespaceDecl>(decl)) {
             namespaceDecls++;
             
-            // 放宽主文件检查条件
+            // 使用文件归属验证器进行命名空间声明的归属判断
             bool isRelevantFile = isInMainFile;
             if (!isRelevantFile && !declFilePath.empty()) {
-                std::filesystem::path declPath(declFilePath);
-                std::filesystem::path targetPath(filePath);
-                isRelevantFile = (declPath.filename() == targetPath.filename());
+                auto validationResult = fileValidator_->validateOwnership(
+                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
+                isRelevantFile = validationResult.isOwned;
+                
+                LOG_DEBUG_FMT("命名空间声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
+                             filePath.c_str(), declFilePath.c_str(),
+                             isRelevantFile ? "属于" : "不属于",
+                             validationResult.confidence);
             }
             
             LOG_INFO_FMT("发现命名空间声明 #%d: %s, 在主文件=%s, 文件匹配=%s", 
@@ -642,12 +711,17 @@ void ASTAnalyzer::analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDec
             }
         }
         
-        // 放宽文件检查条件
+        // 使用文件归属验证器进行递归命名空间中声明的归属判断
         bool isRelevantFile = isInMainFile;
         if (!isRelevantFile && !declFilePath.empty()) {
-            std::filesystem::path declPath(declFilePath);
-            std::filesystem::path targetPath(filePath);
-            isRelevantFile = (declPath.filename() == targetPath.filename());
+            auto validationResult = fileValidator_->validateOwnership(
+                filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
+            isRelevantFile = validationResult.isOwned;
+            
+            LOG_DEBUG_FMT("递归命名空间声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
+                         filePath.c_str(), declFilePath.c_str(),
+                         isRelevantFile ? "属于" : "不属于",
+                         validationResult.confidence);
         }
         
         LOG_INFO_FMT("命名空间%s中的声明 #%d: 类型=%s, 主文件=%s, 文件匹配=%s", 
