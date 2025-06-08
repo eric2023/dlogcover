@@ -23,9 +23,13 @@ Result<bool> TextReporterStrategy::generateReport(
     LOG_DEBUG_FMT("生成文本报告: %s", outputPath.c_str());
 
     // 检查目录并创建
-    if (!createDirectoryIfNotExists(outputPath.substr(0, outputPath.find_last_of('/')))) {
-        LOG_ERROR_FMT("无法创建输出目录: %s", outputPath.c_str());
-        return makeError<bool>(ReporterError::DIRECTORY_ERROR, "无法创建输出目录");
+    size_t lastSlashPos = outputPath.find_last_of('/');
+    if (lastSlashPos != std::string::npos) {
+        std::string dirPath = outputPath.substr(0, lastSlashPos);
+        if (!dirPath.empty() && !createDirectoryIfNotExists(dirPath)) {
+            LOG_ERROR_FMT("无法创建输出目录: %s", dirPath.c_str());
+            return makeError<bool>(ReporterError::DIRECTORY_ERROR, "无法创建输出目录");
+        }
     }
 
     // 打开输出文件

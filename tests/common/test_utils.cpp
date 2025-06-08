@@ -67,28 +67,31 @@ config::Config TestUtils::createTestConfig(const std::string& testDir) {
     config.scan.directories = {testDir};
 
     // 设置文件类型
-    config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
+    config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".c"};
+    config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
 
     // 设置日志函数
-    config.logFunctions.qt.enabled = true;
-    config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
+    config.log_functions.qt.enabled = true;
+    config.log_functions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
 
     // 设置分类日志函数
-    config.logFunctions.custom.enabled = true;
-    config.logFunctions.custom.functions["debug"] = {"LogDebug", "LOG_DEBUG", "log_debug"};
-    config.logFunctions.custom.functions["info"] = {"LogInfo", "LOG_INFO", "log_info"};
-    config.logFunctions.custom.functions["warning"] = {"LogWarning", "LOG_WARNING", "log_warning"};
-    config.logFunctions.custom.functions["error"] = {"LogError", "LOG_ERROR", "log_error"};
-    config.logFunctions.custom.functions["critical"] = {"LogCritical", "LOG_CRITICAL", "log_critical"};
+    config.log_functions.custom.enabled = true;
+    config.log_functions.custom.functions["debug"] = {"LogDebug", "LOG_DEBUG", "log_debug"};
+    config.log_functions.custom.functions["info"] = {"LogInfo", "LOG_INFO", "log_info"};
+    config.log_functions.custom.functions["warning"] = {"LogWarning", "LOG_WARNING", "log_warning"};
+    config.log_functions.custom.functions["error"] = {"LogError", "LOG_ERROR", "log_error"};
+    config.log_functions.custom.functions["critical"] = {"LogCritical", "LOG_CRITICAL", "log_critical"};
 
     // 设置分析参数
-    config.analysis.functionCoverage = true;
-    config.analysis.branchCoverage = true;
-    config.analysis.exceptionCoverage = true;
-    config.analysis.keyPathCoverage = true;
+    config.analysis.function_coverage = true;
+    config.analysis.branch_coverage = true;
+    config.analysis.exception_coverage = true;
+    config.analysis.key_path_coverage = true;
 
-    // 添加必要的编译参数
-    config.scan.compilerArgs = {
+    // 编译命令配置
+    config.compile_commands.path = "./build/compile_commands.json";
+    config.compile_commands.auto_generate = true;
+    config.compile_commands.cmake_args = {
         "-std=c++17", "-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
         "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
         // Qt头文件路径
@@ -97,8 +100,10 @@ config::Config TestUtils::createTestConfig(const std::string& testDir) {
         // 系统定义
         "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
 
-    // 设置为Qt项目
-    config.scan.isQtProject = true;
+    // 输出配置
+    config.output.report_file = "test_coverage_report.txt";
+    config.output.log_file = "test_analysis.log";
+    config.output.log_level = "INFO";
 
     return config;
 }

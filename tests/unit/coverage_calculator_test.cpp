@@ -148,24 +148,39 @@ int main() {
         config.scan.directories = {testDir_};
 
         // 设置文件类型
-        config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
+        config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".c"};
+        config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
 
         // 设置日志函数
-        config.logFunctions.qt.enabled = true;
-        config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
+        config.log_functions.qt.enabled = true;
+        config.log_functions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
 
-        // 添加必要的编译参数
-        config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
-                                    "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
-                                    // Qt头文件路径
-                                    "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
-                                    // 系统定义
-                                    "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
+        // 编译命令配置
+        config.compile_commands.path = "./build/compile_commands.json";
+        config.compile_commands.auto_generate = true;
+        config.compile_commands.cmake_args = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
+                                              "-I/usr/include/x86_64-linux-gnu", "-I/usr/include/linux",
+                                              "-I/usr/lib/gcc/x86_64-linux-gnu/8/include",
+                                              "-I/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed",
+                                              "-I/usr/local/include", "-I/usr/include/qt5",
+                                              "-I/usr/include/qt5/QtCore", "-I/usr/include/qt5/QtGui",
+                                              "-I/usr/include/qt5/QtWidgets", "-std=c++17", "-fPIC"};
 
-        // 设置为Qt项目
-        config.scan.isQtProject = true;
+        // 分析配置
+        config.analysis.function_coverage = true;
+        config.analysis.branch_coverage = true;
+        config.analysis.exception_coverage = true;
+        config.analysis.key_path_coverage = true;
+
+        // 输出配置
+        config.output.report_file = "test_report.txt";
+        config.output.log_file = "test_analysis.log";
+        config.output.log_level = "INFO";
+
+        // 项目配置
+        config.project.name = "test-project";
+        config.project.directory = "./";
+        config.project.build_directory = "./build";
 
         return config;
     }

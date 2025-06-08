@@ -158,33 +158,41 @@ int main() {
         config.scan.directories = {testDir_};
 
         // 设置文件类型
-        config.scan.fileTypes = {".cpp", ".h", ".hpp", ".cc", ".c"};
+        config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".c"};
+        config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
 
         // 设置日志函数
-        config.logFunctions.qt.enabled = true;
-        config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
+        config.log_functions.qt.enabled = true;
+        config.log_functions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
 
-        // 添加必要的编译参数
-        config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
-                                    "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
-                                    // Qt头文件路径
-                                    "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
-                                    "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
-                                    // 系统定义
-                                    "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
+        // 编译命令配置
+        config.compile_commands.path = "./build/compile_commands.json";
+        config.compile_commands.auto_generate = true;
+        config.compile_commands.cmake_args = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
+                                              "-I/usr/include/x86_64-linux-gnu", "-I/usr/include/linux",
+                                              "-I/usr/lib/gcc/x86_64-linux-gnu/8/include",
+                                              "-I/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed",
+                                              "-I/usr/local/include", "-I/usr/include/qt5",
+                                              "-I/usr/include/qt5/QtCore", "-I/usr/include/qt5/QtGui",
+                                              "-I/usr/include/qt5/QtWidgets", "-std=c++17", "-fPIC"};
 
-        // 设置为Qt项目
-        config.scan.isQtProject = true;
+        // 项目配置
+        config.project.name = "test-project";
+        config.project.directory = "./";
+        config.project.build_directory = "./build";
 
-        // 设置分析选项
-        config.analysis.functionCoverage = true;
-        config.analysis.branchCoverage = true;
-        config.analysis.exceptionCoverage = true;
-        config.analysis.keyPathCoverage = true;
+        // 分析配置
+        config.analysis.function_coverage = true;
+        config.analysis.branch_coverage = true;
+        config.analysis.exception_coverage = true;
+        config.analysis.key_path_coverage = true;
+
+        // 扫描配置完成
 
         // 设置报告选项
-        config.report.format = "text";  // 默认文本格式
+        config.output.report_file = "test_report.txt";
+        config.output.log_file = "test_analysis.log";
+        config.output.log_level = "INFO";
 
         return config;
     }
@@ -216,7 +224,7 @@ TEST_F(ReporterTestFixture, InitializeAndDestroy) {
 // 测试文本格式报告生成
 TEST_F(ReporterTestFixture, GenerateTextReport) {
     // 设置文本格式报告
-    config_.report.format = "text";
+    config_.output.report_file = "test_report.txt";
     reporter_->setStrategy(ReporterFactory::getInstance().createStrategy(ReportFormat::TEXT));
 
     // 输出路径
@@ -249,7 +257,7 @@ TEST_F(ReporterTestFixture, GenerateTextReport) {
 // 测试JSON格式报告生成
 TEST_F(ReporterTestFixture, GenerateJsonReport) {
     // 设置JSON格式报告
-    config_.report.format = "json";
+    config_.output.report_file = "test_report.json";
     reporter_->setStrategy(ReporterFactory::getInstance().createStrategy(ReportFormat::JSON));
 
     // 输出路径

@@ -22,7 +22,9 @@ Reporter::Reporter(const config::Config& config, const core::coverage::CoverageC
     LOG_DEBUG("报告生成器初始化");
 
     // 根据配置创建默认策略
-    ReportFormat format = parseReportFormat(config.report.format);
+    // 注释掉config.report.format，因为新配置结构中没有这个字段，使用默认格式
+    // ReportFormat format = parseReportFormat(config.report.format);
+    ReportFormat format = ReportFormat::TEXT; // 默认使用文本格式
     strategy_ = ReporterFactory::getInstance().createStrategy(format);
     LOG_DEBUG_FMT("使用默认报告策略: %s", strategy_->getName().c_str());
 }

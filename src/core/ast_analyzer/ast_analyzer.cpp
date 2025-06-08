@@ -8,6 +8,7 @@
 #include <dlogcover/core/ast_analyzer/file_ownership_validator.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/cmake_parser.h>
+#include <dlogcover/config/compile_commands_manager.h>
 
 // 使用Clang/LLVM头文件
 #include <clang/AST/ASTContext.h>
@@ -53,17 +54,6 @@ ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::Sou
         LOG_WARNING_FMT("无法获取当前工作目录: %s", e.what());
     }
     
-    // 添加包含目录
-    if (!config_.scan.includePathsStr.empty()) {
-        std::istringstream iss(config_.scan.includePathsStr);
-        std::string includePath;
-        while (std::getline(iss, includePath, ':')) {
-            if (!includePath.empty()) {
-                fileValidator_->addIncludeDirectory(includePath);
-            }
-        }
-    }
-    
     // 添加扫描目录作为包含目录
     for (const auto& dir : config_.scan.directories) {
         fileValidator_->addIncludeDirectory(dir);
@@ -76,12 +66,12 @@ ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::Sou
     fileValidator_->addExcludePattern(".*/cmake-build-.*/.*");
     
     // 添加配置中的排除模式
-    for (const auto& exclude : config_.scan.excludes) {
+    for (const auto& exclude : config_.scan.exclude_patterns) {
         fileValidator_->addExcludePattern(exclude);
     }
     
-    // 启用调试模式（如果CMake配置中启用了详细日志）
-    fileValidator_->setDebugMode(config_.scan.cmake.verboseLogging);
+    // 启用调试模式
+    fileValidator_->setDebugMode(false);
 }
 
 ASTAnalyzer::~ASTAnalyzer() {
@@ -166,174 +156,130 @@ const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& ASTAnalyzer
 std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& filePath, const std::string& content) {
     LOG_DEBUG_FMT("创建文件的AST单元: %s", filePath.c_str());
 
-    // 创建编译命令行参数
+    // 首先尝试使用CompileCommandsManager获取准确的编译参数
     std::vector<std::string> args;
-
-    // 基本命令行选项
-    args.push_back("-std=c++17");
-    args.push_back("-xc++");
-    args.push_back("-fPIC");
+    bool useCompileCommands = false;
     
-    // 调试和错误处理选项
-    args.push_back("-Wno-everything");  // 忽略所有警告以避免干扰
-    args.push_back("-ferror-limit=0");  // 不限制错误数量
-    args.push_back("-fsyntax-only");    // 仅进行语法检查
-    args.push_back("-fno-delayed-template-parsing");  // 立即解析模板
-    
-    // 系统头文件路径 - 更完整的路径列表
-    std::vector<std::string> systemIncludes = {
-        "/usr/include",
-        "/usr/local/include",
-        "/usr/include/c++/11",
-        "/usr/include/c++/10",
-        "/usr/include/c++/9",
-        "/usr/include/x86_64-linux-gnu/c++/11",
-        "/usr/include/x86_64-linux-gnu/c++/10", 
-        "/usr/include/x86_64-linux-gnu/c++/9",
-        "/usr/include/c++/11/backward",
-        "/usr/include/c++/10/backward",
-        "/usr/include/c++/9/backward",
-        "/usr/lib/gcc/x86_64-linux-gnu/11/include",
-        "/usr/lib/gcc/x86_64-linux-gnu/10/include",
-        "/usr/lib/gcc/x86_64-linux-gnu/9/include",
-        "/usr/lib/gcc/x86_64-linux-gnu/11/include-fixed",
-        "/usr/lib/gcc/x86_64-linux-gnu/10/include-fixed",
-        "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed",
-        "/usr/include/x86_64-linux-gnu",
-        "/usr/lib/llvm-17/include",
-        "/usr/lib/llvm-16/include",
-        "/usr/lib/llvm-15/include",
-        "/usr/lib/llvm-14/include",
-        "/usr/lib/llvm-13/include"
-    };
-
-    // 只添加存在的系统头文件路径
-    for (const auto& includePath : systemIncludes) {
-        if (std::filesystem::exists(includePath)) {
-            args.push_back("-I" + includePath);
-            LOG_DEBUG_FMT("添加系统头文件路径: %s", includePath.c_str());
-        }
-    }
-
-    // 项目特定的包含路径
-    std::vector<std::string> projectIncludes = {
-        ".",          // 当前目录
-        "./include",  // 项目include目录
-        "./src",      // 源码目录
-        "../include", // 上级include目录
-        "../src"      // 上级源码目录
-    };
-
-    // 添加项目特定的包含路径
-    for (const auto& includePath : projectIncludes) {
-        args.push_back("-I" + includePath);
-        LOG_DEBUG_FMT("添加项目头文件路径: %s", includePath.c_str());
-    }
-
-    // 添加配置文件中指定的包含路径
-    if (!config_.scan.includePathsStr.empty()) {
-        std::istringstream iss(config_.scan.includePathsStr);
-        std::string includePath;
-        while (std::getline(iss, includePath, ':')) {
-            if (!includePath.empty()) {
-                args.push_back("-I" + includePath);
-                LOG_DEBUG_FMT("添加配置的头文件路径: %s", includePath.c_str());
-            }
-        }
-    }
-
-    // 基本系统定义
-    args.push_back("-D__GNUG__");
-    args.push_back("-D__linux__");
-    args.push_back("-D__x86_64__");
-    args.push_back("-D_GNU_SOURCE");
-    args.push_back("-D__STDC_CONSTANT_MACROS");
-    args.push_back("-D__STDC_FORMAT_MACROS");
-    args.push_back("-D__STDC_LIMIT_MACROS");
-
-    // 为Qt项目添加常用的定义和选项
-    if (config_.scan.isQtProject) {
-        args.push_back("-DQT_CORE_LIB");
-        args.push_back("-DQT_GUI_LIB");
-        args.push_back("-DQT_WIDGETS_LIB");
-        args.push_back("-DQT_SHARED");
-        args.push_back("-DQ_CREATOR_RUN");
-        args.push_back("-D_REENTRANT");
-        LOG_DEBUG("添加Qt项目相关定义");
-    }
-
-    // 添加CMake参数（如果启用）
-    if (config_.scan.cmake.enabled) {
-        LOG_DEBUG("CMake参数自动检测已启用，开始解析CMake配置");
-        
-        utils::CMakeParser cmakeParser;
-        cmakeParser.setVerboseLogging(config_.scan.cmake.verboseLogging);
-        
-        // 确定CMakeLists.txt路径
-        std::string cmakeListsPath = config_.scan.cmake.cmakeListsPath;
-        if (cmakeListsPath.empty()) {
-            // 自动查找CMakeLists.txt
-            std::filesystem::path currentPath = std::filesystem::path(filePath).parent_path();
-            while (!currentPath.empty() && currentPath != currentPath.parent_path()) {
-                std::filesystem::path cmakeFile = currentPath / "CMakeLists.txt";
-                if (std::filesystem::exists(cmakeFile)) {
-                    cmakeListsPath = cmakeFile.string();
-                    LOG_DEBUG_FMT("自动找到CMakeLists.txt: %s", cmakeListsPath.c_str());
-                    break;
-                }
-                currentPath = currentPath.parent_path();
-            }
-        }
-        
-        if (!cmakeListsPath.empty()) {
-            auto parseResult = cmakeParser.parse(cmakeListsPath);
-            if (!parseResult.hasError()) {
-                const auto& cmakeResult = parseResult.value();
-                
-                // 获取编译参数
-                std::vector<std::string> cmakeArgs;
-                if (!config_.scan.cmake.targetName.empty()) {
-                    // 使用指定目标的参数
-                    cmakeArgs = cmakeResult.getTargetCompilerArgs(config_.scan.cmake.targetName);
-                    LOG_DEBUG_FMT("使用目标 %s 的编译参数", config_.scan.cmake.targetName.c_str());
-                } else {
-                    // 使用全局参数
-                    cmakeArgs = cmakeResult.getAllCompilerArgs();
-                    LOG_DEBUG("使用全局编译参数");
-                }
-                
-                // 添加CMake参数到编译命令
-                for (const auto& arg : cmakeArgs) {
-                    // 避免重复添加已存在的参数
-                    if (std::find(args.begin(), args.end(), arg) == args.end()) {
-                        args.push_back(arg);
-                        LOG_DEBUG_FMT("添加CMake参数: %s", arg.c_str());
-                    }
-                }
-                
-                LOG_INFO_FMT("从CMake配置中添加了 %zu 个编译参数", cmakeArgs.size());
+    try {
+        config::CompileCommandsManager compileManager;
+        // 首先尝试解析compile_commands.json
+        std::string compileCommandsPath = config_.project.build_directory + "/compile_commands.json";
+        if (!compileManager.parseCompileCommands(compileCommandsPath)) {
+            // 如果解析失败，尝试生成
+            if (!compileManager.generateCompileCommands(config_.project.directory, 
+                                                       config_.project.build_directory,
+                                                       config_.compile_commands.cmake_args)) {
+                LOG_WARNING_FMT("无法生成compile_commands.json: %s", compileManager.getError().c_str());
             } else {
-                LOG_WARNING_FMT("解析CMakeLists.txt失败: %s", parseResult.errorMessage().c_str());
+                // 重新尝试解析
+                compileManager.parseCompileCommands(compileCommandsPath);
+            }
+        }
+        
+        // 使用新的getCompilerArgs方法，支持同名文件查找
+        args = compileManager.getCompilerArgs(filePath);
+        
+        if (!args.empty()) {
+            useCompileCommands = true;
+            LOG_INFO_FMT("成功获取文件的编译参数，数量: %zu", args.size());
+            
+            // 输出编译命令详情
+            LOG_DEBUG("从CompileCommandsManager获取的编译参数:");
+            for (size_t i = 0; i < args.size(); ++i) {
+                LOG_DEBUG_FMT("  参数 #%zu: %s", i + 1, args[i].c_str());
             }
         } else {
-            LOG_WARNING("未找到CMakeLists.txt文件，跳过CMake参数自动检测");
+            LOG_WARNING_FMT("无法获取文件的编译参数: %s", filePath.c_str());
+            LOG_INFO("将使用默认编译参数");
         }
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("CompileCommandsManager异常: %s", e.what());
+        LOG_INFO("将使用默认编译参数");
+    }
+    
+    // 如果无法获取compile_commands.json的参数，使用默认参数
+    if (!useCompileCommands) {
+        LOG_INFO("使用默认编译参数");
+        args = getCompilerArgs();
+        
+        // 系统头文件路径 - 更完整的路径列表
+        std::vector<std::string> systemIncludes = {
+            "/usr/include",
+            "/usr/local/include",
+            "/usr/include/c++/11",
+            "/usr/include/c++/10",
+            "/usr/include/c++/9",
+            "/usr/include/x86_64-linux-gnu/c++/11",
+            "/usr/include/x86_64-linux-gnu/c++/10", 
+            "/usr/include/x86_64-linux-gnu/c++/9",
+            "/usr/include/c++/11/backward",
+            "/usr/include/c++/10/backward",
+            "/usr/include/c++/9/backward",
+            "/usr/lib/gcc/x86_64-linux-gnu/11/include",
+            "/usr/lib/gcc/x86_64-linux-gnu/10/include",
+            "/usr/lib/gcc/x86_64-linux-gnu/9/include",
+            "/usr/lib/gcc/x86_64-linux-gnu/11/include-fixed",
+            "/usr/lib/gcc/x86_64-linux-gnu/10/include-fixed",
+            "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed",
+            "/usr/include/x86_64-linux-gnu",
+            "/usr/lib/llvm-17/include",
+            "/usr/lib/llvm-16/include",
+            "/usr/lib/llvm-15/include",
+            "/usr/lib/llvm-14/include",
+            "/usr/lib/llvm-13/include"
+        };
+
+        // 只添加存在的系统头文件路径
+        for (const auto& includePath : systemIncludes) {
+            if (std::filesystem::exists(includePath)) {
+                args.push_back("-I" + includePath);
+                LOG_DEBUG_FMT("添加系统头文件路径: %s", includePath.c_str());
+            }
+        }
+
+        // 项目特定的包含路径
+        std::vector<std::string> projectIncludes = {
+            ".",          // 当前目录
+            "./include",  // 项目include目录
+            "./src",      // 源码目录
+            "../include", // 上级include目录
+            "../src"      // 上级源码目录
+        };
+
+        // 添加项目特定的包含路径
+        for (const auto& includePath : projectIncludes) {
+            args.push_back("-I" + includePath);
+            LOG_DEBUG_FMT("添加项目头文件路径: %s", includePath.c_str());
+        }
+
+        // 添加配置文件中指定的包含路径
+        // 注释掉include_paths_str，因为新配置结构中没有这个字段
+        // if (!config_.scan.include_paths_str.empty()) {
+        //     std::istringstream iss(config_.scan.include_paths_str);
+        //     std::string includePath;
+        //     while (std::getline(iss, includePath, ':')) {
+        //         if (!includePath.empty()) {
+        //             args.push_back("-I" + includePath);
+        //             LOG_DEBUG_FMT("添加配置的头文件路径: %s", includePath.c_str());
+        //         }
+        //     }
+        // }
     }
 
-    // 添加用户自定义的编译参数
-    for (const auto& arg : config_.scan.compilerArgs) {
-        args.push_back(arg);
-        LOG_DEBUG_FMT("添加用户自定义参数: %s", arg.c_str());
-    }
+    // 编译参数现在通过 CompileCommandsManager 自动管理
 
     LOG_INFO_FMT("编译命令参数总数: %zu", args.size());
     LOG_DEBUG_FMT("完整编译命令: %s", llvm::join(args, " ").c_str());
 
     // 使用Clang的工具链创建AST
+    LOG_DEBUG_FMT("开始为文件创建AST单元: %s", filePath.c_str());
+    LOG_DEBUG_FMT("文件内容长度: %zu 字节", content.length());
+    
     std::unique_ptr<clang::ASTUnit> astUnit = clang::tooling::buildASTFromCodeWithArgs(content, args, filePath);
 
     if (!astUnit) {
         LOG_ERROR_FMT("无法为文件创建AST单元: %s", filePath.c_str());
+        LOG_ERROR("AST单元创建失败，这是导致函数无法识别的根本原因");
         
         // 输出诊断信息
         LOG_ERROR("可能的原因:");
@@ -367,11 +313,40 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 
     LOG_DEBUG_FMT("成功创建AST单元: %s", filePath.c_str());
     
+    // 检查AST单元的基本状态
+    if (astUnit) {
+        auto& astContext = astUnit->getASTContext();
+        auto* translationUnit = astContext.getTranslationUnitDecl();
+        
+        if (translationUnit) {
+            size_t declCount = std::distance(translationUnit->decls_begin(), translationUnit->decls_end());
+            LOG_DEBUG_FMT("AST翻译单元包含 %zu 个顶层声明", declCount);
+            
+            if (declCount == 0) {
+                LOG_WARNING_FMT("警告: AST翻译单元为空，这可能是函数无法识别的原因: %s", filePath.c_str());
+            }
+        } else {
+            LOG_ERROR_FMT("错误: AST翻译单元为空指针: %s", filePath.c_str());
+        }
+    }
+    
     // 检查是否有诊断信息（编译错误/警告）
     auto& diagnostics = astUnit->getDiagnostics();
     if (diagnostics.hasErrorOccurred()) {
         LOG_WARNING_FMT("AST创建过程中有编译错误: %s", filePath.c_str());
+        
+        // 输出详细的诊断信息
+        LOG_DEBUG("检测到编译错误，这可能是函数无法识别的原因");
+        LOG_DEBUG("建议检查:");
+        LOG_DEBUG("1. 头文件路径是否正确");
+        LOG_DEBUG("2. 编译宏定义是否完整");
+        LOG_DEBUG("3. CMake参数是否正确解析");
+        LOG_DEBUG("4. 项目依赖是否已安装");
+        
         // 即使有错误，也可能能够进行部分分析
+        LOG_INFO("尽管有编译错误，仍尝试进行AST分析");
+    } else {
+        LOG_DEBUG_FMT("AST创建无编译错误: %s", filePath.c_str());
     }
     
     return astUnit;
@@ -872,13 +847,13 @@ bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     }
 
     // 检查是否为Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
-        for (const auto& logFunc : config_.logFunctions.qt.functions) {
+    if (config_.log_functions.qt.enabled) {
+        for (const auto& logFunc : config_.log_functions.qt.functions) {
             if (funcName == logFunc) {
                 return true;
             }
         }
-        for (const auto& logFunc : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& logFunc : config_.log_functions.qt.category_functions) {
             if (funcName == logFunc) {
                 return true;
             }
@@ -886,8 +861,8 @@ bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     }
 
     // 检查是否为自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [_, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [_, funcs] : config_.log_functions.custom.functions) {
             for (const auto& logFunc : funcs) {
                 if (funcName == logFunc) {
                     return true;
@@ -897,6 +872,37 @@ bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     }
 
     return false;
+}
+
+std::vector<std::string> ASTAnalyzer::getCompilerArgs() const {
+    LOG_DEBUG("获取编译参数");
+    
+    std::vector<std::string> args;
+    
+    // 基本命令行选项
+    args.push_back("-std=c++17");
+    args.push_back("-xc++");
+    args.push_back("-fPIC");
+    
+    // 调试和错误处理选项
+    args.push_back("-Wno-everything");  // 忽略所有警告以避免干扰
+    args.push_back("-ferror-limit=0");  // 不限制错误数量
+    args.push_back("-fsyntax-only");    // 仅进行语法检查
+    args.push_back("-fno-delayed-template-parsing");  // 立即解析模板
+    
+    // 基本系统定义
+    args.push_back("-D__GNUG__");
+    args.push_back("-D__linux__");
+    args.push_back("-D__x86_64__");
+    args.push_back("-D_GNU_SOURCE");
+    args.push_back("-D__STDC_CONSTANT_MACROS");
+    args.push_back("-D__STDC_FORMAT_MACROS");
+    args.push_back("-D__STDC_LIMIT_MACROS");
+    
+    // Qt项目定义和自定义参数现在通过 CompileCommandsManager 自动管理
+    
+    LOG_DEBUG_FMT("回退编译参数总数: %zu", args.size());
+    return args;
 }
 
 }  // namespace ast_analyzer

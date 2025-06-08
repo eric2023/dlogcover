@@ -1,42 +1,18 @@
 {
+    "project": {
+        "name": "deepin-draw",
+        "directory": "/home/uos/Desktop/source/dlogcover/deepin-draw",
+        "build_directory": "/home/uos/Desktop/source/dlogcover/deepin-draw/build"
+    },
     "scan": {
-        "directories": [
-            "./"
-        ],
-        "excludes": [
-            "build/",
-            "test/",
-            "third_party/",
-            ".git/",
-            ".vscode/",
-            ".cursor/",
-            ".specstory/"
-        ],
-        "file_types": [
-            ".cpp",
-            ".cc",
-            ".cxx",
-            ".h",
-            ".hpp",
-            ".hxx"
-        ],
-        "include_paths": "./include:./src",
-        "is_qt_project": false,
-        "compiler_args": [
-            "-Wno-everything",
-            "-xc++",
-            "-ferror-limit=0",
-            "-fsyntax-only",
-            "-std=c++17"
-        ],
-        "cmake": {
-            "enabled": true,
-            "cmake_lists_path": "",
-            "target_name": "",
-            "use_compile_commands": true,
-            "compile_commands_path": "",
-            "verbose_logging": false
-        }
+        "directories": ["./src"],
+        "file_extensions": [".cpp", ".cc", ".cxx", ".c"],
+        "exclude_patterns": ["*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"]
+    },
+    "compile_commands": {
+        "path": "/home/uos/Desktop/source/dlogcover/deepin-draw/build/compile_commands.json",
+        "auto_generate": true,
+        "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=1", "-DCMAKE_BUILD_TYPE=Debug"]
     },
     "log_functions": {
         "qt": {
@@ -91,8 +67,9 @@
         "exception_coverage": true,
         "key_path_coverage": true
     },
-    "report": {
-        "format": "text",
-        "timestamp_format": "YYYYMMDD_HHMMSS"
+    "output": {
+        "report_file": "deepin-draw_report.txt",
+        "log_file": "deepin-draw_analysis.log",
+        "log_level": "INFO"
     }
-}
+} 

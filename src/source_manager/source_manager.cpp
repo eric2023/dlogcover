@@ -111,13 +111,83 @@ const SourceFileInfo* SourceManager::getSourceFile(const std::string& path) cons
     return nullptr;
 }
 
+std::string SourceManager::globToRegex(const std::string& glob) const {
+    std::string regex;
+    regex.reserve(glob.size() * 2);
+    
+    for (size_t i = 0; i < glob.size(); ++i) {
+        char c = glob[i];
+        switch (c) {
+            case '*':
+                regex += ".*";
+                break;
+            case '?':
+                regex += ".";
+                break;
+            case '.':
+                regex += "\\.";
+                break;
+            case '+':
+                regex += "\\+";
+                break;
+            case '^':
+                regex += "\\^";
+                break;
+            case '$':
+                regex += "\\$";
+                break;
+            case '(':
+                regex += "\\(";
+                break;
+            case ')':
+                regex += "\\)";
+                break;
+            case '[':
+                regex += "\\[";
+                break;
+            case ']':
+                regex += "\\]";
+                break;
+            case '{':
+                regex += "\\{";
+                break;
+            case '}':
+                regex += "\\}";
+                break;
+            case '|':
+                regex += "\\|";
+                break;
+            case '\\':
+                regex += "\\\\";
+                break;
+            default:
+                regex += c;
+                break;
+        }
+    }
+    
+    return regex;
+}
+
 bool SourceManager::shouldExclude(const std::string& path) const {
     // 检查每个排除模式
-    for (const auto& pattern : config_.scan.excludes) {
-        std::regex regex(pattern, std::regex::extended);
-        if (std::regex_search(path, regex)) {
-            LOG_DEBUG_FMT("排除文件: %s, 匹配模式: %s", path.c_str(), pattern.c_str());
-            return true;
+    for (const auto& pattern : config_.scan.exclude_patterns) {
+        // 将glob模式转换为正则表达式
+        std::string regexPattern = globToRegex(pattern);
+        
+        try {
+            std::regex regex(regexPattern, std::regex::extended);
+            if (std::regex_search(path, regex)) {
+                LOG_DEBUG_FMT("排除文件: %s, 匹配模式: %s", path.c_str(), pattern.c_str());
+                return true;
+            }
+        } catch (const std::regex_error& e) {
+            LOG_WARNING_FMT("正则表达式错误，模式: %s, 错误: %s", pattern.c_str(), e.what());
+            // 如果正则表达式有错误，尝试简单的字符串匹配
+            if (path.find(pattern) != std::string::npos) {
+                LOG_DEBUG_FMT("排除文件: %s, 简单匹配模式: %s", path.c_str(), pattern.c_str());
+                return true;
+            }
         }
     }
 
@@ -126,7 +196,7 @@ bool SourceManager::shouldExclude(const std::string& path) const {
 
 bool SourceManager::isSupportedFileType(const std::string& path) const {
     // 检查文件扩展名是否在支持的文件类型列表中
-    for (const auto& extension : config_.scan.fileTypes) {
+    for (const auto& extension : config_.scan.file_extensions) {
         if (utils::FileUtils::hasExtension(path, extension)) {
             return true;
         }

@@ -42,7 +42,8 @@ protected:
         std::filesystem::create_directories(source_dir_);
 
         // 初始化配置和源文件管理器
-        config_ = config::ConfigManager::getDefaultConfig();
+        config::ConfigManager configManager;
+        config_ = configManager.createDefaultConfig("./");
         source_manager_ = std::make_unique<source_manager::SourceManager>(config_);
     }
 
@@ -228,7 +229,8 @@ TEST_F(ErrorHandlingTest, ConcurrentAnalysisHandling) {
     for (const auto& file : source_files) {
         futures.push_back(std::async(std::launch::async, [&, file]() {
             // 为每个线程创建单独的分析器
-            config::Config thread_config = config::ConfigManager::getDefaultConfig();
+            config::ConfigManager configManager;
+            config::Config thread_config = configManager.createDefaultConfig("./");
             auto thread_source_manager = std::make_unique<source_manager::SourceManager>(thread_config);
             core::ast_analyzer::ASTAnalyzer ast_analyzer(thread_config, *thread_source_manager);
             core::log_identifier::LogIdentifier identifier(thread_config, ast_analyzer);

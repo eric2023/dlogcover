@@ -101,9 +101,9 @@ void LogIdentifier::buildLogFunctionNameSet() {
     functionNameToType_.clear();
 
     // 添加Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
+    if (config_.log_functions.qt.enabled) {
         // 基本Qt日志函数
-        for (const auto& func : config_.logFunctions.qt.functions) {
+        for (const auto& func : config_.log_functions.qt.functions) {
             logFunctionNames_.insert(func);
 
             // 根据函数名确定日志级别
@@ -126,7 +126,7 @@ void LogIdentifier::buildLogFunctionNameSet() {
         }
 
         // Qt分类日志函数
-        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& func : config_.log_functions.qt.category_functions) {
             logFunctionNames_.insert(func);
 
             // 根据函数名确定日志级别
@@ -163,8 +163,8 @@ void LogIdentifier::buildLogFunctionNameSet() {
     }
 
     // 添加自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
             LogLevel logLevel;
 
             // 确定日志级别
@@ -226,7 +226,7 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
             // 首先检查宏调用识别 - 通常为大写字母
             // 这有助于识别 LOG_DEBUG, LOG_INFO 等常见宏
             if (node->name.find("LOG_") == 0 || node->text.find("LOG_") != std::string::npos) {
-                for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+                for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
                     for (const auto& func : funcs) {
                         if (func == node->name ||
                             node->name.find(func) != std::string::npos ||
@@ -243,8 +243,8 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
             }
 
             // 对于Qt日志函数
-            if (!matchFound && config_.logFunctions.qt.enabled) {
-                for (const auto& func : config_.logFunctions.qt.functions) {
+            if (!matchFound && config_.log_functions.qt.enabled) {
+                for (const auto& func : config_.log_functions.qt.functions) {
                     if (node->text.find(func) != std::string::npos) {
                         isLogCall = true;
                         logFunctionName = func;
@@ -255,7 +255,7 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
                 }
 
                 if (!matchFound) {
-                    for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+                    for (const auto& func : config_.log_functions.qt.category_functions) {
                         if (node->text.find(func) != std::string::npos) {
                             isLogCall = true;
                             logFunctionName = func;
@@ -268,8 +268,8 @@ void LogIdentifier::identifyLogCallsInNode(const ast_analyzer::ASTNodeInfo* node
             }
 
             // 对于自定义日志函数
-            if (!matchFound && config_.logFunctions.custom.enabled) {
-                for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+            if (!matchFound && config_.log_functions.custom.enabled) {
+                for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
                     for (const auto& func : funcs) {
                         // 跳过已经在宏检查中处理过的LOG_前缀函数
                         if (func.find("LOG_") == 0) continue;
@@ -526,9 +526,9 @@ LogLevel LogIdentifier::getLogLevel(const std::string& functionName) const {
     // 如果未找到已映射的函数名，则基于配置信息进行判断
 
     // 先检查Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
+    if (config_.log_functions.qt.enabled) {
         // 基本Qt日志函数
-        for (const auto& func : config_.logFunctions.qt.functions) {
+        for (const auto& func : config_.log_functions.qt.functions) {
             if (func == functionName || functionName.find(func) != std::string::npos) {
                 if (func == "qDebug" || functionName.find("Debug") != std::string::npos) {
                     return LogLevel::DEBUG;
@@ -545,7 +545,7 @@ LogLevel LogIdentifier::getLogLevel(const std::string& functionName) const {
         }
 
         // Qt分类日志函数
-        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& func : config_.log_functions.qt.category_functions) {
             if (func == functionName || functionName.find(func) != std::string::npos) {
                 if (func == "qCDebug" || functionName.find("Debug") != std::string::npos) {
                     return LogLevel::DEBUG;
@@ -563,8 +563,8 @@ LogLevel LogIdentifier::getLogLevel(const std::string& functionName) const {
     }
 
     // 再检查自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
             for (const auto& func : funcs) {
                 if (func == functionName || functionName.find(func) != std::string::npos) {
                     if (level == "debug") {
@@ -619,16 +619,16 @@ LogType LogIdentifier::getLogType(const std::string& functionName) const {
     // 根据配置信息判断日志类型
 
     // 检查是否为Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
+    if (config_.log_functions.qt.enabled) {
         // 基本Qt日志函数
-        for (const auto& func : config_.logFunctions.qt.functions) {
+        for (const auto& func : config_.log_functions.qt.functions) {
             if (func == functionName || functionName.find(func) != std::string::npos) {
                 return LogType::QT;
             }
         }
 
         // Qt分类日志函数
-        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& func : config_.log_functions.qt.category_functions) {
             if (func == functionName || functionName.find(func) != std::string::npos) {
                 return LogType::QT_CATEGORY;
             }
@@ -636,8 +636,8 @@ LogType LogIdentifier::getLogType(const std::string& functionName) const {
     }
 
     // 检查是否为自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
             for (const auto& func : funcs) {
                 if (func == functionName || functionName.find(func) != std::string::npos) {
                     return LogType::CUSTOM;

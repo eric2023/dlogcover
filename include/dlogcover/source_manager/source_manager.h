@@ -96,6 +96,13 @@ private:
      * @return 读取成功返回true，否则返回false
      */
     bool readFileContent(const std::string& path, std::string& content) const;
+
+    /**
+     * @brief 将glob模式转换为正则表达式
+     * @param glob glob模式字符串
+     * @return 对应的正则表达式字符串
+     */
+    std::string globToRegex(const std::string& glob) const;
 };
 
 } // namespace source_manager

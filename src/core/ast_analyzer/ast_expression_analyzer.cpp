@@ -100,13 +100,13 @@ bool ASTExpressionAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     }
 
     // 检查是否为Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
-        for (const auto& logFunc : config_.logFunctions.qt.functions) {
+    if (config_.log_functions.qt.enabled) {
+        for (const auto& logFunc : config_.log_functions.qt.functions) {
             if (funcName == logFunc) {
                 return true;
             }
         }
-        for (const auto& logFunc : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& logFunc : config_.log_functions.qt.category_functions) {
             if (funcName == logFunc) {
                 return true;
             }
@@ -114,8 +114,8 @@ bool ASTExpressionAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     }
 
     // 检查是否为自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [_, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [_, funcs] : config_.log_functions.custom.functions) {
             for (const auto& logFunc : funcs) {
                 if (funcName == logFunc) {
                     return true;

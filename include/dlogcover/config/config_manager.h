@@ -1,6 +1,6 @@
 /**
  * @file config_manager.h
- * @brief 配置管理器
+ * @brief 配置管理器 - 基于compile_commands.json的简化配置管理
  * @copyright Copyright (c) 2023 DLogCover Team
  */
 
@@ -8,17 +8,10 @@
 #define DLOGCOVER_CONFIG_CONFIG_MANAGER_H
 
 #include <dlogcover/config/config.h>
+#include <dlogcover/config/compile_commands_manager.h>
 #include <dlogcover/cli/options.h>
-#include <nlohmann/json.hpp>
 #include <string>
-#include <vector>
-
-// 前向声明
-namespace dlogcover {
-namespace cli {
-    class Options;
-}
-}
+#include <memory>
 
 namespace dlogcover {
 namespace config {
@@ -26,7 +19,7 @@ namespace config {
 /**
  * @brief 配置管理器类
  * 
- * 负责加载、解析和管理配置文件
+ * 负责加载、解析和管理配置文件，基于compile_commands.json的简化配置方案
  */
 class ConfigManager {
 public:
@@ -42,10 +35,17 @@ public:
 
     /**
      * @brief 加载配置文件
-     * @param configPath 配置文件路径
+     * @param config_path 配置文件路径
      * @return 加载成功返回true，否则返回false
      */
-    bool loadConfig(const std::string& configPath);
+    bool loadConfig(const std::string& config_path);
+
+    /**
+     * @brief 初始化默认配置
+     * @param project_dir 项目目录（可选，默认为当前目录）
+     * @return 初始化成功返回true，否则返回false
+     */
+    bool initializeDefault(const std::string& project_dir = ".");
 
     /**
      * @brief 获取配置对象
@@ -54,7 +54,13 @@ public:
     const Config& getConfig() const;
 
     /**
-     * @brief 检查配置文件是否已加载
+     * @brief 获取编译命令管理器
+     * @return 编译命令管理器的引用
+     */
+    CompileCommandsManager& getCompileCommandsManager();
+
+    /**
+     * @brief 检查配置是否已加载
      * @return 如果已加载返回true，否则返回false
      */
     bool isLoaded() const { return loaded_; }
@@ -66,19 +72,7 @@ public:
     const std::string& getError() const { return error_; }
 
     /**
-     * @brief 重置配置管理器
-     */
-    void reset();
-
-    /**
-     * @brief 验证配置文件格式
-     * @param configPath 配置文件路径
-     * @return 验证成功返回true，否则返回false
-     */
-    bool validateConfig(const std::string& configPath);
-
-    /**
-     * @brief 验证配置对象
+     * @brief 验证配置
      * @return 验证成功返回true，否则返回false
      */
     bool validateConfig() const;
@@ -90,66 +84,41 @@ public:
     void mergeWithCommandLineOptions(const dlogcover::cli::Options& options);
 
     /**
-     * @brief 更新日志级别过滤器
-     * @param level 日志级别
+     * @brief 生成默认配置文件
+     * @param config_path 配置文件路径
+     * @param project_dir 项目目录
+     * @return 生成成功返回true，否则返回false
      */
-    void updateLogLevelFilters(dlogcover::cli::LogLevel level);
+    static bool generateDefaultConfig(const std::string& config_path, 
+                                     const std::string& project_dir = ".");
 
     /**
      * @brief 获取默认配置
+     * @param project_dir 项目目录
      * @return 默认配置对象
      */
-    static Config getDefaultConfig();
+    static Config createDefaultConfig(const std::string& project_dir = ".");
 
     // 便捷访问器方法
-    /**
-     * @brief 获取日志函数配置
-     * @return 日志函数配置的常量引用
-     */
-    const LogFunctionsConfig& getLogFunctionsConfig() const { return config_.logFunctions; }
-
-    /**
-     * @brief 获取扫描配置
-     * @return 扫描配置的常量引用
-     */
+    const ProjectConfig& getProjectConfig() const { return config_.project; }
     const ScanConfig& getScanConfig() const { return config_.scan; }
-
-    /**
-     * @brief 获取分析配置
-     * @return 分析配置的常量引用
-     */
+    const CompileCommandsConfig& getCompileCommandsConfig() const { return config_.compile_commands; }
+    const OutputConfig& getOutputConfig() const { return config_.output; }
+    const LogFunctionsConfig& getLogFunctionsConfig() const { return config_.log_functions; }
     const AnalysisConfig& getAnalysisConfig() const { return config_.analysis; }
 
-    /**
-     * @brief 获取报告配置
-     * @return 报告配置的常量引用
-     */
-    const ReportConfig& getReportConfig() const { return config_.report; }
-
-    // 兼容性访问器 - 简化的属性访问方式
-    /**
-     * @brief 获取Qt日志配置
-     * @return Qt日志配置的常量引用
-     */
-    const QtLogConfig& qt() const { return config_.logFunctions.qt; }
-    
-    /**
-     * @brief 获取自定义日志配置
-     * @return 自定义日志配置的常量引用
-     */
-    const CustomLogConfig& custom() const { return config_.logFunctions.custom; }
-
 private:
-    Config config_;                     ///< 配置对象
-    bool loaded_ = false;               ///< 是否已加载
-    std::string error_;                 ///< 错误消息
+    Config config_;                                           ///< 配置对象
+    std::unique_ptr<CompileCommandsManager> compile_manager_; ///< 编译命令管理器
+    bool loaded_ = false;                                     ///< 是否已加载
+    std::string error_;                                       ///< 错误消息
 
     /**
-     * @brief 解析扫描配置
-     * @param jsonConfig JSON配置对象
+     * @brief 解析JSON配置文件
+     * @param config_path 配置文件路径
      * @return 解析成功返回true，否则返回false
      */
-    bool parseScanConfig(const nlohmann::json& jsonConfig);
+    bool parseConfigFile(const std::string& config_path);
 
     /**
      * @brief 设置错误消息
@@ -158,25 +127,10 @@ private:
     void setError(const std::string& message);
 
     /**
-     * @brief 解析日志函数配置
-     * @param jsonConfig JSON配置对象
-     * @return 解析成功返回true，否则返回false
+     * @brief 验证项目配置
+     * @return 验证成功返回true，否则返回false
      */
-    bool parseLogFunctionsConfig(const nlohmann::json& jsonConfig);
-
-    /**
-     * @brief 解析分析配置
-     * @param jsonConfig JSON配置对象
-     * @return 解析成功返回true，否则返回false
-     */
-    bool parseAnalysisConfig(const nlohmann::json& jsonConfig);
-
-    /**
-     * @brief 解析报告配置
-     * @param jsonConfig JSON配置对象
-     * @return 解析成功返回true，否则返回false
-     */
-    bool parseReportConfig(const nlohmann::json& jsonConfig);
+    bool validateProjectConfig() const;
 
     /**
      * @brief 验证扫描配置
@@ -185,16 +139,10 @@ private:
     bool validateScanConfig() const;
 
     /**
-     * @brief 验证日志函数配置
+     * @brief 验证编译命令配置
      * @return 验证成功返回true，否则返回false
      */
-    bool validateLogFunctionsConfig() const;
-
-    /**
-     * @brief 验证报告配置
-     * @return 验证成功返回true，否则返回false
-     */
-    bool validateReportConfig() const;
+    bool validateCompileCommandsConfig() const;
 };
 
 } // namespace config

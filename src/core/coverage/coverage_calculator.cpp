@@ -60,19 +60,19 @@ bool CoverageCalculator::calculate() {
         auto& stats = coverageStats_[filePath];
 
         // 检查分析配置，计算相应类型的覆盖率
-        if (config_.analysis.functionCoverage) {
+        if (config_.analysis.function_coverage) {
             calculateFunctionCoverage(nodeInfo.get(), filePath, stats);
         }
 
-        if (config_.analysis.branchCoverage) {
+        if (config_.analysis.branch_coverage) {
             calculateBranchCoverage(nodeInfo.get(), filePath, stats);
         }
 
-        if (config_.analysis.exceptionCoverage) {
+        if (config_.analysis.exception_coverage) {
             calculateExceptionCoverage(nodeInfo.get(), filePath, stats);
         }
 
-        if (config_.analysis.keyPathCoverage) {
+        if (config_.analysis.key_path_coverage) {
             calculateKeyPathCoverage(nodeInfo.get(), filePath, stats);
         }
 
@@ -114,13 +114,13 @@ bool CoverageCalculator::calculate() {
             LOG_WARNING_FMT("  - %s", dir.c_str());
         }
 
-        LOG_WARNING_FMT("排除目录: %zu 个", config_.scan.excludes.size());
-        for (const auto& exclude : config_.scan.excludes) {
+        LOG_WARNING_FMT("排除目录: %zu 个", config_.scan.exclude_patterns.size());
+        for (const auto& exclude : config_.scan.exclude_patterns) {
             LOG_WARNING_FMT("  - %s", exclude.c_str());
         }
 
-        LOG_WARNING_FMT("文件类型: %zu 个", config_.scan.fileTypes.size());
-        for (const auto& type : config_.scan.fileTypes) {
+        LOG_WARNING_FMT("文件类型: %zu 个", config_.scan.file_extensions.size());
+        for (const auto& type : config_.scan.file_extensions) {
             LOG_WARNING_FMT("  - %s", type.c_str());
         }
 
@@ -799,19 +799,19 @@ std::unordered_set<std::string> CoverageCalculator::getAllLogFunctionsAndMacros(
     result.insert(logFunctionNames.begin(), logFunctionNames.end());
 
     // 从配置中添加Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
-        for (const auto& func : config_.logFunctions.qt.functions) {
+    if (config_.log_functions.qt.enabled) {
+        for (const auto& func : config_.log_functions.qt.functions) {
             result.insert(func);
         }
 
-        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& func : config_.log_functions.qt.category_functions) {
             result.insert(func);
         }
     }
 
     // 从配置中添加自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
             for (const auto& func : funcs) {
                 result.insert(func);
             }

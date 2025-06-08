@@ -110,17 +110,16 @@ TEST_F(ConfigWorkflowTest, BasicConfigLoad) {
 
     // 验证基本配置
     const config::Config& config = config_manager.getConfig();
-    EXPECT_TRUE(config.analysis.functionCoverage);
-    EXPECT_TRUE(config.analysis.branchCoverage);
-    EXPECT_TRUE(config.analysis.exceptionCoverage);
-    EXPECT_TRUE(config.analysis.keyPathCoverage);
+    EXPECT_TRUE(config.analysis.function_coverage);
+    EXPECT_TRUE(config.analysis.branch_coverage);
+    EXPECT_TRUE(config.analysis.exception_coverage);
+    EXPECT_TRUE(config.analysis.key_path_coverage);
     EXPECT_EQ(config.scan.directories.size(), 1);
-    EXPECT_TRUE(config.scan.isQtProject);
-    EXPECT_TRUE(config.logFunctions.qt.enabled);
-    EXPECT_TRUE(config.logFunctions.custom.enabled);
-    EXPECT_EQ(config.logFunctions.qt.functions.size(), 5);
-    EXPECT_EQ(config.report.format, "text");
-    EXPECT_EQ(config.report.timestampFormat, "YYYYMMDD_HHMMSS");
+    EXPECT_TRUE(config.log_functions.qt.enabled);
+    EXPECT_TRUE(config.log_functions.custom.enabled);
+    EXPECT_EQ(config.log_functions.qt.functions.size(), 5);
+    EXPECT_EQ(config.output.report_file, "coverage_report.txt");
+    EXPECT_EQ(config.output.log_level, "INFO");
 }
 
 // 测试无效配置文件

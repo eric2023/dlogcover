@@ -18,8 +18,8 @@ namespace ast_analyzer {
 
 bool ASTStatementAnalyzer::containsLogKeywords(const std::string& text) const {
     // 检查自定义日志函数
-    if (config_.logFunctions.custom.enabled) {
-        for (const auto& [level, funcs] : config_.logFunctions.custom.functions) {
+    if (config_.log_functions.custom.enabled) {
+        for (const auto& [level, funcs] : config_.log_functions.custom.functions) {
             for (const auto& func : funcs) {
                 if (text.find(func) != std::string::npos) {
                     return true;
@@ -29,14 +29,14 @@ bool ASTStatementAnalyzer::containsLogKeywords(const std::string& text) const {
     }
 
     // 检查Qt日志函数
-    if (config_.logFunctions.qt.enabled) {
-        for (const auto& func : config_.logFunctions.qt.functions) {
+    if (config_.log_functions.qt.enabled) {
+        for (const auto& func : config_.log_functions.qt.functions) {
             if (text.find(func) != std::string::npos) {
                 return true;
             }
         }
 
-        for (const auto& func : config_.logFunctions.qt.categoryFunctions) {
+        for (const auto& func : config_.log_functions.qt.category_functions) {
             if (text.find(func) != std::string::npos) {
                 return true;
             }

@@ -77,10 +77,10 @@ protected:
         config.scan.directories = {testDir_};
 
         // 设置排除模式
-        config.scan.excludes = {"build/"};
+        config.scan.exclude_patterns = {"build/"};
 
         // 设置文件类型
-        config.scan.fileTypes = {".cpp", ".h", ".hpp"};
+        config.scan.file_extensions = {".cpp", ".h", ".hpp"};
 
         return config;
     }
@@ -181,7 +181,7 @@ TEST_F(SourceManagerTestFixture, EmptyConfig) {
 // 测试文件类型过滤
 TEST_F(SourceManagerTestFixture, FileTypeFiltering) {
     // 修改配置，只包含.cpp文件
-    config_.scan.fileTypes = {".cpp"};
+    config_.scan.file_extensions = {".cpp"};
 
     // 创建源文件管理器
     SourceManager sourceManager(config_);
@@ -221,7 +221,7 @@ TEST_F(SourceManagerTestFixture, DirectoryExclusion) {
 
     // 设置多个排除规则
     config_.scan.directories = {testDir};
-    config_.scan.excludes = {"build/*", "tests/*", "third_party/lib2/*", "docs/*"};
+    config_.scan.exclude_patterns = {"build/*", "tests/*", "third_party/lib2/*", "docs/*"};
 
     // 创建源文件管理器
     SourceManager sourceManager(config_);
@@ -478,7 +478,7 @@ TEST_F(SourceManagerTestFixture, ErrorHandlingAndBoundaryConditions) {
 
     // 测试空文件类型配置
     config_.scan.directories = {testDir_};
-    config_.scan.fileTypes.clear();
+    config_.scan.file_extensions.clear();
     SourceManager sourceManager5(config_);
     auto collectResult5 = sourceManager5.collectSourceFiles();
     if (collectResult5.hasError()) {
@@ -488,7 +488,7 @@ TEST_F(SourceManagerTestFixture, ErrorHandlingAndBoundaryConditions) {
     }
 
     // 测试恶意文件路径
-    config_.scan.fileTypes = {".cpp", ".h"};
+    config_.scan.file_extensions = {".cpp", ".h"};
     config_.scan.directories = {testDir_};
     SourceManager sourceManager6(config_);
     auto collectResult6 = sourceManager6.collectSourceFiles();

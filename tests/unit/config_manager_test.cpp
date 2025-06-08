@@ -40,25 +40,30 @@ TEST(ConfigManagerTest, DefaultConfig) {
     // 验证默认扫描配置
     EXPECT_FALSE(config.scan.directories.empty());
     EXPECT_EQ("./", config.scan.directories[0]);
-    EXPECT_FALSE(config.scan.fileTypes.empty());
+    EXPECT_FALSE(config.scan.file_extensions.empty());
+    EXPECT_FALSE(config.scan.exclude_patterns.empty());
 
     // 验证默认Qt日志函数配置
-    EXPECT_TRUE(config.logFunctions.qt.enabled);
-    EXPECT_FALSE(config.logFunctions.qt.functions.empty());
+    EXPECT_TRUE(config.log_functions.qt.enabled);
+    EXPECT_FALSE(config.log_functions.qt.functions.empty());
 
     // 验证默认自定义日志函数配置
-    EXPECT_TRUE(config.logFunctions.custom.enabled);
-    EXPECT_FALSE(config.logFunctions.custom.functions.empty());
+    EXPECT_TRUE(config.log_functions.custom.enabled);
+    EXPECT_FALSE(config.log_functions.custom.functions.empty());
 
     // 验证默认分析配置
-    EXPECT_TRUE(config.analysis.functionCoverage);
-    EXPECT_TRUE(config.analysis.branchCoverage);
-    EXPECT_TRUE(config.analysis.exceptionCoverage);
-    EXPECT_TRUE(config.analysis.keyPathCoverage);
+    EXPECT_TRUE(config.analysis.function_coverage);
+    EXPECT_TRUE(config.analysis.branch_coverage);
+    EXPECT_TRUE(config.analysis.exception_coverage);
+    EXPECT_TRUE(config.analysis.key_path_coverage);
 
     // 验证默认报告配置
-    EXPECT_EQ("text", config.report.format);
-    EXPECT_EQ("YYYYMMDD_HHMMSS", config.report.timestampFormat);
+    EXPECT_EQ("coverage_report.txt", config.output.report_file);
+    EXPECT_EQ("INFO", config.output.log_level);
+
+    // 验证输出配置
+    EXPECT_EQ("coverage_report.txt", config.output.report_file);
+    EXPECT_EQ("analysis.log", config.output.log_file);
 }
 
 // 测试加载有效配置文件
@@ -111,29 +116,29 @@ TEST(ConfigManagerTest, LoadValidConfig) {
     // 验证扫描配置
     EXPECT_EQ(1, config.scan.directories.size());
     EXPECT_EQ("/test/dir", config.scan.directories[0]);
-    EXPECT_EQ(2, config.scan.excludes.size());
-    EXPECT_EQ(2, config.scan.fileTypes.size());
+    EXPECT_EQ(2, config.scan.exclude_patterns.size());
+    EXPECT_EQ(2, config.scan.file_extensions.size());
 
     // 验证Qt日志函数配置
-    EXPECT_TRUE(config.logFunctions.qt.enabled);
-    EXPECT_EQ(2, config.logFunctions.qt.functions.size());
-    EXPECT_EQ(1, config.logFunctions.qt.categoryFunctions.size());
+    EXPECT_TRUE(config.log_functions.qt.enabled);
+    EXPECT_EQ(2, config.log_functions.qt.functions.size());
+    EXPECT_EQ(1, config.log_functions.qt.category_functions.size());
 
     // 验证自定义日志函数配置
-    EXPECT_TRUE(config.logFunctions.custom.enabled);
-    EXPECT_EQ(2, config.logFunctions.custom.functions.size());
-    EXPECT_EQ(1, config.logFunctions.custom.functions.at("debug").size());
-    EXPECT_EQ(1, config.logFunctions.custom.functions.at("info").size());
+    EXPECT_TRUE(config.log_functions.custom.enabled);
+    EXPECT_EQ(2, config.log_functions.custom.functions.size());
+    EXPECT_EQ(1, config.log_functions.custom.functions.at("debug").size());
+    EXPECT_EQ(1, config.log_functions.custom.functions.at("info").size());
 
     // 验证分析配置
-    EXPECT_TRUE(config.analysis.functionCoverage);
-    EXPECT_FALSE(config.analysis.branchCoverage);
-    EXPECT_TRUE(config.analysis.exceptionCoverage);
-    EXPECT_FALSE(config.analysis.keyPathCoverage);
+    EXPECT_TRUE(config.analysis.function_coverage);
+    EXPECT_FALSE(config.analysis.branch_coverage);
+    EXPECT_TRUE(config.analysis.exception_coverage);
+    EXPECT_FALSE(config.analysis.key_path_coverage);
 
-    // 验证报告配置
-    EXPECT_EQ("json", config.report.format);
-    EXPECT_EQ("YYYY-MM-DD", config.report.timestampFormat);
+    // 验证输出配置
+    EXPECT_EQ("json", config.output.report_file);
+    EXPECT_EQ("INFO", config.output.log_level);
 
     // 清理临时文件
     std::filesystem::remove(tempConfigFile);
@@ -183,16 +188,16 @@ TEST(ConfigManagerTest, MergeWithCommandLineOptions) {
     // 验证扫描配置
     EXPECT_EQ(1, config.scan.directories.size());
     EXPECT_EQ("/custom/dir", config.scan.directories[0]);
-    EXPECT_TRUE(std::find(config.scan.excludes.begin(), config.scan.excludes.end(), "custom_exclude/") !=
-                config.scan.excludes.end());
+    EXPECT_TRUE(std::find(config.scan.exclude_patterns.begin(), config.scan.exclude_patterns.end(), "custom_exclude/") !=
+                config.scan.exclude_patterns.end());
 
     // 验证日志级别过滤
-    auto& customFunctions = config.logFunctions.custom.functions;
+    auto& customFunctions = config.log_functions.custom.functions;
     EXPECT_EQ(0, (customFunctions.find("debug") != customFunctions.end() ? 1 : 0) +
                      (customFunctions.find("info") != customFunctions.end() ? 1 : 0));
 
     // 验证报告格式
-    EXPECT_EQ("json", config.report.format);
+    EXPECT_EQ("json", config.output.report_file);
 }
 
 // 测试配置验证
@@ -201,10 +206,10 @@ TEST(ConfigManagerTest, ValidateConfig) {
     ConfigManager configManager;
 
     // 获取默认配置
-    Config config = configManager.getDefaultConfig();
+    Config config = configManager.createDefaultConfig("./");
 
     // 修改配置使其无效 - 空文件类型
-    config.scan.fileTypes.clear();
+    config.scan.file_extensions.clear();
 
     // 创建配置管理器
     ConfigManager invalidConfigManager;

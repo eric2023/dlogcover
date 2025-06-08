@@ -1,456 +1,346 @@
 /**
  * @file config_manager.cpp
- * @brief 配置管理器实现
+ * @brief 配置管理器实现 - 基于compile_commands.json的简化配置管理
  * @copyright Copyright (c) 2023 DLogCover Team
  */
 
 #include <dlogcover/config/config_manager.h>
+#include <dlogcover/config/compile_commands_manager.h>
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
 
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <regex>
 
 namespace dlogcover {
 namespace config {
 
-namespace {
-/**
- * @brief 检查JSON对象中是否存在指定的键，并且值类型符合要求
- * @param json JSON对象
- * @param key 键名
- * @param type 期望的值类型
- * @return 如果键存在且类型匹配返回true，否则返回false
- */
-bool hasValidField(const nlohmann::json& json, const std::string& key, nlohmann::json::value_t type) {
-    auto it = json.find(key);
-    return it != json.end() && it->type() == type;
-}
-
-/**
- * @brief 从JSON数组中安全地读取字符串列表
- * @param json JSON数组
- * @param defaultValue 默认值
- * @return 字符串列表
- */
-std::vector<std::string> safeGetStringArray(const nlohmann::json& json,
-                                            const std::vector<std::string>& defaultValue = {}) {
-    if (!json.is_array()) {
-        return defaultValue;
-    }
-
-    std::vector<std::string> result;
-    result.reserve(json.size());
-
-    for (const auto& item : json) {
-        if (item.is_string()) {
-            result.push_back(item.get<std::string>());
-        }
-    }
-
-    return result.empty() ? defaultValue : result;
-}
-}  // namespace
-
 ConfigManager::ConfigManager() {
     LOG_DEBUG("配置管理器初始化");
-    config_ = getDefaultConfig();
+    compile_manager_ = std::make_unique<CompileCommandsManager>();
 }
 
 ConfigManager::~ConfigManager() {
     LOG_DEBUG("配置管理器销毁");
 }
 
-bool ConfigManager::parseScanConfig(const nlohmann::json& jsonConfig) {
-    LOG_DEBUG("解析扫描配置");
-    try {
-        if (!hasValidField(jsonConfig, "scan", nlohmann::json::value_t::object)) {
-            return true;  // 使用默认配置
-        }
+bool ConfigManager::loadConfig(const std::string& config_path) {
+    LOG_INFO_FMT("加载配置文件: %s", config_path.c_str());
 
-        const auto& scan = jsonConfig["scan"];
-
-        if (hasValidField(scan, "directories", nlohmann::json::value_t::array)) {
-            config_.scan.directories = safeGetStringArray(scan["directories"], config_.scan.directories);
-        }
-
-        if (hasValidField(scan, "excludes", nlohmann::json::value_t::array)) {
-            config_.scan.excludes = safeGetStringArray(scan["excludes"], config_.scan.excludes);
-        }
-
-        if (hasValidField(scan, "file_types", nlohmann::json::value_t::array)) {
-            config_.scan.fileTypes = safeGetStringArray(scan["file_types"], config_.scan.fileTypes);
-        }
-
-        // 添加对include_paths的解析
-        if (hasValidField(scan, "include_paths", nlohmann::json::value_t::string)) {
-            config_.scan.includePathsStr = scan["include_paths"].get<std::string>();
-            LOG_DEBUG_FMT("包含路径设置为: %s", config_.scan.includePathsStr.c_str());
-        }
-
-        // 添加对is_qt_project的解析
-        if (hasValidField(scan, "is_qt_project", nlohmann::json::value_t::boolean)) {
-            config_.scan.isQtProject = scan["is_qt_project"].get<bool>();
-            LOG_DEBUG_FMT("Qt项目标志设置为: %s", config_.scan.isQtProject ? "true" : "false");
-        }
-
-        // 添加对compiler_args的解析
-        if (hasValidField(scan, "compiler_args", nlohmann::json::value_t::array)) {
-            config_.scan.compilerArgs = safeGetStringArray(scan["compiler_args"], config_.scan.compilerArgs);
-            LOG_DEBUG_FMT("添加了 %zu 个编译器参数", config_.scan.compilerArgs.size());
-        }
-
-        // 添加对cmake配置的解析
-        if (hasValidField(scan, "cmake", nlohmann::json::value_t::object)) {
-            const auto& cmake = scan["cmake"];
-            
-            if (hasValidField(cmake, "enabled", nlohmann::json::value_t::boolean)) {
-                config_.scan.cmake.enabled = cmake["enabled"].get<bool>();
-                LOG_DEBUG_FMT("CMake自动检测设置为: %s", config_.scan.cmake.enabled ? "启用" : "禁用");
-            }
-            
-            if (hasValidField(cmake, "cmake_lists_path", nlohmann::json::value_t::string)) {
-                config_.scan.cmake.cmakeListsPath = cmake["cmake_lists_path"].get<std::string>();
-                LOG_DEBUG_FMT("CMakeLists.txt路径设置为: %s", config_.scan.cmake.cmakeListsPath.c_str());
-            }
-            
-            if (hasValidField(cmake, "target_name", nlohmann::json::value_t::string)) {
-                config_.scan.cmake.targetName = cmake["target_name"].get<std::string>();
-                LOG_DEBUG_FMT("CMake目标名称设置为: %s", config_.scan.cmake.targetName.c_str());
-            }
-            
-            if (hasValidField(cmake, "use_compile_commands", nlohmann::json::value_t::boolean)) {
-                config_.scan.cmake.useCompileCommands = cmake["use_compile_commands"].get<bool>();
-                LOG_DEBUG_FMT("使用compile_commands.json设置为: %s", config_.scan.cmake.useCompileCommands ? "启用" : "禁用");
-            }
-            
-            if (hasValidField(cmake, "compile_commands_path", nlohmann::json::value_t::string)) {
-                config_.scan.cmake.compileCommandsPath = cmake["compile_commands_path"].get<std::string>();
-                LOG_DEBUG_FMT("compile_commands.json路径设置为: %s", config_.scan.cmake.compileCommandsPath.c_str());
-            }
-            
-            if (hasValidField(cmake, "verbose_logging", nlohmann::json::value_t::boolean)) {
-                config_.scan.cmake.verboseLogging = cmake["verbose_logging"].get<bool>();
-                LOG_DEBUG_FMT("CMake详细日志设置为: %s", config_.scan.cmake.verboseLogging ? "启用" : "禁用");
-            }
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR_FMT("解析扫描配置失败: %s", e.what());
+    if (!std::filesystem::exists(config_path)) {
+        setError("配置文件不存在: " + config_path);
         return false;
     }
-}
 
-bool ConfigManager::parseLogFunctionsConfig(const nlohmann::json& jsonConfig) {
-    LOG_DEBUG("解析日志函数配置");
-    try {
-        if (!hasValidField(jsonConfig, "log_functions", nlohmann::json::value_t::object)) {
-            return true;  // 使用默认配置
-        }
-
-        const auto& logFunctions = jsonConfig["log_functions"];
-
-        // 解析Qt日志函数配置
-        if (hasValidField(logFunctions, "qt", nlohmann::json::value_t::object)) {
-            const auto& qt = logFunctions["qt"];
-
-            if (hasValidField(qt, "enabled", nlohmann::json::value_t::boolean)) {
-                config_.logFunctions.qt.enabled = qt["enabled"].get<bool>();
-            }
-
-            if (hasValidField(qt, "functions", nlohmann::json::value_t::array)) {
-                config_.logFunctions.qt.functions =
-                    safeGetStringArray(qt["functions"], config_.logFunctions.qt.functions);
-            }
-
-            if (hasValidField(qt, "category_functions", nlohmann::json::value_t::array)) {
-                config_.logFunctions.qt.categoryFunctions =
-                    safeGetStringArray(qt["category_functions"], config_.logFunctions.qt.categoryFunctions);
-            }
-        }
-
-        // 解析自定义日志函数配置
-        if (hasValidField(logFunctions, "custom", nlohmann::json::value_t::object)) {
-            const auto& custom = logFunctions["custom"];
-
-            if (hasValidField(custom, "enabled", nlohmann::json::value_t::boolean)) {
-                config_.logFunctions.custom.enabled = custom["enabled"].get<bool>();
-            }
-
-            if (hasValidField(custom, "functions", nlohmann::json::value_t::object)) {
-                const auto& functions = custom["functions"];
-                for (auto it = functions.begin(); it != functions.end(); ++it) {
-                    if (it.value().is_array()) {
-                        config_.logFunctions.custom.functions[it.key()] =
-                            safeGetStringArray(it.value(), config_.logFunctions.custom.functions[it.key()]);
-                    }
-                }
-            }
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR_FMT("解析日志函数配置失败: %s", e.what());
+    if (!parseConfigFile(config_path)) {
         return false;
     }
-}
 
-bool ConfigManager::parseAnalysisConfig(const nlohmann::json& jsonConfig) {
-    LOG_DEBUG("解析分析配置");
-    try {
-        if (!hasValidField(jsonConfig, "analysis", nlohmann::json::value_t::object)) {
-            return true;  // 使用默认配置
-        }
-
-        const auto& analysis = jsonConfig["analysis"];
-
-        if (hasValidField(analysis, "function_coverage", nlohmann::json::value_t::boolean)) {
-            config_.analysis.functionCoverage = analysis["function_coverage"].get<bool>();
-        }
-
-        if (hasValidField(analysis, "branch_coverage", nlohmann::json::value_t::boolean)) {
-            config_.analysis.branchCoverage = analysis["branch_coverage"].get<bool>();
-        }
-
-        if (hasValidField(analysis, "exception_coverage", nlohmann::json::value_t::boolean)) {
-            config_.analysis.exceptionCoverage = analysis["exception_coverage"].get<bool>();
-        }
-
-        if (hasValidField(analysis, "key_path_coverage", nlohmann::json::value_t::boolean)) {
-            config_.analysis.keyPathCoverage = analysis["key_path_coverage"].get<bool>();
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR_FMT("解析分析配置失败: %s", e.what());
+    if (!validateConfig()) {
         return false;
     }
+
+    loaded_ = true;
+    LOG_INFO("配置文件加载成功");
+    return true;
 }
 
-bool ConfigManager::parseReportConfig(const nlohmann::json& jsonConfig) {
-    LOG_DEBUG("解析报告配置");
-    try {
-        if (!hasValidField(jsonConfig, "report", nlohmann::json::value_t::object)) {
-            return true;  // 使用默认配置
-        }
+bool ConfigManager::initializeDefault(const std::string& project_dir) {
+    LOG_INFO_FMT("初始化默认配置: 项目目录=%s", project_dir.c_str());
 
-        const auto& report = jsonConfig["report"];
-
-        if (hasValidField(report, "format", nlohmann::json::value_t::string)) {
-            config_.report.format = report["format"].get<std::string>();
-        }
-
-        if (hasValidField(report, "timestamp_format", nlohmann::json::value_t::string)) {
-            config_.report.timestampFormat = report["timestamp_format"].get<std::string>();
-        }
-
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR_FMT("解析报告配置失败: %s", e.what());
+    config_ = createDefaultConfig(project_dir);
+    
+    if (!validateConfig()) {
         return false;
     }
-}
 
-bool ConfigManager::loadConfig(const std::string& path) {
-    LOG_INFO_FMT("加载配置文件: %s", path.c_str());
-
-    if (!utils::FileUtils::fileExists(path)) {
-        LOG_WARNING_FMT("配置文件不存在: %s，将使用默认配置", path.c_str());
-        // 使用默认配置
-        config_ = getDefaultConfig();
-        LOG_INFO("已加载默认配置");
-        return true;
-    }
-
-    try {
-        std::ifstream file(path);
-        if (!file.is_open()) {
-            LOG_ERROR_FMT("无法打开配置文件: %s，将使用默认配置", path.c_str());
-            // 使用默认配置
-            config_ = getDefaultConfig();
-            LOG_INFO("已加载默认配置");
-            return true;
-        }
-
-        nlohmann::json jsonConfig;
-        file >> jsonConfig;
-
-        // 按顺序解析各个配置部分
-        if (!parseScanConfig(jsonConfig) || !parseLogFunctionsConfig(jsonConfig) || !parseAnalysisConfig(jsonConfig) ||
-            !parseReportConfig(jsonConfig)) {
-            LOG_ERROR_FMT("配置文件解析失败: %s，将使用默认配置", path.c_str());
-            // 使用默认配置
-            config_ = getDefaultConfig();
-            LOG_INFO("已加载默认配置");
-            return true;
-        }
-
-        LOG_INFO("配置文件加载成功");
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR_FMT("配置文件解析错误: %s，将使用默认配置", e.what());
-        // 使用默认配置
-        config_ = getDefaultConfig();
-        LOG_INFO("已加载默认配置");
-        return true;
-    }
-}
-
-void ConfigManager::mergeWithCommandLineOptions(const cli::Options& options) {
-    LOG_DEBUG("与命令行选项合并");
-
-    // 合并扫描目录
-    if (!options.directoryPath.empty()) {
-        if (config_.scan.directories.empty()) {
-            config_.scan.directories.push_back(options.directoryPath);
-        } else {
-            config_.scan.directories[0] = options.directoryPath;
-        }
-    }
-
-    // 合并排除模式
-    if (!options.excludePatterns.empty()) {
-        config_.scan.excludes.insert(config_.scan.excludes.end(), options.excludePatterns.begin(),
-                                     options.excludePatterns.end());
-    }
-
-    // 合并日志级别过滤
-    if (options.logLevel != cli::LogLevel::ALL) {
-        updateLogLevelFilters(options.logLevel);
-    }
-
-    // 合并报告格式
-    config_.report.format = (options.reportFormat == cli::ReportFormat::JSON) ? "json" : "text";
-}
-
-void ConfigManager::updateLogLevelFilters(cli::LogLevel level) {
-    LOG_DEBUG_FMT("更新日志级别过滤器: %d", static_cast<int>(level));
-
-    const std::vector<std::string> levelOrder = {"debug", "info", "warning", "critical", "fatal"};
-    size_t startIndex = 0;
-
-    switch (level) {
-        case cli::LogLevel::DEBUG:
-            startIndex = 0;
-            break;
-        case cli::LogLevel::INFO:
-            startIndex = 1;
-            break;
-        case cli::LogLevel::WARNING:
-            startIndex = 2;
-            break;
-        case cli::LogLevel::CRITICAL:
-            startIndex = 3;
-            break;
-        case cli::LogLevel::FATAL:
-            startIndex = 4;
-            break;
-        default:
-            return;
-    }
-
-    // 移除低于指定级别的日志函数
-    for (size_t i = 0; i < startIndex; ++i) {
-        const auto& levelName = levelOrder[i];
-        auto it = config_.logFunctions.custom.functions.find(levelName);
-        if (it != config_.logFunctions.custom.functions.end()) {
-            config_.logFunctions.custom.functions.erase(it);
-        }
-    }
+    loaded_ = true;
+    LOG_INFO("默认配置初始化成功");
+    return true;
 }
 
 const Config& ConfigManager::getConfig() const {
     return config_;
 }
 
-Config ConfigManager::getDefaultConfig() {
-    LOG_DEBUG("创建默认配置");
-
-    Config config;
-
-    // 默认扫描配置
-    config.scan.directories = {"./"};  // 默认为当前目录
-    config.scan.excludes = {"build/", "test/", "third_party/", ".git/"};
-    config.scan.fileTypes = {".cpp", ".cc", ".cxx", ".h", ".hpp"};
-    config.scan.includePathsStr = "./include:./src";  // 默认包含路径
-    config.scan.isQtProject = false;                  // 默认不是Qt项目
-    config.scan.compilerArgs = {                      // 默认编译参数
-                                "-Wno-everything", "-xc++", "-ferror-limit=0", "-fsyntax-only"};
-    
-    // 默认CMake配置
-    config.scan.cmake.enabled = true;                 // 默认启用CMake参数自动检测
-    config.scan.cmake.cmakeListsPath = "";            // 空则自动查找
-    config.scan.cmake.targetName = "";                // 空则使用全局参数
-    config.scan.cmake.useCompileCommands = true;      // 默认使用compile_commands.json
-    config.scan.cmake.compileCommandsPath = "";       // 空则自动查找
-    config.scan.cmake.verboseLogging = false;         // 默认不启用详细日志
-
-    // 默认Qt日志函数配置
-    config.logFunctions.qt.enabled = true;
-    config.logFunctions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
-    config.logFunctions.qt.categoryFunctions = {"qCDebug", "qCInfo", "qCWarning", "qCCritical"};
-
-    // 默认自定义日志函数配置
-    config.logFunctions.custom.enabled = true;
-    config.logFunctions.custom.functions["debug"] = {"logDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"};
-    config.logFunctions.custom.functions["info"] = {"logInfo", "LOG_INFO", "LOG_INFO_FMT"};
-    config.logFunctions.custom.functions["warning"] = {"logWarning", "LOG_WARNING", "LOG_WARNING_FMT"};
-    config.logFunctions.custom.functions["critical"] = {"logCritical"};
-    config.logFunctions.custom.functions["fatal"] = {"logFatal", "LOG_ERROR", "LOG_ERROR_FMT", "LOG_FATAL",
-                                                     "LOG_FATAL_FMT"};
-
-    // 默认分析配置
-    config.analysis.functionCoverage = true;
-    config.analysis.branchCoverage = true;
-    config.analysis.exceptionCoverage = true;
-    config.analysis.keyPathCoverage = true;
-
-    // 默认报告配置
-    config.report.format = "text";
-    config.report.timestampFormat = "YYYYMMDD_HHMMSS";
-
-    return config;
+CompileCommandsManager& ConfigManager::getCompileCommandsManager() {
+    return *compile_manager_;
 }
 
 bool ConfigManager::validateConfig() const {
     LOG_DEBUG("验证配置");
 
-    return validateScanConfig() && validateLogFunctionsConfig() && validateReportConfig();
+    return validateProjectConfig() && 
+           validateScanConfig() && 
+           validateCompileCommandsConfig();
+}
+
+void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& options) {
+    LOG_DEBUG("合并命令行选项");
+
+    // 合并项目目录
+    if (!options.directoryPath.empty()) {
+        config_.project.directory = options.directoryPath;
+        LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
+    }
+
+    // 合并排除模式
+    if (!options.excludePatterns.empty()) {
+        config_.scan.exclude_patterns.insert(
+            config_.scan.exclude_patterns.end(),
+            options.excludePatterns.begin(),
+            options.excludePatterns.end()
+        );
+        LOG_DEBUG_FMT("添加排除模式，共 %zu 个", options.excludePatterns.size());
+    }
+
+    // 合并输出配置
+    if (!options.outputPath.empty()) {
+        config_.output.report_file = options.outputPath;
+        LOG_DEBUG_FMT("设置输出文件: %s", config_.output.report_file.c_str());
+    }
+
+    if (!options.logPath.empty()) {
+        config_.output.log_file = options.logPath;
+        LOG_DEBUG_FMT("设置日志文件: %s", config_.output.log_file.c_str());
+    }
+
+    // 合并日志级别
+    if (options.logLevel != cli::LogLevel::ALL) {
+        switch (options.logLevel) {
+            case cli::LogLevel::DEBUG:
+                config_.output.log_level = "DEBUG";
+                break;
+            case cli::LogLevel::INFO:
+                config_.output.log_level = "INFO";
+                break;
+            case cli::LogLevel::WARNING:
+                config_.output.log_level = "WARNING";
+                break;
+            case cli::LogLevel::CRITICAL:
+                config_.output.log_level = "CRITICAL";
+                break;
+            case cli::LogLevel::FATAL:
+                config_.output.log_level = "FATAL";
+                break;
+            default:
+                break;
+        }
+        LOG_DEBUG_FMT("设置日志级别: %s", config_.output.log_level.c_str());
+    }
+}
+
+bool ConfigManager::generateDefaultConfig(const std::string& config_path, 
+                                         const std::string& project_dir) {
+    LOG_INFO_FMT("生成默认配置文件: %s", config_path.c_str());
+
+    try {
+        Config default_config = createDefaultConfig(project_dir);
+
+        nlohmann::json json_config;
+        
+        // 项目配置
+        json_config["project"]["name"] = default_config.project.name;
+        json_config["project"]["directory"] = default_config.project.directory;
+        json_config["project"]["build_directory"] = default_config.project.build_directory;
+
+        // 扫描配置
+        json_config["scan"]["directories"] = default_config.scan.directories;
+        json_config["scan"]["file_extensions"] = default_config.scan.file_extensions;
+        json_config["scan"]["exclude_patterns"] = default_config.scan.exclude_patterns;
+
+        // 编译命令配置
+        json_config["compile_commands"]["path"] = default_config.compile_commands.path;
+        json_config["compile_commands"]["auto_generate"] = default_config.compile_commands.auto_generate;
+        json_config["compile_commands"]["cmake_args"] = default_config.compile_commands.cmake_args;
+
+        // 输出配置
+        json_config["output"]["report_file"] = default_config.output.report_file;
+        json_config["output"]["log_file"] = default_config.output.log_file;
+        json_config["output"]["log_level"] = default_config.output.log_level;
+
+        // 写入文件
+        std::ofstream file(config_path);
+        if (!file.is_open()) {
+            LOG_ERROR_FMT("无法创建配置文件: %s", config_path.c_str());
+            return false;
+        }
+
+        file << json_config.dump(4) << std::endl;
+        LOG_INFO_FMT("成功生成默认配置文件: %s", config_path.c_str());
+        return true;
+
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("生成默认配置文件失败: %s", e.what());
+        return false;
+    }
+}
+
+Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
+    LOG_DEBUG_FMT("创建默认配置: 项目目录=%s", project_dir.c_str());
+
+    Config config;
+
+    // 项目配置
+    config.project.name = std::filesystem::path(project_dir).filename().string();
+    if (config.project.name.empty()) {
+        config.project.name = "MyProject";
+    }
+    config.project.directory = project_dir;
+    config.project.build_directory = project_dir + "/build";
+
+    // 扫描配置
+    config.scan.directories = {"./src"};
+    config.scan.file_extensions = {".cpp", ".cc", ".cxx", ".c"};
+    config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
+
+    // 编译命令配置
+    config.compile_commands.path = "./build/compile_commands.json";
+    config.compile_commands.auto_generate = true;
+    config.compile_commands.cmake_args = {"-DCMAKE_EXPORT_COMPILE_COMMANDS=1", "-DCMAKE_BUILD_TYPE=Debug"};
+
+    // 输出配置
+    config.output.report_file = "coverage_report.txt";
+    config.output.log_file = "analysis.log";
+    config.output.log_level = "INFO";
+
+    // 日志函数配置使用默认值（已在结构体中定义）
+    // 分析配置使用默认值（已在结构体中定义）
+
+    return config;
+}
+
+bool ConfigManager::parseConfigFile(const std::string& config_path) {
+    try {
+        std::ifstream file(config_path);
+        if (!file.is_open()) {
+            setError("无法打开配置文件: " + config_path);
+            return false;
+        }
+
+        nlohmann::json json_config;
+        file >> json_config;
+
+        // 解析项目配置
+        if (json_config.contains("project")) {
+            const auto& project = json_config["project"];
+            if (project.contains("name") && project["name"].is_string()) {
+                config_.project.name = project["name"].get<std::string>();
+            }
+            if (project.contains("directory") && project["directory"].is_string()) {
+                config_.project.directory = project["directory"].get<std::string>();
+            }
+            if (project.contains("build_directory") && project["build_directory"].is_string()) {
+                config_.project.build_directory = project["build_directory"].get<std::string>();
+            }
+        }
+
+        // 解析扫描配置
+        if (json_config.contains("scan")) {
+            const auto& scan = json_config["scan"];
+            if (scan.contains("directories") && scan["directories"].is_array()) {
+                config_.scan.directories.clear();
+                for (const auto& dir : scan["directories"]) {
+                    if (dir.is_string()) {
+                        config_.scan.directories.push_back(dir.get<std::string>());
+                    }
+                }
+            }
+            if (scan.contains("file_extensions") && scan["file_extensions"].is_array()) {
+                config_.scan.file_extensions.clear();
+                for (const auto& ext : scan["file_extensions"]) {
+                    if (ext.is_string()) {
+                        config_.scan.file_extensions.push_back(ext.get<std::string>());
+                    }
+                }
+            }
+            if (scan.contains("exclude_patterns") && scan["exclude_patterns"].is_array()) {
+                config_.scan.exclude_patterns.clear();
+                for (const auto& pattern : scan["exclude_patterns"]) {
+                    if (pattern.is_string()) {
+                        config_.scan.exclude_patterns.push_back(pattern.get<std::string>());
+                    }
+                }
+            }
+        }
+
+        // 解析编译命令配置
+        if (json_config.contains("compile_commands")) {
+            const auto& cc = json_config["compile_commands"];
+            if (cc.contains("path") && cc["path"].is_string()) {
+                config_.compile_commands.path = cc["path"].get<std::string>();
+            }
+            if (cc.contains("auto_generate") && cc["auto_generate"].is_boolean()) {
+                config_.compile_commands.auto_generate = cc["auto_generate"].get<bool>();
+            }
+            if (cc.contains("cmake_args") && cc["cmake_args"].is_array()) {
+                config_.compile_commands.cmake_args.clear();
+                for (const auto& arg : cc["cmake_args"]) {
+                    if (arg.is_string()) {
+                        config_.compile_commands.cmake_args.push_back(arg.get<std::string>());
+                    }
+                }
+            }
+        }
+
+        // 解析输出配置
+        if (json_config.contains("output")) {
+            const auto& output = json_config["output"];
+            if (output.contains("report_file") && output["report_file"].is_string()) {
+                config_.output.report_file = output["report_file"].get<std::string>();
+            }
+            if (output.contains("log_file") && output["log_file"].is_string()) {
+                config_.output.log_file = output["log_file"].get<std::string>();
+            }
+            if (output.contains("log_level") && output["log_level"].is_string()) {
+                config_.output.log_level = output["log_level"].get<std::string>();
+            }
+        }
+
+        LOG_DEBUG("配置文件解析成功");
+        return true;
+
+    } catch (const std::exception& e) {
+        setError("解析配置文件失败: " + std::string(e.what()));
+        return false;
+    }
+}
+
+void ConfigManager::setError(const std::string& message) {
+    error_ = message;
+    LOG_ERROR_FMT("配置管理器错误: %s", message.c_str());
+}
+
+bool ConfigManager::validateProjectConfig() const {
+    if (config_.project.directory.empty()) {
+        LOG_ERROR("项目目录不能为空");
+        return false;
+    }
+
+    if (!std::filesystem::exists(config_.project.directory)) {
+        LOG_ERROR_FMT("项目目录不存在: %s", config_.project.directory.c_str());
+        return false;
+    }
+
+    return true;
 }
 
 bool ConfigManager::validateScanConfig() const {
-    // 检查扫描目录是否存在
-    for (const auto& dir : config_.scan.directories) {
-        if (!utils::FileUtils::directoryExists(dir)) {
-            // 尝试创建目录
-            LOG_WARNING_FMT("扫描目录不存在，尝试创建: %s", dir.c_str());
-            try {
-                if (std::filesystem::create_directories(dir)) {
-                    LOG_INFO_FMT("成功创建扫描目录: %s", dir.c_str());
-                } else {
-                    LOG_ERROR_FMT("无法创建扫描目录: %s", dir.c_str());
-                    return false;
-                }
-            } catch (const std::exception& e) {
-                LOG_ERROR_FMT("创建扫描目录失败: %s, 错误: %s", dir.c_str(), e.what());
-                return false;
-            }
-        }
-    }
-
-    // 检查文件类型
-    if (config_.scan.fileTypes.empty()) {
-        LOG_ERROR("未指定文件类型");
+    if (config_.scan.directories.empty()) {
+        LOG_ERROR("扫描目录列表不能为空");
         return false;
     }
 
-    // 检查文件类型格式
-    for (const auto& fileType : config_.scan.fileTypes) {
-        if (fileType.empty() || fileType[0] != '.') {
-            LOG_ERROR_FMT("文件类型格式错误: %s", fileType.c_str());
+    if (config_.scan.file_extensions.empty()) {
+        LOG_ERROR("文件扩展名列表不能为空");
+        return false;
+    }
+
+    // 检查文件扩展名格式
+    for (const auto& ext : config_.scan.file_extensions) {
+        if (ext.empty() || ext[0] != '.') {
+            LOG_ERROR_FMT("文件扩展名格式错误: %s", ext.c_str());
             return false;
         }
     }
@@ -458,45 +348,14 @@ bool ConfigManager::validateScanConfig() const {
     return true;
 }
 
-bool ConfigManager::validateLogFunctionsConfig() const {
-    // 检查日志函数
-    if (!config_.logFunctions.qt.enabled && !config_.logFunctions.custom.enabled) {
-        LOG_ERROR("未启用任何日志函数");
-        return false;
-    }
-
-    // 检查Qt日志函数配置
-    if (config_.logFunctions.qt.enabled) {
-        if (config_.logFunctions.qt.functions.empty() && config_.logFunctions.qt.categoryFunctions.empty()) {
-            LOG_ERROR("Qt日志函数配置无效：未指定任何函数");
-            return false;
-        }
-    }
-
-    // 检查自定义日志函数配置
-    if (config_.logFunctions.custom.enabled && config_.logFunctions.custom.functions.empty()) {
-        LOG_ERROR("自定义日志函数配置无效：未指定任何函数");
+bool ConfigManager::validateCompileCommandsConfig() const {
+    if (config_.compile_commands.path.empty()) {
+        LOG_ERROR("compile_commands.json路径不能为空");
         return false;
     }
 
     return true;
 }
 
-bool ConfigManager::validateReportConfig() const {
-    // 检查报告格式
-    if (config_.report.format != "text" && config_.report.format != "json") {
-        LOG_ERROR_FMT("不支持的报告格式: %s", config_.report.format.c_str());
-        return false;
-    }
-
-    // 检查时间戳格式
-    if (config_.report.timestampFormat.empty()) {
-        LOG_ERROR("时间戳格式不能为空");
-        return false;
-    }
-
-    return true;
-}
-
-}  // namespace config
-}  // namespace dlogcover
+} // namespace config
+} // namespace dlogcover

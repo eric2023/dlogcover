@@ -26,6 +26,7 @@
 
 #include <dlogcover/cli/command_line_parser.h>
 #include <dlogcover/cli/config_validator.h>
+#include <dlogcover/cli/config_constants.h>
 #include <dlogcover/utils/string_utils.h>
 
 #include <algorithm>
@@ -302,6 +303,11 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
             } else if (arg == config::cli::OPTION_VERSION_SHORT || arg == config::cli::OPTION_VERSION_LONG) {
                 isVersionRequest_ = true;
                 return ErrorResult(ConfigError::None, "版本请求");
+            } else if (arg == config::cli::OPTION_CONFIG_SHORT || arg == config::cli::OPTION_CONFIG_LONG) {
+                // 配置文件参数已在第一个循环中处理，这里跳过
+                if (i + 1 < args.size()) {
+                    ++i; // 跳过参数值
+                }
             } else if (arg == config::cli::OPTION_DIRECTORY_SHORT || arg == config::cli::OPTION_DIRECTORY_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view dirPath) -> ErrorResult {
                     options_.directoryPath = std::string(dirPath);
