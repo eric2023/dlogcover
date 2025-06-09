@@ -102,83 +102,12 @@ private:
                            Handler handler);
 
     /**
-     * @brief 处理目录选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleDirectoryOption(std::string_view value);
-
-    /**
-     * @brief 处理输出选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleOutputOption(std::string_view value);
-
-    /**
-     * @brief 处理配置文件选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleConfigOption(std::string_view value);
-
-    /**
-     * @brief 处理日志路径选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleLogPathOption(std::string_view value);
-
-    /**
-     * @brief 处理排除模式选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleExcludeOption(std::string_view value);
-
-    /**
-     * @brief 处理日志级别选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleLogLevelOption(std::string_view value);
-
-    /**
-     * @brief 处理报告格式选项
-     * @param value 选项值
-     * @return 处理结果
-     */
-    ErrorResult handleFormatOption(std::string_view value);
-
-    /**
      * @brief 验证路径有效性
      * @param path 路径
      * @param isDirectory 是否为目录
      * @return 验证结果
      */
     ErrorResult validatePath(std::string_view path, bool isDirectory);
-
-    /**
-     * @brief 从环境变量加载选项
-     */
-    void loadFromEnvironment();
-
-    /**
-     * @brief 设置默认值
-     */
-    void setDefaults();
-
-    /**
-     * @brief 生成默认输出路径
-     * @return 默认输出路径
-     */
-    std::string generateDefaultOutputPath() const;
-
-    /**
-     * @brief 生成默认日志路径
-     * @return 默认日志路径
-     */
-    std::string generateDefaultLogPath() const;
 };
 
 // 模板方法的实现

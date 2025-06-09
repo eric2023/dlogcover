@@ -200,8 +200,8 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     // 分析配置
     config.analysis.function_coverage = true;
     config.analysis.branch_coverage = true;
-    config.analysis.exception_coverage = false;
-    config.analysis.key_path_coverage = false;
+    config.analysis.exception_coverage = true;
+    config.analysis.key_path_coverage = true;
 
     // 日志函数配置 (保持原样)
     
