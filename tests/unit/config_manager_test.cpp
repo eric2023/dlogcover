@@ -174,7 +174,7 @@ TEST(ConfigManagerTest, MergeWithCommandLineOptions) {
 
     // 创建命令行选项
     cli::Options options;
-    options.directoryPath = "/custom/dir";
+    options.directory = "/custom/dir";
     options.excludePatterns = {"custom_exclude/"};
     options.logLevel = cli::LogLevel::WARNING;
     options.reportFormat = cli::ReportFormat::JSON;

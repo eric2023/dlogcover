@@ -217,14 +217,6 @@ ReportFormat parseReportFormatImpl(std::string_view format) {
  * @details 初始化命令行解析器，设置所有选项的默认值
  */
 CommandLineParser::CommandLineParser() {
-    // 设置默认值
-    options_.directoryPath = DEFAULT_DIRECTORY;
-    options_.outputPath = DEFAULT_OUTPUT;
-    options_.configPath = DEFAULT_CONFIG;
-    options_.logLevel = LogLevel::ALL;
-    options_.reportFormat = ReportFormat::TEXT;
-    options_.logPath = "";  // 默认为空，将使用自动生成的文件名
-
     // 初始化帮助和版本请求标志
     isHelpRequest_ = false;
     isVersionRequest_ = false;
@@ -299,9 +291,13 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
 
             if (arg == config::cli::OPTION_HELP_SHORT || arg == config::cli::OPTION_HELP_LONG) {
                 isHelpRequest_ = true;
+                options_.showHelp = true;  // 同步设置 Options 字段
+                showHelp();  // 立即显示帮助
                 return ErrorResult(ConfigError::None, "帮助请求");
             } else if (arg == config::cli::OPTION_VERSION_SHORT || arg == config::cli::OPTION_VERSION_LONG) {
                 isVersionRequest_ = true;
+                options_.showVersion = true;  // 同步设置 Options 字段
+                showVersion();  // 立即显示版本
                 return ErrorResult(ConfigError::None, "版本请求");
             } else if (arg == config::cli::OPTION_CONFIG_SHORT || arg == config::cli::OPTION_CONFIG_LONG) {
                 // 配置文件参数已在第一个循环中处理，这里跳过
@@ -310,7 +306,7 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 }
             } else if (arg == config::cli::OPTION_DIRECTORY_SHORT || arg == config::cli::OPTION_DIRECTORY_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view dirPath) -> ErrorResult {
-                    options_.directoryPath = std::string(dirPath);
+                    options_.directory = std::string(dirPath);
                     return validatePath(dirPath, true);
                 });
                 if (result.hasError()) {
@@ -318,7 +314,7 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 }
             } else if (arg == config::cli::OPTION_OUTPUT_SHORT || arg == config::cli::OPTION_OUTPUT_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view outputPath) -> ErrorResult {
-                    options_.outputPath = std::string(outputPath);
+                    options_.output_file = std::string(outputPath);
                     std::filesystem::path fsPath(outputPath);
                     auto parentPath = fsPath.parent_path();
                     if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
@@ -332,7 +328,7 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 }
             } else if (arg == config::cli::OPTION_LOG_PATH_SHORT || arg == config::cli::OPTION_LOG_PATH_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view logPath) -> ErrorResult {
-                    options_.logPath = std::string(logPath);
+                    options_.log_file = std::string(logPath);
                     std::filesystem::path fsPath(logPath);
                     auto parentPath = fsPath.parent_path();
                     if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
@@ -525,8 +521,8 @@ void CommandLineParser::logParsedOptions() const {
     }
     
     LOG_INFO("=== 命令行参数解析结果 ===");
-    LOG_INFO_FMT("扫描目录: %s", options_.directoryPath.c_str());
-    LOG_INFO_FMT("输出路径: %s", options_.outputPath.c_str());
+    LOG_INFO_FMT("扫描目录: %s", options_.directory.c_str());
+    LOG_INFO_FMT("输出路径: %s", options_.output_file.c_str());
     LOG_INFO_FMT("配置文件: %s", options_.configPath.c_str());
     
     // 记录日志级别
@@ -547,8 +543,8 @@ void CommandLineParser::logParsedOptions() const {
     LOG_INFO_FMT("报告格式: %s", formatStr.c_str());
     
     // 记录日志文件路径
-    if (!options_.logPath.empty()) {
-        LOG_INFO_FMT("日志文件: %s", options_.logPath.c_str());
+    if (!options_.log_file.empty()) {
+        LOG_INFO_FMT("日志文件: %s", options_.log_file.c_str());
     }
     
     // 记录排除模式

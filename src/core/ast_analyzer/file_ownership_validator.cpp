@@ -6,6 +6,7 @@
  */
 
 #include "dlogcover/core/ast_analyzer/file_ownership_validator.h"
+#include "dlogcover/utils/log_utils.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -59,7 +60,7 @@ FileOwnershipValidator::ValidationResult FileOwnershipValidator::validateOwnersh
         if (it != pImpl_->cache.end()) {
             pImpl_->cacheHits++;
             if (pImpl_->debugMode) {
-                std::cout << "[FileOwnershipValidator] Cache hit for: " << cacheKey << std::endl;
+                LOG_DEBUG_FMT("[FileOwnershipValidator] Cache hit for: %s", cacheKey.c_str());
             }
             return it->second;
         }
@@ -102,11 +103,11 @@ FileOwnershipValidator::ValidationResult FileOwnershipValidator::validateOwnersh
     }
     
     if (pImpl_->debugMode) {
-        std::cout << "[FileOwnershipValidator] Validation result: " 
-                  << (result.isOwned ? "OWNED" : "NOT_OWNED")
-                  << ", Level: " << validationLevelToString(level)
-                  << ", Confidence: " << result.confidence
-                  << ", Reason: " << result.reason << std::endl;
+        LOG_DEBUG_FMT("[FileOwnershipValidator] Validation result: %s, Level: %s, Confidence: %.2f, Reason: %s",
+                      (result.isOwned ? "OWNED" : "NOT_OWNED"),
+                      validationLevelToString(level).c_str(),
+                      result.confidence,
+                      result.reason.c_str());
     }
     
     return result;

@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <locale>
 
 namespace dlogcover {
 namespace reporter {
@@ -37,6 +38,14 @@ Result<bool> TextReporterStrategy::generateReport(
     if (!file.is_open()) {
         LOG_ERROR_FMT("无法打开输出文件: %s", outputPath.c_str());
         return makeError<bool>(ReporterError::FILE_ERROR, "无法打开输出文件: " + outputPath);
+    }
+
+    // 设置UTF-8编码
+    try {
+        file.imbue(std::locale("en_US.UTF-8"));
+    } catch (const std::runtime_error& e) {
+        // 如果系统不支持en_US.UTF-8，则回退到默认locale，并记录警告
+        LOG_WARNING_FMT("无法设置en_US.UTF-8编码，使用默认locale: %s", e.what());
     }
 
     // 进度回调

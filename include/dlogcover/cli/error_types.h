@@ -20,8 +20,9 @@ using LogLevel = dlogcover::common::LogLevel;
  * @brief 报告格式枚举
  */
 enum class ReportFormat {
-    TEXT = 0,       ///< 文本格式
-    JSON = 1        ///< JSON格式
+    UNKNOWN,  // 未知或未设置
+    TEXT,     // 纯文本格式
+    JSON      // JSON格式
 };
 
 /**

@@ -24,6 +24,10 @@
 #include <unordered_map>
 
 namespace dlogcover {
+namespace config {
+class ConfigManager;
+class CompileCommandsManager;
+} // namespace config
 namespace core {
 namespace ast_analyzer {
 
@@ -41,8 +45,10 @@ public:
      * @brief 构造函数
      * @param config 配置管理器
      * @param sourceManager 源文件管理器
+     * @param configManager 配置管理器
      */
-    ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager);
+    ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager,
+                config::ConfigManager& configManager);
 
     /**
      * @brief 析构函数
@@ -89,6 +95,8 @@ public:
 private:
     const config::Config& config_;                  ///< 配置管理器
     const source_manager::SourceManager& sourceManager_;   ///< 源文件管理器
+    config::ConfigManager& configManager_;          ///< 配置管理器
+    config::CompileCommandsManager* compileManager_; ///< 编译命令管理器
     std::vector<std::unique_ptr<ASTNodeInfo>> results_;    ///< 分析结果
     std::unique_ptr<ASTFunctionAnalyzer> functionAnalyzer_;  ///< 函数分析器
     std::unique_ptr<ASTExpressionAnalyzer> expressionAnalyzer_;  ///< 表达式分析器

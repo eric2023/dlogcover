@@ -175,7 +175,6 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
     std::unordered_set<unsigned int> logLines;
     for (const auto& logCall : logCalls) {
         logLines.insert(logCall.location.line);
-        LOG_DEBUG_FMT("日志调用行号: %u, 函数: %s", logCall.location.line, logCall.functionName.c_str());
     }
 
     // 计算已覆盖的函数数量
@@ -187,8 +186,6 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
 
         // 首先检查函数节点本身是否已标记为有日志调用
         bool isCovered = funcNode->hasLogging;
-        LOG_DEBUG_FMT("函数 %s 在位置 %s:%u hasLogging=%d", funcNode->name.c_str(), funcNode->location.filePath.c_str(),
-                      funcNode->location.line, isCovered);
 
         // 增强的覆盖检测: 检查函数的子节点是否含有日志调用
         if (!isCovered) {
@@ -250,10 +247,7 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
         // 更新覆盖状态
         if (isCovered) {
             stats.coveredFunctions++;
-            LOG_DEBUG_FMT("函数 %s 被覆盖", funcNode->name.c_str());
         } else {
-            LOG_DEBUG_FMT("函数 %s 未被覆盖", funcNode->name.c_str());
-
             // 添加未覆盖路径信息
             UncoveredPathInfo uncoveredPath;
             uncoveredPath.type = CoverageType::FUNCTION;
@@ -420,11 +414,18 @@ void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo
 void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeInfo* node, const std::string& filePath,
                                                     CoverageStats& stats) {
     if (!node) {
+        LOG_DEBUG_FMT("calculateExceptionCoverage: 节点为空，文件: %s", filePath.c_str());
         return;
     }
 
+    LOG_DEBUG_FMT("开始计算异常覆盖率，文件: %s", filePath.c_str());
+
     // 遍历AST节点树，收集异常处理节点
     std::vector<const ast_analyzer::ASTNodeInfo*> exceptionNodes;
+    LOG_DEBUG_FMT("开始收集异常处理节点 (TRY_STMT=%d, CATCH_STMT=%d)", 
+                  static_cast<int>(ast_analyzer::NodeType::TRY_STMT), 
+                  static_cast<int>(ast_analyzer::NodeType::CATCH_STMT));
+    
     collectNodesByType(node, {ast_analyzer::NodeType::TRY_STMT, ast_analyzer::NodeType::CATCH_STMT}, exceptionNodes);
 
     LOG_DEBUG_FMT("文件 %s 中发现 %zu 个异常处理", filePath.c_str(), exceptionNodes.size());
@@ -490,8 +491,11 @@ void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeI
 void CoverageCalculator::calculateKeyPathCoverage(const ast_analyzer::ASTNodeInfo* node, const std::string& filePath,
                                                   CoverageStats& stats) {
     if (!node) {
+        LOG_DEBUG_FMT("calculateKeyPathCoverage: 节点为空，文件: %s", filePath.c_str());
         return;
     }
+
+    LOG_DEBUG_FMT("开始计算关键路径覆盖率，文件: %s", filePath.c_str());
 
     // 我们定义关键路径包括：
     // 1. 所有函数入口
@@ -500,15 +504,23 @@ void CoverageCalculator::calculateKeyPathCoverage(const ast_analyzer::ASTNodeInf
 
     // 收集函数入口
     std::vector<const ast_analyzer::ASTNodeInfo*> functionEntries;
+    LOG_DEBUG_FMT("收集函数入口节点 (FUNCTION=%d, METHOD=%d)", 
+                  static_cast<int>(ast_analyzer::NodeType::FUNCTION), 
+                  static_cast<int>(ast_analyzer::NodeType::METHOD));
     collectNodesByType(node, {ast_analyzer::NodeType::FUNCTION, ast_analyzer::NodeType::METHOD}, functionEntries);
+    LOG_DEBUG_FMT("找到 %zu 个函数入口", functionEntries.size());
 
     // 收集异常处理
     std::vector<const ast_analyzer::ASTNodeInfo*> exceptionHandlers;
+    LOG_DEBUG_FMT("收集异常处理节点 (CATCH_STMT=%d)", static_cast<int>(ast_analyzer::NodeType::CATCH_STMT));
     collectNodesByType(node, {ast_analyzer::NodeType::CATCH_STMT}, exceptionHandlers);
+    LOG_DEBUG_FMT("找到 %zu 个异常处理", exceptionHandlers.size());
 
     // 尝试识别关键分支
     std::vector<const ast_analyzer::ASTNodeInfo*> keyBranches;
+    LOG_DEBUG("开始识别关键分支");
     identifyKeyBranches(node, keyBranches);
+    LOG_DEBUG_FMT("找到 %zu 个关键分支", keyBranches.size());
 
     // 定义关键路径节点集合
     std::vector<const ast_analyzer::ASTNodeInfo*> keyPathNodes;
@@ -658,22 +670,32 @@ void CoverageCalculator::collectNodesByType(const ast_analyzer::ASTNodeInfo* nod
         return;
     }
 
+    // 添加详细的节点遍历调试信息
+    static int depth = 0;
+    std::string indent(depth * 2, ' ');
+    LOG_DEBUG_FMT("%s遍历节点: type=%d, name='%s', children=%zu", 
+                  indent.c_str(), static_cast<int>(node->type), node->name.c_str(), node->children.size());
+
     // 检查当前节点类型是否在目标类型列表中
     if (std::find(types.begin(), types.end(), node->type) != types.end()) {
         // 对于FUNCTION和METHOD类型节点，确保不收集compound语句节点
         if ((node->type == ast_analyzer::NodeType::FUNCTION || node->type == ast_analyzer::NodeType::METHOD) &&
             node->name == "compound") {
             // 跳过复合语句块节点，它们不是真正的函数或方法
-            LOG_DEBUG_FMT("跳过复合语句节点: %s", node->name.c_str());
+            LOG_DEBUG_FMT("%s跳过复合语句节点: %s", indent.c_str(), node->name.c_str());
         } else {
+            LOG_DEBUG_FMT("%s✓ 找到目标节点: type=%d, name='%s'", 
+                          indent.c_str(), static_cast<int>(node->type), node->name.c_str());
             result.push_back(node);
         }
     }
 
     // 递归处理子节点
+    depth++;
     for (const auto& child : node->children) {
         collectNodesByType(child.get(), types, result);
     }
+    depth--;
 }
 
 std::string CoverageCalculator::getBranchName(const ast_analyzer::ASTNodeInfo* node) {

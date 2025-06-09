@@ -9,6 +9,7 @@
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/cmake_parser.h>
 #include <dlogcover/config/compile_commands_manager.h>
+#include <dlogcover/config/config_manager.h>
 
 // 使用Clang/LLVM头文件
 #include <clang/AST/ASTContext.h>
@@ -40,16 +41,21 @@ namespace dlogcover {
 namespace core {
 namespace ast_analyzer {
 
-ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager)
-    : config_(config), sourceManager_(sourceManager), 
+ASTAnalyzer::ASTAnalyzer(const config::Config& config, const source_manager::SourceManager& sourceManager,
+                         config::ConfigManager& configManager)
+    : config_(config), sourceManager_(sourceManager), configManager_(configManager),
+      compileManager_(&configManager.getCompileCommandsManager()),
       fileValidator_(std::make_unique<FileOwnershipValidator>()) {
     LOG_DEBUG("AST分析器初始化");
     
     // 配置文件归属验证器
     // 使用当前工作目录作为项目根目录
     try {
-        std::string currentDir = std::filesystem::current_path().string();
-        fileValidator_->setProjectRoot(currentDir);
+        std::string projectRoot = config_.project.directory;
+        if (projectRoot.empty()) {
+            projectRoot = std::filesystem::current_path().string();
+        }
+        fileValidator_->setProjectRoot(projectRoot);
     } catch (const std::exception& e) {
         LOG_WARNING_FMT("无法获取当前工作目录: %s", e.what());
     }
@@ -86,7 +92,7 @@ ASTAnalyzer::~ASTAnalyzer() {
 }
 
 Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
-    LOG_INFO_FMT("分析文件: %s", filePath.c_str());
+    LOG_INFO_FMT("开始分析文件: %s", filePath.c_str());
 
     // 获取源文件信息
     const source_manager::SourceFileInfo* sourceFile = sourceManager_.getSourceFile(filePath);
@@ -112,7 +118,7 @@ Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
     }
 
     // 分析AST上下文
-    LOG_INFO_FMT("准备调用analyzeASTContext: %s", filePath.c_str());
+    LOG_DEBUG_FMT("准备调用analyzeASTContext: %s", filePath.c_str());
     auto result = analyzeASTContext(currentASTUnit_->getASTContext(), filePath);
     if (result.hasError()) {
         return makeError<bool>(result.error(), result.errorMessage());
@@ -161,27 +167,12 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
     bool useCompileCommands = false;
     
     try {
-        config::CompileCommandsManager compileManager;
-        // 首先尝试解析compile_commands.json
-        std::string compileCommandsPath = config_.project.build_directory + "/compile_commands.json";
-        if (!compileManager.parseCompileCommands(compileCommandsPath)) {
-            // 如果解析失败，尝试生成
-            if (!compileManager.generateCompileCommands(config_.project.directory, 
-                                                       config_.project.build_directory,
-                                                       config_.compile_commands.cmake_args)) {
-                LOG_WARNING_FMT("无法生成compile_commands.json: %s", compileManager.getError().c_str());
-            } else {
-                // 重新尝试解析
-                compileManager.parseCompileCommands(compileCommandsPath);
-            }
-        }
-        
-        // 使用新的getCompilerArgs方法，支持同名文件查找
-        args = compileManager.getCompilerArgs(filePath);
+        // 使用成员变量中的 compileManager_，避免重复创建和解析
+        args = compileManager_->getCompilerArgs(filePath);
         
         if (!args.empty()) {
             useCompileCommands = true;
-            LOG_INFO_FMT("成功获取文件的编译参数，数量: %zu", args.size());
+            LOG_DEBUG_FMT("成功获取文件的编译参数，数量: %zu", args.size());
             
             // 输出编译命令详情
             LOG_DEBUG("从CompileCommandsManager获取的编译参数:");
@@ -189,18 +180,23 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
                 LOG_DEBUG_FMT("  参数 #%zu: %s", i + 1, args[i].c_str());
             }
         } else {
-            LOG_WARNING_FMT("无法获取文件的编译参数: %s", filePath.c_str());
-            LOG_INFO("将使用默认编译参数");
+            LOG_DEBUG_FMT("无法获取文件的编译参数: %s", filePath.c_str());
+            LOG_DEBUG("将使用默认编译参数");
         }
     } catch (const std::exception& e) {
         LOG_ERROR_FMT("CompileCommandsManager异常: %s", e.what());
-        LOG_INFO("将使用默认编译参数");
+        LOG_DEBUG("将使用默认编译参数");
     }
     
     // 如果无法获取compile_commands.json的参数，使用默认参数
     if (!useCompileCommands) {
-        LOG_INFO("使用默认编译参数");
+        LOG_DEBUG("使用默认编译参数");
         args = getCompilerArgs();
+        
+        std::string projectDir = config_.project.directory;
+        if (projectDir.empty()) {
+            projectDir = std::filesystem::current_path().string();
+        }
         
         // 系统头文件路径 - 更完整的路径列表
         std::vector<std::string> systemIncludes = {
@@ -239,31 +235,18 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 
         // 项目特定的包含路径
         std::vector<std::string> projectIncludes = {
-            ".",          // 当前目录
-            "./include",  // 项目include目录
-            "./src",      // 源码目录
-            "../include", // 上级include目录
-            "../src"      // 上级源码目录
+            projectDir,          // 当前目录
+            projectDir + "/include",  // 项目include目录
+            projectDir + "/src",      // 源码目录
         };
 
         // 添加项目特定的包含路径
         for (const auto& includePath : projectIncludes) {
-            args.push_back("-I" + includePath);
-            LOG_DEBUG_FMT("添加项目头文件路径: %s", includePath.c_str());
+            if (std::filesystem::exists(includePath)) {
+                args.push_back("-I" + includePath);
+                LOG_DEBUG_FMT("添加项目头文件路径: %s", includePath.c_str());
+            }
         }
-
-        // 添加配置文件中指定的包含路径
-        // 注释掉include_paths_str，因为新配置结构中没有这个字段
-        // if (!config_.scan.include_paths_str.empty()) {
-        //     std::istringstream iss(config_.scan.include_paths_str);
-        //     std::string includePath;
-        //     while (std::getline(iss, includePath, ':')) {
-        //         if (!includePath.empty()) {
-        //             args.push_back("-I" + includePath);
-        //             LOG_DEBUG_FMT("添加配置的头文件路径: %s", includePath.c_str());
-        //         }
-        //     }
-        // }
     }
 
     // 编译参数现在通过 CompileCommandsManager 自动管理
@@ -296,10 +279,14 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
             "-Wno-everything",
             "-ferror-limit=0",
             "-fsyntax-only",
-            "-I.",
-            "-I./include",
-            "-I./src"
         };
+        
+        std::string projectDir = config_.project.directory;
+        if (!projectDir.empty()) {
+            simpleArgs.push_back("-I" + projectDir);
+            simpleArgs.push_back("-I" + projectDir + "/include");
+            simpleArgs.push_back("-I" + projectDir + "/src");
+        }
         
         astUnit = clang::tooling::buildASTFromCodeWithArgs(content, simpleArgs, filePath);
         if (astUnit) {
@@ -354,7 +341,7 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTContext& context,
                                                                     const std::string& filePath) {
-    LOG_INFO_FMT("分析AST上下文: %s", filePath.c_str());
+    LOG_DEBUG_FMT("开始分析AST上下文: %s", filePath.c_str());
     
     // 特别处理ast_statement_analyzer.cpp文件
     bool isTargetFile = (filePath.find("ast_statement_analyzer.cpp") != std::string::npos);
@@ -421,7 +408,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
     int namespaceDecls = 0;
 
     // 遍历顶层声明
-    LOG_INFO_FMT("开始遍历翻译单元声明，文件: %s", filePath.c_str());
+    LOG_DEBUG("开始遍历顶层声明...");
     for (auto* decl : context.getTranslationUnitDecl()->decls()) {
         totalDecls++;
         

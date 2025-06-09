@@ -31,16 +31,19 @@ core::ast_analyzer::Result<bool> SourceManager::collectSourceFiles() {
         sourceFiles_.clear();
         pathToIndex_.clear();
 
+        std::vector<std::string> processedDirectories;
+
         // 遍历所有扫描目录
         for (const auto& directory : config_.scan.directories) {
             LOG_INFO_FMT("扫描目录: %s", directory.c_str());
 
-            // 检查目录是否存在
+            // 检查目录是否存在 - 改为警告而不是错误
             if (!utils::FileUtils::directoryExists(directory)) {
-                LOG_ERROR_FMT("目录不存在: %s", directory.c_str());
-                return core::ast_analyzer::makeError<bool>(core::ast_analyzer::ASTAnalyzerError::FILE_NOT_FOUND,
-                                                           "目录不存在: " + directory);
+                LOG_WARNING_FMT("目录不存在，跳过: %s", directory.c_str());
+                continue;  // 跳过不存在的目录，继续处理下一个
             }
+
+            processedDirectories.push_back(directory);
 
             // 收集该目录下所有源文件
             std::vector<std::string> files = utils::FileUtils::listFiles(
@@ -77,7 +80,21 @@ core::ast_analyzer::Result<bool> SourceManager::collectSourceFiles() {
             }
         }
 
-        LOG_INFO_FMT("共收集到 %lu 个源文件", sourceFiles_.size());
+        // 检查是否有任何目录被成功处理
+        if (processedDirectories.empty()) {
+            LOG_ERROR("所有扫描目录都不存在，无法继续");
+            std::string allDirs = "";
+            for (size_t i = 0; i < config_.scan.directories.size(); ++i) {
+                if (i > 0) allDirs += ", ";
+                allDirs += config_.scan.directories[i];
+            }
+            return core::ast_analyzer::makeError<bool>(
+                core::ast_analyzer::ASTAnalyzerError::FILE_NOT_FOUND,
+                "所有扫描目录都不存在: " + allDirs);
+        }
+
+        LOG_INFO_FMT("成功扫描了 %zu 个目录，共收集到 %lu 个源文件", 
+                     processedDirectories.size(), sourceFiles_.size());
         return core::ast_analyzer::makeSuccess(!sourceFiles_.empty());
     } catch (const std::exception& e) {
         LOG_ERROR_FMT("收集源文件时发生异常: %s", e.what());

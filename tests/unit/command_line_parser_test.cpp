@@ -127,7 +127,7 @@ TEST(CommandLineParserTest, NormalArguments) {
     // 验证
     EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
-    EXPECT_EQ("./src", parser.getOptions().directoryPath);
+    EXPECT_EQ("./src", parser.getOptions().directory);
 }
 
 // 测试无参数情况
@@ -143,7 +143,7 @@ TEST(CommandLineParserTest, NoArguments) {
     // 验证
     EXPECT_FALSE(result.hasError());  // 应该没有错误
     EXPECT_FALSE(parser.isHelpOrVersionRequest());
-    EXPECT_EQ("./", parser.getOptions().directoryPath);  // 使用默认值
+    EXPECT_EQ("./", parser.getOptions().directory);  // 使用默认值
 }
 
 // 测试无效参数处理
@@ -296,7 +296,7 @@ TEST_F(CommandLineParserFileTest, DirectoryValidation) {
         auto result = parser.parse(argc, argv);
 
         EXPECT_FALSE(result.hasError());
-        EXPECT_EQ(dirPath, parser.getOptions().directoryPath);
+        EXPECT_EQ(dirPath, parser.getOptions().directory);
     }
 
     // 测试不存在的目录
@@ -380,7 +380,7 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
         auto result = parser.parse(argc, argv);
 
         EXPECT_FALSE(result.hasError());
-        EXPECT_EQ(dirPath, parser.getOptions().directoryPath);
+        EXPECT_EQ(dirPath, parser.getOptions().directory);
         EXPECT_EQ(outputPath, parser.getOptions().outputPath);
         EXPECT_EQ(configPath, parser.getOptions().configPath);
         EXPECT_EQ(LogLevel::DEBUG, parser.getOptions().logLevel);

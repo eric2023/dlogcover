@@ -112,17 +112,6 @@ private:
     clang::ASTContext& context_;                           ///< AST上下文
     std::string filePath_;                                 ///< 文件路径
     const dlogcover::config::Config* config_;             ///< 配置管理器指针
-
-    /**
-     * @brief 创建节点信息
-     * @param type 节点类型
-     * @param name 节点名称
-     * @param location 位置信息
-     * @return 节点信息
-     */
-    std::unique_ptr<ASTNodeInfo> createNodeInfo(NodeType type, 
-                                               const std::string& name,
-                                               const LocationInfo& location);
 };
 
 } // namespace ast_analyzer

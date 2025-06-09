@@ -14,6 +14,7 @@
 #include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
+#include <dlogcover/common/log_types.h>
 
 #include <chrono>
 #include <filesystem>
@@ -63,48 +64,65 @@ enum class ParseResult {
 };
 
 ParseResult parseCommandLine(int argc, char* argv[], cli::CommandLineParser& parser) {
-    auto result = parser.parse(argc, argv);
-    
-    // 首先检查是否是帮助或版本请求（无论是否有错误）
-    if (parser.isHelpOrVersionRequest()) {
-        if (parser.isHelpRequest()) {
-            parser.showHelp();
-        } else if (parser.isVersionRequest()) {
-            parser.showVersion();
+    try {
+        auto result = parser.parse(argc, argv);
+
+        // 检查是否是帮助或版本请求
+        // parse() 函数内部已经处理了信息的显示
+        if (parser.isHelpOrVersionRequest()) {
+            return ParseResult::HELP_VERSION;
         }
-        return ParseResult::HELP_VERSION;  // 帮助或版本请求，正常退出
+
+        // 检查其他解析错误
+        if (result.hasError()) {
+            std::cerr << "参数解析错误: " << result.message() << std::endl << std::endl;
+            parser.showHelp();
+            return ParseResult::ERROR;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "参数解析时发生未知错误: " << e.what() << std::endl;
+        parser.showHelp();
+        return ParseResult::ERROR;
     }
-    
-    // 然后检查其他错误
-    if (result.hasError()) {
-        // 显示错误信息和帮助提示
-        std::cerr << "错误: " << result.errorMessage() << std::endl;
-        std::cerr << "使用 --help 查看使用说明" << std::endl;
-        return ParseResult::ERROR;  // 其他解析错误
-    }
+
     return ParseResult::SUCCESS;
 }
 
 // 加载和验证配置
 bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& configManager) {
-    Timer timer("配置加载和验证");
+    Timer timer("配置加载");
 
-    // loadConfig现在即使配置文件不存在也会返回true，因为会使用默认配置
-    if (!configManager.loadConfig(options.configPath)) {
-        // 这里应该不会再进来，但保留以防万一
-        LOG_ERROR("无法加载配置文件或默认配置: " + options.configPath);
-        return false;
+    bool configLoaded = false;
+    if (!options.configPath.empty()) {
+        configLoaded = configManager.loadConfig(options.configPath);
+    } else {
+        // 尝试在当前目录查找dlogcover.json
+        if (std::filesystem::exists("dlogcover.json")) {
+            configLoaded = configManager.loadConfig("dlogcover.json");
+        }
     }
 
-    // 与命令行选项合并
+    if (!configLoaded) {
+        LOG_INFO("未找到配置文件，使用默认配置");
+        std::string projectDir = options.directory.empty() 
+                               ? std::filesystem::current_path().string() 
+                               : options.directory;
+        if (!configManager.initializeDefault(projectDir)) {
+            LOG_ERROR("默认配置初始化失败");
+            return false;
+        }
+    }
+
+    // 合并命令行选项
     configManager.mergeWithCommandLineOptions(options);
 
-    // 验证配置
+    // 验证最终配置
     if (!configManager.validateConfig()) {
         LOG_ERROR("配置验证失败");
         return false;
     }
 
+    LOG_INFO("配置加载和验证成功");
     return true;
 }
 
@@ -118,6 +136,77 @@ bool collectSourceFiles(const config::Config& config, source_manager::SourceMana
         return false;
     }
     LOG_INFO_FMT("共收集到%lu个源文件", sourceManager.getSourceFileCount());
+    return true;
+}
+
+// 准备编译命令
+bool prepareCompileCommands(const config::Config& config, config::ConfigManager& configManager) {
+    Timer timer("编译命令准备");
+    
+    LOG_INFO("开始准备编译命令数据库");
+    
+    // 获取 CompileCommandsManager 实例
+    auto& compileManager = configManager.getCompileCommandsManager();
+    
+    // 确定项目目录
+    std::string projectDir = config.project.directory;
+    if (projectDir.empty()) {
+        projectDir = std::filesystem::current_path().string();
+        LOG_INFO_FMT("项目目录未设置，使用当前工作目录: %s", projectDir.c_str());
+    }
+    
+    // 确定构建目录
+    std::string buildDir = config.project.build_directory;
+    if (buildDir.empty()) {
+        buildDir = projectDir + "/build";
+        LOG_INFO_FMT("构建目录未设置，使用默认值: %s", buildDir.c_str());
+    }
+    
+    // 创建构建目录
+    try {
+        std::filesystem::create_directories(buildDir);
+        LOG_DEBUG_FMT("确保构建目录存在: %s", buildDir.c_str());
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("无法创建构建目录: %s, 错误: %s", buildDir.c_str(), e.what());
+        return false;
+    }
+    
+    // 检查是否需要生成 compile_commands.json
+    std::string compileCommandsPath = config.compile_commands.path;
+    bool needGenerate = config.compile_commands.auto_generate;
+    
+    if (needGenerate) {
+        // 检查现有文件是否有效
+        if (compileManager.isCompileCommandsValid(compileCommandsPath)) {
+            LOG_INFO("发现有效的 compile_commands.json，跳过生成");
+            needGenerate = false;
+        }
+    }
+    
+    if (needGenerate) {
+        LOG_INFO("开始生成 compile_commands.json");
+        if (!compileManager.generateCompileCommands(projectDir, buildDir, config.compile_commands.cmake_args)) {
+            LOG_WARNING_FMT("生成 compile_commands.json 失败: %s", compileManager.getError().c_str());
+            LOG_INFO("将使用默认编译参数进行分析");
+        } else {
+            LOG_INFO("成功生成 compile_commands.json");
+        }
+    }
+    
+    // 解析 compile_commands.json
+    if (std::filesystem::exists(compileCommandsPath)) {
+        if (!compileManager.parseCompileCommands(compileCommandsPath)) {
+            LOG_WARNING_FMT("解析 compile_commands.json 失败: %s", compileManager.getError().c_str());
+            LOG_INFO("将使用默认编译参数进行分析");
+        } else {
+            LOG_INFO_FMT("成功解析 compile_commands.json，包含 %zu 个文件", 
+                        compileManager.getAllFiles().size());
+        }
+    } else {
+        LOG_INFO("未找到compile_commands.json，将使用默认编译参数");
+    }
+    
+    LOG_INFO("编译命令准备完成");
     return true;
 }
 
@@ -201,68 +290,44 @@ bool generateReport(const config::Config& config, const cli::Options& options,
     }
 
     // 使用新的接口生成报告
-    auto result = reporter.generateReport(options.outputPath, format, progressCallback);
+                    auto result = reporter.generateReport(options.output_file, format, progressCallback);
     if (result.hasError()) {
         LOG_ERROR_FMT("报告生成失败: %s", result.errorMessage().c_str());
         return false;
     }
-    LOG_INFO("报告生成完成: " + options.outputPath);
+                    LOG_INFO("报告生成完成: " + options.output_file);
     return true;
 }
 
-// 生成日志文件名
 std::string generateLogFileName(const cli::Options& options) {
     // 如果配置中指定了日志文件名，则使用配置中的名称
-    if (!options.logPath.empty()) {
-        return options.logPath;
+    if (!options.log_file.empty()) {
+        return options.log_file;
     }
 
-    // 否则使用默认名称加时间戳
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ///ss << "dlogcover_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".log";
-    ss << "dlogcover.log";
-    return ss.str();
+    // 否则使用默认名称
+    return "dlogcover.log";
 }
 
 // 初始化日志系统
-bool initializeLogging(const cli::Options& options) {
+bool initializeLogging(const config::Config& config) {
     Timer timer("日志系统初始化");
     
-    // 转换日志级别
-    utils::LogLevel logLevel = common::getDefaultLogLevel(); // 默认级别
-    switch (options.logLevel) {
-        case cli::LogLevel::DEBUG:
-            logLevel = utils::LogLevel::DEBUG;
-            break;
-        case cli::LogLevel::INFO:
-            logLevel = utils::LogLevel::INFO;
-            break;
-        case cli::LogLevel::WARNING:
-            logLevel = utils::LogLevel::WARNING;
-            break;
-        case cli::LogLevel::CRITICAL:
-            logLevel = utils::LogLevel::ERROR; // CRITICAL映射到ERROR
-            break;
-        case cli::LogLevel::FATAL:
-            logLevel = utils::LogLevel::FATAL;
-            break;
-        case cli::LogLevel::ALL:
-            logLevel = utils::LogLevel::DEBUG; // ALL映射到DEBUG（输出所有日志）
-            break;
-        default:
-            logLevel = utils::LogLevel::INFO;
-            break;
+    // 使用 try-catch 块来处理无效的日志级别字符串
+    common::LogLevel logLevel;
+    try {
+        logLevel = common::parseLogLevel(config.output.log_level);
+    } catch (const std::invalid_argument& e) {
+        // 如果配置的日志级别无效，则记录错误并使用默认级别
+        // 注意：此时日志系统尚未初始化，因此使用std::cerr
+        std::cerr << "警告: 配置的日志级别无效 '" << config.output.log_level 
+                  << "', 将使用默认级别 'INFO'. 错误: " << e.what() << std::endl;
+        logLevel = common::getDefaultLogLevel();
     }
     
-    // 生成日志文件名
-    std::string logFileName = generateLogFileName(options);
-    
     // 初始化日志系统
-    utils::Logger::init(logFileName, true, logLevel);
+    utils::Logger::init(config.output.log_file, true, logLevel);
     
-    // 输出启动信息
     LOG_INFO_FMT("DLogCover v%s 启动", DLOGCOVER_VERSION_STR);
     
     return true;
@@ -273,20 +338,50 @@ int main(int argc, char* argv[]) {
     auto programStart = std::chrono::high_resolution_clock::now();
 
     try {
-        // 解析命令行参数
+        // 1. 解析命令行，不加载任何配置，仅填充 Options
         cli::CommandLineParser commandLineParser;
-        ParseResult parseResult = parseCommandLine(argc, argv, commandLineParser);
-        if (parseResult == ParseResult::HELP_VERSION) {
-            return 0;  // 帮助或版本请求，正常退出
-        } else if (parseResult == ParseResult::ERROR) {
-            return 1;  // 解析错误，错误退出
+        cli::Options options;
+        auto parseResult = commandLineParser.parse(argc, argv);
+        
+        if (commandLineParser.isHelpOrVersionRequest()) {
+            return 0;
+        }
+
+        if (parseResult.hasError()) {
+            std::cerr << "参数解析错误: " << parseResult.message() << std::endl << std::endl;
+            commandLineParser.showHelp();
+            return 1;
+        }
+
+        // 2. 初始化 ConfigManager，加载内置默认配置
+        config::ConfigManager configManager;
+
+        // 3. 加载配置文件（如果指定）
+        const auto& parsedOptions = commandLineParser.getOptions();
+        if (!parsedOptions.configPath.empty()) {
+            if (!configManager.loadConfig(parsedOptions.configPath)) {
+                std::cerr << "错误: 无法加载配置文件: " << parsedOptions.configPath << " - " << configManager.getError() << std::endl;
+                return 1;
+            }
+        } else {
+             // 尝试在当前目录查找dlogcover.json
+            if (std::filesystem::exists("dlogcover.json")) {
+                LOG_INFO("在当前目录找到 dlogcover.json，将加载它。");
+                if (!configManager.loadConfig("dlogcover.json")) {
+                     std::cerr << "错误: 无法加载 dlogcover.json - " << configManager.getError() << std::endl;
+                     return 1;
+                }
+            }
         }
         
-        // 获取命令行选项
-        const cli::Options& options = commandLineParser.getOptions();
+        // 4. 合并命令行参数，覆盖默认或文件配置
+        configManager.mergeWithCommandLineOptions(parsedOptions);
         
-        // 初始化日志系统
-        if (!initializeLogging(options)) {
+        // 获取最终合并后的配置
+        const config::Config& config = configManager.getConfig();
+
+        // 5. 初始化日志系统
+        if (!initializeLogging(config)) {
             std::cerr << "日志系统初始化失败" << std::endl;
             return 1;
         }
@@ -294,75 +389,65 @@ int main(int argc, char* argv[]) {
         // 记录命令行参数到日志文件
         commandLineParser.logParsedOptions();
 
-        int exitCode = 0;  // 用于跟踪退出代码
-        
-        // 使用作用域块来确保正确的资源管理
+        // 6. 验证最终配置
+        if (!configManager.validateConfig()) {
+            LOG_ERROR("最终配置验证失败");
+            return 1;
+        }
+
+        int exitCode = 0;
         {
-            // 加载配置文件
-            config::ConfigManager configManager;
-            if (!loadAndValidateConfig(options, configManager)) {
+            // 创建源文件管理器
+            source_manager::SourceManager sourceManager(config);
+            if (!collectSourceFiles(config, sourceManager)) {
                 exitCode = 1;
             } else {
-                const config::Config& config = configManager.getConfig();
+                // 新增：准备编译命令数据库
+                if (!prepareCompileCommands(config, configManager)) {
+                    LOG_WARNING("编译命令准备失败，将使用默认参数");
+                }
+                
+                // 创建AST分析器
+                core::ast_analyzer::ASTAnalyzer astAnalyzer(config, sourceManager, configManager);
 
-                // 创建源文件管理器
-                source_manager::SourceManager sourceManager(config);
-                if (!collectSourceFiles(config, sourceManager)) {
+                // 执行AST分析
+                if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
                     exitCode = 1;
                 } else {
-                    // 创建AST分析器
-                    core::ast_analyzer::ASTAnalyzer astAnalyzer(config, sourceManager);
-                    if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
+                    // 创建日志识别器和覆盖率计算器
+                    core::log_identifier::LogIdentifier logIdentifier(config, astAnalyzer);
+                    core::coverage::CoverageCalculator coverageCalculator(config, astAnalyzer, logIdentifier);
+                    coverageCalculator.calculate();
+
+                    // 创建报告器并生成报告
+                    reporter::Reporter reporter(config, coverageCalculator);
+                    reporter::ReportFormat format = parsedOptions.reportFormat == cli::ReportFormat::JSON 
+                                                  ? reporter::ReportFormat::JSON 
+                                                  : reporter::ReportFormat::TEXT;
+
+                    auto reportResult = reporter.generateReport(config.output.report_file, format);
+                    if (reportResult.hasError()) {
+                        LOG_ERROR_FMT("报告生成失败: %s", reportResult.errorMessage().c_str());
                         exitCode = 1;
                     } else {
-                        // 创建日志识别器
-                        core::log_identifier::LogIdentifier logIdentifier(config, astAnalyzer);
-                        if (!identifyLogCalls(config, astAnalyzer, logIdentifier)) {
-                            exitCode = 1;
-                        } else {
-                            // 创建覆盖率计算器
-                            core::coverage::CoverageCalculator coverageCalculator(config, astAnalyzer, logIdentifier);
-                            if (!calculateCoverage(config, astAnalyzer, logIdentifier, coverageCalculator)) {
-                                exitCode = 1;
-                            } else {
-                                // 生成报告
-                                if (!generateReport(config, options, coverageCalculator)) {
-                                    exitCode = 1;
-                                }
-                            }
-                        }
+                        LOG_INFO("报告生成完成: " + config.output.report_file);
                     }
                 }
             }
         }
-
-        // 计算并记录总执行时间
-        auto programEnd = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(programEnd - programStart).count();
         
-        // 只有在日志系统已初始化时才输出日志，避免在shutdown后重新初始化
-        if (utils::Logger::isInitialized()) {
-            if (exitCode == 0) {
-                LOG_INFO_FMT("DLogCover执行完成，总耗时: %.2f 秒", duration / 1000.0);
-            } else {
-                LOG_ERROR_FMT("DLogCover执行失败，总耗时: %.2f 秒", duration / 1000.0);
-            }
-            // 显式关闭日志系统，确保所有日志都被正确写入
-            utils::Logger::shutdown();
-        }
+        // 在程序结束前明确关闭日志，确保所有缓冲区的日志都已写入文件
+        utils::Logger::shutdown();
+        
+        auto programEnd = std::chrono::high_resolution_clock::now();
+        auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(programEnd - programStart).count();
+        std::cout << "总执行时间: " << std::fixed << std::setprecision(2) << totalDuration / 1000.0 << " 秒" << std::endl;
 
         return exitCode;
     } catch (const std::exception& e) {
-        std::cerr << "错误: " << e.what() << std::endl;
-        if (utils::Logger::isInitialized()) {
-            LOG_ERROR_FMT("标准异常: %s", e.what());
-        }
-        return 1;
-    } catch (...) {
-        std::cerr << "未知错误" << std::endl;
-        if (utils::Logger::isInitialized()) {
-            LOG_ERROR("未知异常");
-        }
+        // 在程序结束前明确关闭日志
+        utils::Logger::shutdown();
+        std::cerr << "程序意外终止: " << e.what() << std::endl;
         return 1;
     }
 }

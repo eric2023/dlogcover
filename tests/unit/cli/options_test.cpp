@@ -34,7 +34,7 @@ protected:
 // 测试默认构造函数
 TEST_F(OptionsTest, DefaultConstructor) {
     Options options;
-    EXPECT_EQ(options.directoryPath, std::string(config::cli::DEFAULT_DIRECTORY));
+    EXPECT_EQ(options.directory, std::string(config::cli::DEFAULT_DIRECTORY));
     EXPECT_EQ(options.outputPath, std::string(config::cli::DEFAULT_OUTPUT));
     EXPECT_EQ(options.configPath, std::string(config::cli::DEFAULT_CONFIG));
     EXPECT_TRUE(options.excludePatterns.empty());
@@ -45,7 +45,7 @@ TEST_F(OptionsTest, DefaultConstructor) {
 // 测试重置功能
 TEST_F(OptionsTest, Reset) {
     Options options;
-    options.directoryPath = "/custom/path";
+    options.directory = "/custom/path";
     options.outputPath = "/custom/output.txt";
     options.configPath = "/custom/config.json";
     options.excludePatterns = {"pattern1", "pattern2"};
@@ -54,7 +54,7 @@ TEST_F(OptionsTest, Reset) {
 
     options.reset();
 
-    EXPECT_EQ(options.directoryPath, std::string(config::cli::DEFAULT_DIRECTORY));
+    EXPECT_EQ(options.directory, std::string(config::cli::DEFAULT_DIRECTORY));
     EXPECT_EQ(options.outputPath, std::string(config::cli::DEFAULT_OUTPUT));
     EXPECT_EQ(options.configPath, std::string(config::cli::DEFAULT_CONFIG));
     EXPECT_TRUE(options.excludePatterns.empty());
@@ -70,13 +70,13 @@ TEST_F(OptionsTest, Validate) {
     EXPECT_FALSE(options.validate().hasError());
 
     // 测试无效目录
-    options.directoryPath = "/nonexistent/directory";
+    options.directory = "/nonexistent/directory";
     auto result = options.validate();
     EXPECT_TRUE(result.hasError());
     EXPECT_EQ(result.error(), ConfigError::DirectoryNotFound);
 
     // 测试有效目录
-    options.directoryPath = "test_data";
+    options.directory = "test_data";
     EXPECT_FALSE(options.validate().hasError());
 
     // 测试无效配置文件
@@ -113,7 +113,7 @@ TEST_F(OptionsTest, Validate) {
 // 测试字符串转换
 TEST_F(OptionsTest, ToString) {
     Options options;
-    options.directoryPath = "test_data";
+    options.directory = "test_data";
     options.outputPath = "test_data/output/file.txt";
     options.configPath = "test_data/config.json";
     options.excludePatterns = {"pattern1", "pattern2"};
@@ -131,7 +131,7 @@ TEST_F(OptionsTest, ToString) {
 // 测试JSON序列化和反序列化
 TEST_F(OptionsTest, JsonSerialization) {
     Options options1;
-    options1.directoryPath = "test_data";
+    options1.directory = "test_data";
     options1.outputPath = "test_data/output/file.txt";
     options1.configPath = "test_data/config.json";
     options1.excludePatterns = {"pattern1", "pattern2"};
@@ -204,12 +204,12 @@ TEST_F(OptionsTest, ComparisonOperators) {
     EXPECT_FALSE(options1 != options2);
 
     // 修改一个字段后应该不相等
-    options2.directoryPath = "different";
+    options2.directory = "different";
     EXPECT_NE(options1, options2);
     EXPECT_FALSE(options1 == options2);
 
     // 恢复相同值后应该相等
-    options2.directoryPath = options1.directoryPath;
+    options2.directory = options1.directory;
     EXPECT_EQ(options1, options2);
 }
 

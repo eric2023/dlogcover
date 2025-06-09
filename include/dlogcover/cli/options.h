@@ -26,10 +26,10 @@ using ErrorResult = dlogcover::cli::ErrorResult;
  * @brief 命令行选项结构
  */
 struct Options {
-    std::string directoryPath;                  ///< 扫描目录路径
-    std::string outputPath;                     ///< 输出路径
+    std::string directory;                      ///< 扫描目录路径
+    std::string output_file;                    ///< 输出路径
     std::string configPath;                     ///< 配置文件路径
-    std::string logPath;                        ///< 日志文件路径
+    std::string log_file;                       ///< 日志文件路径
     std::vector<std::string> excludePatterns;   ///< 排除模式列表
     std::vector<std::string> includePaths;      ///< 头文件搜索路径列表
     std::vector<std::string> compilerArgs;      ///< 编译器参数列表
@@ -47,15 +47,18 @@ struct Options {
      * @brief 默认构造函数
      */
     Options() 
-        : logLevel(LogLevel::ALL)
-        , reportFormat(ReportFormat::TEXT)
+        : logLevel(LogLevel::UNKNOWN)
+        , reportFormat(ReportFormat::UNKNOWN)
         , showHelp(false)
         , showVersion(false)
         , quiet(false)
         , verbose(false)
         , includeSystemHeaders(false)
-        , parallel(1)
-        , threshold(0.0) {}
+        , parallel(0)
+        , threshold(-1.0)
+    {
+        // 字符串成员默认构造为空字符串 ""
+    }
 
     /**
      * @brief 验证选项有效性

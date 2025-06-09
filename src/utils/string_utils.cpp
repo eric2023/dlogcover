@@ -277,5 +277,54 @@ std::string replaceAll(const std::string& str, const std::map<std::string, std::
     return result;
 }
 
+std::string to_utf8(const std::string& str) {
+    std::string utf8_string;
+    utf8_string.reserve(str.length());
+
+    for (size_t i = 0; i < str.length(); ) {
+        unsigned char c = str[i];
+        
+        if (c < 0x80) { // 0xxxxxxx
+            utf8_string += c;
+            i += 1;
+        } else if ((c & 0xE0) == 0xC0) { // 110xxxxx 10xxxxxx
+            if (i + 1 < str.length() && (str[i+1] & 0xC0) == 0x80) {
+                utf8_string += c;
+                utf8_string += str[i+1];
+                i += 2;
+            } else {
+                utf8_string += '?';
+                i += 1;
+            }
+        } else if ((c & 0xF0) == 0xE0) { // 1110xxxx 10xxxxxx 10xxxxxx
+            if (i + 2 < str.length() && (str[i+1] & 0xC0) == 0x80 && (str[i+2] & 0xC0) == 0x80) {
+                utf8_string += c;
+                utf8_string += str[i+1];
+                utf8_string += str[i+2];
+                i += 3;
+            } else {
+                utf8_string += '?';
+                i += 1;
+            }
+        } else if ((c & 0xF8) == 0xF0) { // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+             if (i + 3 < str.length() && (str[i+1] & 0xC0) == 0x80 && (str[i+2] & 0xC0) == 0x80 && (str[i+3] & 0xC0) == 0x80) {
+                utf8_string += c;
+                utf8_string += str[i+1];
+                utf8_string += str[i+2];
+                utf8_string += str[i+3];
+                i += 4;
+            } else {
+                utf8_string += '?';
+                i += 1;
+            }
+        }
+        else {
+            utf8_string += '?';
+            i += 1;
+        }
+    }
+    return utf8_string;
+}
+
 } // namespace utils
 } // namespace dlogcover

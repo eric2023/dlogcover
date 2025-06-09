@@ -286,14 +286,16 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeDoStmt(clang::
 }
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang::CXXTryStmt* stmt) {
-    LOG_DEBUG("分析try语句");
+    LOG_DEBUG("✓ 开始分析try语句");
 
     auto nodeInfo = createNodeInfo(NodeType::TRY_STMT, "try", stmt->getBeginLoc());
     if (!nodeInfo) {
+        LOG_ERROR("创建try语句节点信息失败");
         return makeError<std::unique_ptr<ASTNodeInfo>>(ASTAnalyzerError::INTERNAL_ERROR, "创建节点信息失败");
     }
 
     nodeInfo->text = getSourceText(stmt->getBeginLoc(), stmt->getEndLoc());
+    LOG_DEBUG_FMT("try语句文本: %s", nodeInfo->text.substr(0, 100).c_str());
 
     // 分析try语句的try块
     if (stmt->getTryBlock()) {
@@ -333,14 +335,16 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeTryStmt(clang:
 }
 
 Result<std::unique_ptr<ASTNodeInfo>> ASTStatementAnalyzer::analyzeCatchStmt(clang::CXXCatchStmt* stmt) {
-    LOG_DEBUG("分析catch语句");
+    LOG_DEBUG("✓ 开始分析catch语句");
 
     auto nodeInfo = createNodeInfo(NodeType::CATCH_STMT, "catch", stmt->getBeginLoc());
     if (!nodeInfo) {
+        LOG_ERROR("创建catch语句节点信息失败");
         return makeError<std::unique_ptr<ASTNodeInfo>>(ASTAnalyzerError::INTERNAL_ERROR, "创建节点信息失败");
     }
 
     nodeInfo->text = getSourceText(stmt->getBeginLoc(), stmt->getEndLoc());
+    LOG_DEBUG_FMT("catch语句文本: %s", nodeInfo->text.substr(0, 100).c_str());
 
     // 分析catch语句的body
     if (stmt->getHandlerBlock()) {

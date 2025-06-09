@@ -22,7 +22,7 @@ Location ASTNodeAnalyzer::getLocation(clang::SourceLocation loc) const {
     } else {
         location.line = 0;
         location.column = 0;
-        LOG_WARNING_FMT("无效的源代码位置: %s", filePath_.c_str());
+        LOG_DEBUG_FMT("无效的源代码位置: %s", filePath_.c_str());
     }
 
     return location;
@@ -31,7 +31,7 @@ Location ASTNodeAnalyzer::getLocation(clang::SourceLocation loc) const {
 std::string ASTNodeAnalyzer::getSourceText(clang::SourceLocation beginLoc, clang::SourceLocation endLoc,
                                            size_t maxLength) const {
     if (!beginLoc.isValid() || !endLoc.isValid()) {
-        LOG_WARNING_FMT("无效的源代码位置范围: %s", filePath_.c_str());
+        LOG_DEBUG_FMT("无效的源代码位置范围: %s", filePath_.c_str());
         return "";
     }
 
@@ -40,7 +40,7 @@ std::string ASTNodeAnalyzer::getSourceText(clang::SourceLocation beginLoc, clang
     auto endOffset = SM.getFileOffset(endLoc);
 
     if (beginOffset > endOffset) {
-        LOG_WARNING_FMT("源代码位置范围错误: %s", filePath_.c_str());
+        LOG_DEBUG_FMT("源代码位置范围错误: %s", filePath_.c_str());
         return "";
     }
 
@@ -52,7 +52,7 @@ std::string ASTNodeAnalyzer::getSourceText(clang::SourceLocation beginLoc, clang
     bool invalid = false;
     auto text = std::string(SM.getCharacterData(beginLoc), length);
     if (invalid) {
-        LOG_WARNING_FMT("获取源代码文本失败: %s", filePath_.c_str());
+        LOG_DEBUG_FMT("获取源代码文本失败: %s", filePath_.c_str());
         return "";
     }
 
