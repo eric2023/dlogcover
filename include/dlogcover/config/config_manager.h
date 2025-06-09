@@ -24,7 +24,9 @@ namespace config {
 class ConfigManager {
 public:
     /**
-     * @brief 构造函数
+     * @brief 默认构造函数
+     * 
+     * 初始化时将加载程序内置的默认配置
      */
     ConfigManager();
 

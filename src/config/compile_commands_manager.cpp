@@ -95,7 +95,7 @@ bool CompileCommandsManager::parseCompileCommands(const std::string& file_path) 
             }
 
             // 检查必需字段
-            if (!entry.contains("file") || !entry.contains("command") || !entry.contains("directory")) {
+            if (entry.find("file") == entry.end() || entry.find("command") == entry.end() || entry.find("directory") == entry.end()) {
                 LOG_WARNING("跳过无效的编译条目（缺少必需字段）");
                 continue;
             }
@@ -249,7 +249,10 @@ bool CompileCommandsManager::runCMake(const std::string& project_dir,
                                      const std::vector<std::string>& cmake_args) {
     // 构建CMake命令
     std::ostringstream cmd;
-    cmd << "cd \"" << build_dir << "\" && cmake";
+    cmd << "cd \"" << project_dir << "\" && cmake";
+
+    // 添加构建目录参数
+    cmd << " -B \"" << build_dir << "\"";
     
     // 添加导出编译命令的参数
     cmd << " -DCMAKE_EXPORT_COMPILE_COMMANDS=1";
@@ -260,7 +263,7 @@ bool CompileCommandsManager::runCMake(const std::string& project_dir,
     }
     
     // 添加源目录
-    cmd << " \"" << project_dir << "\"";
+    cmd << " .";
     
     std::string command = cmd.str();
     LOG_INFO_FMT("执行CMake命令: %s", command.c_str());

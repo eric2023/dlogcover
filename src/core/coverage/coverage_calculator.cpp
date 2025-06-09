@@ -175,7 +175,6 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
     std::unordered_set<unsigned int> logLines;
     for (const auto& logCall : logCalls) {
         logLines.insert(logCall.location.line);
-        LOG_DEBUG_FMT("日志调用行号: %u, 函数: %s", logCall.location.line, logCall.functionName.c_str());
     }
 
     // 计算已覆盖的函数数量
@@ -187,8 +186,6 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
 
         // 首先检查函数节点本身是否已标记为有日志调用
         bool isCovered = funcNode->hasLogging;
-        LOG_DEBUG_FMT("函数 %s 在位置 %s:%u hasLogging=%d", funcNode->name.c_str(), funcNode->location.filePath.c_str(),
-                      funcNode->location.line, isCovered);
 
         // 增强的覆盖检测: 检查函数的子节点是否含有日志调用
         if (!isCovered) {
@@ -250,10 +247,7 @@ void CoverageCalculator::calculateFunctionCoverage(const ast_analyzer::ASTNodeIn
         // 更新覆盖状态
         if (isCovered) {
             stats.coveredFunctions++;
-            LOG_DEBUG_FMT("函数 %s 被覆盖", funcNode->name.c_str());
         } else {
-            LOG_DEBUG_FMT("函数 %s 未被覆盖", funcNode->name.c_str());
-
             // 添加未覆盖路径信息
             UncoveredPathInfo uncoveredPath;
             uncoveredPath.type = CoverageType::FUNCTION;

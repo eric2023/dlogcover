@@ -7,6 +7,7 @@
 #include <dlogcover/reporter/json_reporter_strategy.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/file_utils.h>
+#include <dlogcover/utils/string_utils.h>
 
 #include <algorithm>
 #include <fstream>
@@ -148,7 +149,7 @@ nlohmann::json JsonReporterStrategy::createStatsJson(const core::coverage::Cover
 nlohmann::json JsonReporterStrategy::createFileStatsJson(const std::string& filePath,
                                                        const core::coverage::CoverageStats& stats) const {
     nlohmann::json fileJson;
-    fileJson["path"] = filePath;
+    fileJson["path"] = dlogcover::utils::to_utf8(filePath);
     fileJson["function_coverage"] = {
         {"percentage", stats.functionCoverage * 100},
         {"covered", stats.coveredFunctions},
@@ -230,15 +231,15 @@ nlohmann::json JsonReporterStrategy::createUncoveredPathJson(const core::coverag
 
     // 设置位置信息
     pathJson["location"] = {
-        {"file", uncoveredPath.location.filePath},
+        {"file", dlogcover::utils::to_utf8(uncoveredPath.location.filePath)},
         {"line", uncoveredPath.location.line},
         {"column", uncoveredPath.location.column}
     };
 
     // 设置名称、文本和建议
-    pathJson["name"] = uncoveredPath.name;
-    pathJson["text"] = uncoveredPath.text;
-    pathJson["suggestion"] = uncoveredPath.suggestion;
+    pathJson["name"] = dlogcover::utils::to_utf8(uncoveredPath.name);
+    pathJson["text"] = dlogcover::utils::to_utf8(uncoveredPath.text);
+    pathJson["suggestion"] = dlogcover::utils::to_utf8(uncoveredPath.suggestion);
 
     return pathJson;
 }

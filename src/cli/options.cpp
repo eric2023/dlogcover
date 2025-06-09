@@ -11,7 +11,7 @@
  * 使用示例：
  * @code
  * Options options;
- * options.directoryPath = "/path/to/scan";
+ * options.directory = "/path/to/scan";
  * if (auto result = options.validate(); result.hasError()) {
  *     std::cerr << "选项验证失败: " << result.message() << std::endl;
  *     return 1;
@@ -136,7 +136,7 @@ ErrorResult Options::validate() const {
     LOG_DEBUG("开始验证选项");
 
     // 验证扫描目录
-    if (auto result = validateDirectoryPath(directoryPath); result.hasError()) {
+    if (auto result = validateDirectoryPath(directory); result.hasError()) {
         return result;
     }
 
@@ -146,7 +146,7 @@ ErrorResult Options::validate() const {
     }
 
     // 验证输出路径
-    if (auto result = validateFilePath(outputPath, true); result.hasError()) {
+    if (auto result = validateFilePath(output_file, true); result.hasError()) {
         return result;
     }
 
@@ -165,8 +165,8 @@ ErrorResult Options::validate() const {
 std::string Options::toString() const {
     std::ostringstream oss;
     oss << "Options {\n"
-        << "  directoryPath: " << directoryPath << "\n"
-        << "  outputPath: " << outputPath << "\n"
+        << "  directory: " << directory << "\n"
+        << "  output_file: " << output_file << "\n"
         << "  configPath: " << configPath << "\n"
         << "  excludePatterns: [";
 
@@ -187,8 +187,8 @@ std::string Options::toString() const {
 void Options::reset() {
     LOG_DEBUG("重置选项为默认值");
 
-    directoryPath = std::string(config::cli::DEFAULT_DIRECTORY);
-    outputPath = std::string(config::cli::DEFAULT_OUTPUT);
+    directory = std::string(config::cli::DEFAULT_DIRECTORY);
+    output_file = std::string(config::cli::DEFAULT_OUTPUT);
     configPath = std::string(config::cli::DEFAULT_CONFIG);
     excludePatterns.clear();
     logLevel = LogLevel::ALL;
@@ -199,8 +199,8 @@ std::string Options::toJson() const {
     LOG_DEBUG("序列化选项为JSON");
 
     nlohmann::json j;
-    j["directory"] = directoryPath;
-    j["output"] = outputPath;
+    j["directory"] = directory;
+    j["output"] = output_file;
     j["config"] = configPath;
     j["exclude"] = excludePatterns;
     j["log_level"] = std::string(cli::toString(logLevel));
@@ -233,8 +233,8 @@ ErrorResult Options::fromJson(std::string_view json) {
         }
 
         // 读取字段
-        directoryPath = j["directory"];
-        outputPath = j.value("output", std::string(config::cli::DEFAULT_OUTPUT));
+        directory = j["directory"];
+        output_file = j.value("output", std::string(config::cli::DEFAULT_OUTPUT));
         configPath = j.value("config", std::string(config::cli::DEFAULT_CONFIG));
         excludePatterns = j.value("exclude", std::vector<std::string>());
 
@@ -267,7 +267,7 @@ bool Options::isValid() const {
 }
 
 bool Options::operator==(const Options& other) const {
-    return directoryPath == other.directoryPath && outputPath == other.outputPath && configPath == other.configPath &&
+    return directory == other.directory && output_file == other.output_file && configPath == other.configPath &&
            excludePatterns == other.excludePatterns && logLevel == other.logLevel && reportFormat == other.reportFormat;
 }
 

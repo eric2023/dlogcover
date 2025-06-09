@@ -277,7 +277,7 @@ install(TARGETS dlogcover DESTINATION bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 添加示例目录
-add_subdirectory(examples)
+# add_subdirectory(examples)  # 暂时注释掉，因为examples目录不存在
 
 # 安装规则
 install(TARGETS dlogcover
@@ -285,9 +285,9 @@ install(TARGETS dlogcover
 )
 
 # 安装示例配置文件
-install(FILES examples/dlogcover.json
-    DESTINATION share/dlogcover
-)
+# install(FILES examples/dlogcover.json
+#     DESTINATION share/dlogcover
+# )
 
 # 包信息
 set(CPACK_PACKAGE_NAME "dlogcover")

@@ -17,7 +17,9 @@ namespace dlogcover {
 namespace config {
 
 ConfigManager::ConfigManager() {
-    LOG_DEBUG("配置管理器初始化");
+    LOG_DEBUG("配置管理器初始化，加载内置默认配置");
+    config_ = createDefaultConfig(""); // 使用空字符串表示非特定项目
+    loaded_ = true; // 认为默认配置已加载
     compile_manager_ = std::make_unique<CompileCommandsManager>();
 }
 
@@ -80,8 +82,8 @@ void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& o
     LOG_DEBUG("合并命令行选项");
 
     // 合并项目目录
-    if (!options.directoryPath.empty()) {
-        config_.project.directory = options.directoryPath;
+    if (!options.directory.empty()) {
+        config_.project.directory = options.directory;
         LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
     }
 
@@ -92,40 +94,29 @@ void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& o
             options.excludePatterns.begin(),
             options.excludePatterns.end()
         );
-        LOG_DEBUG_FMT("添加排除模式，共 %zu 个", options.excludePatterns.size());
+        LOG_DEBUG_FMT("添加 %zu 个命令行排除模式", options.excludePatterns.size());
     }
 
     // 合并输出配置
-    if (!options.outputPath.empty()) {
-        config_.output.report_file = options.outputPath;
+    if (!options.output_file.empty()) {
+        config_.output.report_file = options.output_file;
         LOG_DEBUG_FMT("设置输出文件: %s", config_.output.report_file.c_str());
     }
 
-    if (!options.logPath.empty()) {
-        config_.output.log_file = options.logPath;
+    if (!options.log_file.empty()) {
+        config_.output.log_file = options.log_file;
         LOG_DEBUG_FMT("设置日志文件: %s", config_.output.log_file.c_str());
     }
 
     // 合并日志级别
-    if (options.logLevel != cli::LogLevel::ALL) {
+    if (options.logLevel != cli::LogLevel::UNKNOWN) {
         switch (options.logLevel) {
-            case cli::LogLevel::DEBUG:
-                config_.output.log_level = "DEBUG";
-                break;
-            case cli::LogLevel::INFO:
-                config_.output.log_level = "INFO";
-                break;
-            case cli::LogLevel::WARNING:
-                config_.output.log_level = "WARNING";
-                break;
-            case cli::LogLevel::CRITICAL:
-                config_.output.log_level = "CRITICAL";
-                break;
-            case cli::LogLevel::FATAL:
-                config_.output.log_level = "FATAL";
-                break;
-            default:
-                break;
+            case cli::LogLevel::DEBUG:   config_.output.log_level = "DEBUG";   break;
+            case cli::LogLevel::INFO:    config_.output.log_level = "INFO";    break;
+            case cli::LogLevel::WARNING: config_.output.log_level = "WARNING"; break;
+            case cli::LogLevel::CRITICAL:config_.output.log_level = "CRITICAL";break;
+            case cli::LogLevel::FATAL:   config_.output.log_level = "FATAL";   break;
+            default: break; // UNKNOWN 和 ALL 在此不处理
         }
         LOG_DEBUG_FMT("设置日志级别: %s", config_.output.log_level.c_str());
     }
@@ -181,33 +172,39 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     LOG_DEBUG_FMT("创建默认配置: 项目目录=%s", project_dir.c_str());
 
     Config config;
+    std::string actualProjectDir = project_dir.empty() ? std::filesystem::current_path().string() : project_dir;
 
     // 项目配置
-    config.project.name = std::filesystem::path(project_dir).filename().string();
-    if (config.project.name.empty()) {
-        config.project.name = "MyProject";
+    config.project.name = std::filesystem::path(actualProjectDir).filename().string();
+    if (config.project.name.empty() || config.project.name == ".") {
+        config.project.name = "dlog-project";
     }
-    config.project.directory = project_dir;
-    config.project.build_directory = project_dir + "/build";
+    config.project.directory = actualProjectDir;
+    config.project.build_directory = (std::filesystem::path(actualProjectDir) / "build").string();
 
     // 扫描配置
-    config.scan.directories = {"./src"};
-    config.scan.file_extensions = {".cpp", ".cc", ".cxx", ".c"};
-    config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
+    config.scan.directories = {"include","src","tests"};
+    config.scan.file_extensions = {".cpp", ".h", ".cxx", ".hpp"};
+    config.scan.exclude_patterns = {"*build*", "*/build/*"};
 
     // 编译命令配置
-    config.compile_commands.path = "./build/compile_commands.json";
+    config.compile_commands.path = (std::filesystem::path(config.project.build_directory) / "compile_commands.json").string();
     config.compile_commands.auto_generate = true;
-    config.compile_commands.cmake_args = {"-DCMAKE_EXPORT_COMPILE_COMMANDS=1", "-DCMAKE_BUILD_TYPE=Debug"};
+    config.compile_commands.cmake_args = {"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"};
 
     // 输出配置
-    config.output.report_file = "coverage_report.txt";
-    config.output.log_file = "analysis.log";
+    config.output.report_file = "dlogcover_report.txt";
+    config.output.log_file = "dlogcover.log";
     config.output.log_level = "INFO";
 
-    // 日志函数配置使用默认值（已在结构体中定义）
-    // 分析配置使用默认值（已在结构体中定义）
+    // 分析配置
+    config.analysis.function_coverage = true;
+    config.analysis.branch_coverage = true;
+    config.analysis.exception_coverage = false;
+    config.analysis.key_path_coverage = false;
 
+    // 日志函数配置 (保持原样)
+    
     return config;
 }
 
@@ -223,23 +220,23 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         file >> json_config;
 
         // 解析项目配置
-        if (json_config.contains("project")) {
+        if (json_config.find("project") != json_config.end()) {
             const auto& project = json_config["project"];
-            if (project.contains("name") && project["name"].is_string()) {
+            if (project.find("name") != project.end() && project["name"].is_string()) {
                 config_.project.name = project["name"].get<std::string>();
             }
-            if (project.contains("directory") && project["directory"].is_string()) {
+            if (project.find("directory") != project.end() && project["directory"].is_string()) {
                 config_.project.directory = project["directory"].get<std::string>();
             }
-            if (project.contains("build_directory") && project["build_directory"].is_string()) {
+            if (project.find("build_directory") != project.end() && project["build_directory"].is_string()) {
                 config_.project.build_directory = project["build_directory"].get<std::string>();
             }
         }
 
         // 解析扫描配置
-        if (json_config.contains("scan")) {
+        if (json_config.find("scan") != json_config.end()) {
             const auto& scan = json_config["scan"];
-            if (scan.contains("directories") && scan["directories"].is_array()) {
+            if (scan.find("directories") != scan.end() && scan["directories"].is_array()) {
                 config_.scan.directories.clear();
                 for (const auto& dir : scan["directories"]) {
                     if (dir.is_string()) {
@@ -247,7 +244,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            if (scan.contains("file_extensions") && scan["file_extensions"].is_array()) {
+            if (scan.find("file_extensions") != scan.end() && scan["file_extensions"].is_array()) {
                 config_.scan.file_extensions.clear();
                 for (const auto& ext : scan["file_extensions"]) {
                     if (ext.is_string()) {
@@ -255,7 +252,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            if (scan.contains("exclude_patterns") && scan["exclude_patterns"].is_array()) {
+            if (scan.find("exclude_patterns") != scan.end() && scan["exclude_patterns"].is_array()) {
                 config_.scan.exclude_patterns.clear();
                 for (const auto& pattern : scan["exclude_patterns"]) {
                     if (pattern.is_string()) {
@@ -266,15 +263,15 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         }
 
         // 解析编译命令配置
-        if (json_config.contains("compile_commands")) {
+        if (json_config.find("compile_commands") != json_config.end()) {
             const auto& cc = json_config["compile_commands"];
-            if (cc.contains("path") && cc["path"].is_string()) {
+            if (cc.find("path") != cc.end() && cc["path"].is_string()) {
                 config_.compile_commands.path = cc["path"].get<std::string>();
             }
-            if (cc.contains("auto_generate") && cc["auto_generate"].is_boolean()) {
+            if (cc.find("auto_generate") != cc.end() && cc["auto_generate"].is_boolean()) {
                 config_.compile_commands.auto_generate = cc["auto_generate"].get<bool>();
             }
-            if (cc.contains("cmake_args") && cc["cmake_args"].is_array()) {
+            if (cc.find("cmake_args") != cc.end() && cc["cmake_args"].is_array()) {
                 config_.compile_commands.cmake_args.clear();
                 for (const auto& arg : cc["cmake_args"]) {
                     if (arg.is_string()) {
@@ -285,15 +282,15 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         }
 
         // 解析输出配置
-        if (json_config.contains("output")) {
+        if (json_config.find("output") != json_config.end()) {
             const auto& output = json_config["output"];
-            if (output.contains("report_file") && output["report_file"].is_string()) {
+            if (output.find("report_file") != output.end() && output["report_file"].is_string()) {
                 config_.output.report_file = output["report_file"].get<std::string>();
             }
-            if (output.contains("log_file") && output["log_file"].is_string()) {
+            if (output.find("log_file") != output.end() && output["log_file"].is_string()) {
                 config_.output.log_file = output["log_file"].get<std::string>();
             }
-            if (output.contains("log_level") && output["log_level"].is_string()) {
+            if (output.find("log_level") != output.end() && output["log_level"].is_string()) {
                 config_.output.log_level = output["log_level"].get<std::string>();
             }
         }

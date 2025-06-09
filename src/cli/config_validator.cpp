@@ -199,14 +199,14 @@ bool ConfigValidator::loadFromConfig(std::string_view configPath, Options& optio
         file >> config;
 
         // 加载选项
-        options.directoryPath = config[KEY_DIRECTORY_STR].get<std::string>();
+        options.directory = config[KEY_DIRECTORY_STR].get<std::string>();
 
         if (config.find(KEY_OUTPUT_STR) != config.end()) {
-            options.outputPath = config[KEY_OUTPUT_STR].get<std::string>();
+            options.output_file = config[KEY_OUTPUT_STR].get<std::string>();
         }
 
         if (config.find(KEY_LOG_PATH_STR) != config.end()) {
-            options.logPath = config[KEY_LOG_PATH_STR].get<std::string>();
+            options.log_file = config[KEY_LOG_PATH_STR].get<std::string>();
         }
 
         if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
@@ -247,14 +247,14 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
     try {
         // 获取环境变量
         if (const char* dir = std::getenv(config::env::DIRECTORY)) {
-            options.directoryPath = dir;
+            options.directory = dir;
             if (utils::Logger::isInitialized()) {
                 LOG_DEBUG_FMT("从环境变量加载目录路径: %s", dir);
             }
         }
 
         if (const char* output = std::getenv(config::env::OUTPUT)) {
-            options.outputPath = output;
+            options.output_file = output;
             if (utils::Logger::isInitialized()) {
                 LOG_DEBUG_FMT("从环境变量加载输出路径: %s", output);
             }
@@ -268,7 +268,7 @@ bool ConfigValidator::loadFromEnvironment(Options& options) {
         }
 
         if (const char* log_path = std::getenv(config::env::LOG_PATH)) {
-            options.logPath = log_path;
+            options.log_file = log_path;
             if (utils::Logger::isInitialized()) {
                 LOG_DEBUG_FMT("从环境变量加载日志文件路径: %s", log_path);
             }

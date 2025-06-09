@@ -138,6 +138,14 @@ bool containsSubstring(const std::string& str, const std::string& sub);
  */
 std::string replaceAll(const std::string& str, const std::map<std::string, std::string>& replacements);
 
+/**
+ * @brief 将字符串安全地转换为UTF-8编码
+ * 
+ * @param str 输入字符串
+ * @return std::string UTF-8编码的字符串
+ */
+std::string to_utf8(const std::string& str);
+
 } // namespace utils
 } // namespace dlogcover
 
