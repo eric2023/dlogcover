@@ -117,38 +117,84 @@ bool ConfigValidator::validateConfig(std::string_view configPath) {
             }
         }
 
-        // 验证必需字段
-        if (config.find(KEY_DIRECTORY_STR) == config.end()) {
-            setError(ConfigError::MissingField, std::string(config::error::MISSING_FIELD) + KEY_DIRECTORY_STR);
-            return false;
-        }
-
-        // 验证字段类型
-        if (!config[KEY_DIRECTORY_STR].is_string()) {
-            setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_DIRECTORY_STR);
-            return false;
-        }
-
-        if (config.find(KEY_OUTPUT_STR) != config.end() && !config[KEY_OUTPUT_STR].is_string()) {
-            setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_OUTPUT_STR);
-            return false;
-        }
-
-        if (config.find(KEY_LOG_PATH_STR) != config.end() && !config[KEY_LOG_PATH_STR].is_string()) {
-            setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_PATH_STR);
-            return false;
-        }
-
-        if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
-            if (!config[KEY_LOG_LEVEL_STR].is_string()) {
-                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_LEVEL_STR);
+        // 验证必需字段 - 支持嵌套格式
+        std::string directory;
+        if (config.find("project") != config.end() && config["project"].find("directory") != config["project"].end()) {
+            // 使用嵌套格式: project.directory
+            if (!config["project"]["directory"].is_string()) {
+                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + "project.directory");
                 return false;
             }
-            LogLevel level;
-            if (!parseLogLevelString(config[KEY_LOG_LEVEL_STR].get<std::string>(), level)) {
-                setError(ConfigError::InvalidLogLevel,
-                         std::string(config::error::INVALID_LOG_LEVEL) + config[KEY_LOG_LEVEL_STR].get<std::string>());
+            directory = config["project"]["directory"].get<std::string>();
+        } else if (config.find(KEY_DIRECTORY_STR) != config.end()) {
+            // 使用简化格式: directory
+            if (!config[KEY_DIRECTORY_STR].is_string()) {
+                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_DIRECTORY_STR);
                 return false;
+            }
+            directory = config[KEY_DIRECTORY_STR].get<std::string>();
+        } else {
+            setError(ConfigError::MissingField, "Missing required field: directory or project.directory");
+            return false;
+        }
+
+        // 验证输出配置 - 支持嵌套格式
+        if (config.find("output") != config.end()) {
+            // 检查是嵌套格式还是简化格式
+            if (config["output"].is_object()) {
+                // 嵌套格式验证
+            if (config["output"].find("report_file") != config["output"].end() && 
+                !config["output"]["report_file"].is_string()) {
+                setError(ConfigError::InvalidType, "output.report_file must be a string");
+                return false;
+            }
+            if (config["output"].find("log_file") != config["output"].end() && 
+                !config["output"]["log_file"].is_string()) {
+                setError(ConfigError::InvalidType, "output.log_file must be a string");
+                return false;
+            }
+            if (config["output"].find("log_level") != config["output"].end()) {
+                if (!config["output"]["log_level"].is_string()) {
+                    setError(ConfigError::InvalidType, "output.log_level must be a string");
+                    return false;
+                }
+                LogLevel level;
+                if (!parseLogLevelString(config["output"]["log_level"].get<std::string>(), level)) {
+                    setError(ConfigError::InvalidLogLevel,
+                             std::string(config::error::INVALID_LOG_LEVEL) + config["output"]["log_level"].get<std::string>());
+                                         return false;
+                 }
+             }
+            } else if (config["output"].is_string()) {
+                // 简化格式：output 是字符串，直接作为输出文件路径
+                // 这种情况下不需要额外验证
+            } else {
+                setError(ConfigError::InvalidType, "output must be either an object or a string");
+                return false;
+            }
+        } else {
+            // 简化格式验证
+            if (config.find(KEY_OUTPUT_STR) != config.end() && !config[KEY_OUTPUT_STR].is_string()) {
+                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_OUTPUT_STR);
+                return false;
+            }
+
+            if (config.find(KEY_LOG_PATH_STR) != config.end() && !config[KEY_LOG_PATH_STR].is_string()) {
+                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_PATH_STR);
+                return false;
+            }
+
+            if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
+                if (!config[KEY_LOG_LEVEL_STR].is_string()) {
+                    setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_LOG_LEVEL_STR);
+                    return false;
+                }
+                LogLevel level;
+                if (!parseLogLevelString(config[KEY_LOG_LEVEL_STR].get<std::string>(), level)) {
+                    setError(ConfigError::InvalidLogLevel,
+                             std::string(config::error::INVALID_LOG_LEVEL) + config[KEY_LOG_LEVEL_STR].get<std::string>());
+                    return false;
+                }
             }
         }
 
@@ -165,15 +211,37 @@ bool ConfigValidator::validateConfig(std::string_view configPath) {
             }
         }
 
-        if (config.find(KEY_EXCLUDE_STR) != config.end()) {
-            if (!config[KEY_EXCLUDE_STR].is_array()) {
-                setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_EXCLUDE_STR);
+        // 验证扫描配置 - 支持嵌套格式
+        if (config.find("scan") != config.end()) {
+            // 嵌套格式验证
+            if (!config["scan"].is_object()) {
+                setError(ConfigError::InvalidType, "scan must be an object");
                 return false;
             }
-            for (const auto& item : config[KEY_EXCLUDE_STR]) {
-                if (!item.is_string()) {
-                    setError(ConfigError::InvalidExcludePattern, std::string(config::error::INVALID_EXCLUDE));
+            if (config["scan"].find("exclude_patterns") != config["scan"].end()) {
+                if (!config["scan"]["exclude_patterns"].is_array()) {
+                    setError(ConfigError::InvalidType, "scan.exclude_patterns must be an array");
                     return false;
+                }
+                for (const auto& item : config["scan"]["exclude_patterns"]) {
+                    if (!item.is_string()) {
+                        setError(ConfigError::InvalidExcludePattern, "scan.exclude_patterns items must be strings");
+                        return false;
+                    }
+                }
+            }
+        } else {
+            // 简化格式验证
+            if (config.find(KEY_EXCLUDE_STR) != config.end()) {
+                if (!config[KEY_EXCLUDE_STR].is_array()) {
+                    setError(ConfigError::InvalidType, std::string(config::error::INVALID_TYPE) + KEY_EXCLUDE_STR);
+                    return false;
+                }
+                for (const auto& item : config[KEY_EXCLUDE_STR]) {
+                    if (!item.is_string()) {
+                        setError(ConfigError::InvalidExcludePattern, std::string(config::error::INVALID_EXCLUDE));
+                        return false;
+                    }
                 }
             }
         }
@@ -198,18 +266,47 @@ bool ConfigValidator::loadFromConfig(std::string_view configPath, Options& optio
         json config;
         file >> config;
 
-        // 加载选项
-        options.directory = config[KEY_DIRECTORY_STR].get<std::string>();
+        // 加载选项 - 支持嵌套格式
+        if (config.find("project") != config.end() && config["project"].find("directory") != config["project"].end()) {
+            // 使用嵌套格式: project.directory
+            options.directory = config["project"]["directory"].get<std::string>();
+        } else if (config.find(KEY_DIRECTORY_STR) != config.end()) {
+            // 使用简化格式: directory
+            options.directory = config[KEY_DIRECTORY_STR].get<std::string>();
+        }
 
-        if (config.find(KEY_OUTPUT_STR) != config.end()) {
+        // 支持嵌套和简化格式的输出配置
+        if (config.find("output") != config.end()) {
+            if (config["output"].is_object() && config["output"].find("report_file") != config["output"].end()) {
+                // 使用嵌套格式: output.report_file
+                options.output_file = config["output"]["report_file"].get<std::string>();
+            } else if (config["output"].is_string()) {
+                // 使用简化格式: output 直接是字符串
+                options.output_file = config["output"].get<std::string>();
+            }
+        } else if (config.find(KEY_OUTPUT_STR) != config.end()) {
+            // 使用简化格式: output (兼容旧的键名)
             options.output_file = config[KEY_OUTPUT_STR].get<std::string>();
         }
 
-        if (config.find(KEY_LOG_PATH_STR) != config.end()) {
+        // 支持嵌套和简化格式的日志路径配置
+        if (config.find("output") != config.end() && config["output"].find("log_file") != config["output"].end()) {
+            // 使用嵌套格式: output.log_file
+            options.log_file = config["output"]["log_file"].get<std::string>();
+        } else if (config.find(KEY_LOG_PATH_STR) != config.end()) {
+            // 使用简化格式: log_path
             options.log_file = config[KEY_LOG_PATH_STR].get<std::string>();
         }
 
-        if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
+        // 支持嵌套和简化格式的日志级别配置
+        if (config.find("output") != config.end() && config["output"].find("log_level") != config["output"].end()) {
+            // 使用嵌套格式: output.log_level
+            LogLevel level;
+            if (parseLogLevelString(config["output"]["log_level"].get<std::string>(), level)) {
+                options.logLevel = level;
+            }
+        } else if (config.find(KEY_LOG_LEVEL_STR) != config.end()) {
+            // 使用简化格式: log_level
             LogLevel level;
             if (parseLogLevelString(config[KEY_LOG_LEVEL_STR].get<std::string>(), level)) {
                 options.logLevel = level;
@@ -223,7 +320,15 @@ bool ConfigValidator::loadFromConfig(std::string_view configPath, Options& optio
             }
         }
 
-        if (config.find(KEY_EXCLUDE_STR) != config.end()) {
+        // 支持嵌套和简化格式的排除模式配置
+        if (config.find("scan") != config.end() && config["scan"].find("exclude_patterns") != config["scan"].end()) {
+            // 使用嵌套格式: scan.exclude_patterns
+            options.excludePatterns.clear();
+            for (const auto& item : config["scan"]["exclude_patterns"]) {
+                options.excludePatterns.push_back(item.get<std::string>());
+            }
+        } else if (config.find(KEY_EXCLUDE_STR) != config.end()) {
+            // 使用简化格式: exclude
             options.excludePatterns.clear();
             for (const auto& item : config[KEY_EXCLUDE_STR]) {
                 options.excludePatterns.push_back(item.get<std::string>());
