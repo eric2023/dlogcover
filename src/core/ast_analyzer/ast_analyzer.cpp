@@ -342,54 +342,6 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTContext& context,
                                                                     const std::string& filePath) {
     LOG_DEBUG_FMT("开始分析AST上下文: %s", filePath.c_str());
-    
-    // 特别处理ast_statement_analyzer.cpp文件
-    bool isTargetFile = (filePath.find("ast_statement_analyzer.cpp") != std::string::npos);
-    if (isTargetFile) {
-        LOG_DEBUG_FMT("检测到目标文件: %s，启用详细调试", filePath.c_str());
-        
-        // 获取源代码管理器
-        auto& sourceManager = context.getSourceManager();
-        clang::FileID mainFileID = sourceManager.getMainFileID();
-        if (const clang::FileEntry* fileEntry = sourceManager.getFileEntryForID(mainFileID)) {
-            LOG_DEBUG_FMT("主文件ID对应的文件: %s", fileEntry->getName().str().c_str());
-        }
-        
-        // 检查翻译单元的基本信息
-        clang::TranslationUnitDecl* tu = context.getTranslationUnitDecl();
-        LOG_DEBUG_FMT("翻译单元声明总数: %zu", std::distance(tu->decls_begin(), tu->decls_end()));
-        
-        // 预先检查第一批声明的类型
-        int previewCount = 0;
-        for (auto* decl : tu->decls()) {
-            if (previewCount++ >= 10) break; // 只预览前10个
-            
-            auto loc = decl->getBeginLoc();
-            bool isInMainFile = sourceManager.isInMainFile(loc);
-            std::string declFilePath;
-            if (loc.isValid()) {
-                clang::FileID fileID = sourceManager.getFileID(loc);
-                if (const clang::FileEntry* entry = sourceManager.getFileEntryForID(fileID)) {
-                    declFilePath = entry->getName().str();
-                }
-            }
-            
-            if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
-                LOG_DEBUG_FMT("预览函数声明 #%d: %s, 有函数体=%s, 主文件=%s, 位置文件=%s", 
-                           previewCount, 
-                           funcDecl->getNameAsString().c_str(),
-                           funcDecl->hasBody() ? "是" : "否",
-                           isInMainFile ? "是" : "否",
-                           declFilePath.c_str());
-            } else {
-                LOG_DEBUG_FMT("预览声明 #%d: 类型=%s, 主文件=%s, 位置文件=%s", 
-                           previewCount, 
-                           decl->getDeclKindName(),
-                           isInMainFile ? "是" : "否",
-                           declFilePath.c_str());
-            }
-        }
-    }
 
     // 创建函数分析器
     ASTFunctionAnalyzer functionAnalyzer(context, filePath, config_);
