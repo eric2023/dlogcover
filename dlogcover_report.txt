@@ -1,17 +1,17 @@
 =====================================================
             DLogCover 日志覆盖率报告                
 =====================================================
-生成时间: 2025-06-10 16:11:02
+生成时间: 2025-06-10 20:57:30
 ----------------------------------------------------
 
 总体覆盖率统计
 ----------------------------------------------------
 函数级覆盖率: 30.06% (202/672)
-分支级覆盖率: 0.04% (1/2380)
+分支级覆盖率: 0.04% (1/2378)
 异常级覆盖率: 0.00% (0/134)
 关键路径覆盖率: 0.00% (0/879)
 总体覆盖率: 12.04%
-未覆盖路径: 3862 个
+未覆盖路径: 3860 个
 
 
 =====================================================
@@ -322,11 +322,11 @@
 ----------------------------------------------------
 文件: src/core/ast_analyzer/ast_analyzer.cpp
   函数覆盖率: 72.73% (8/11)
-  分支覆盖率: 0.00% (0/36)
+  分支覆盖率: 0.00% (0/34)
   异常覆盖率: 0.00% (0/4)
   关键路径覆盖率: 0.00% (0/16)
   总体覆盖率: 29.09%
-  未覆盖路径: 59 个
+  未覆盖路径: 57 个
 ----------------------------------------------------
 文件: src/core/ast_analyzer/ast_expression_analyzer.cpp
   函数覆盖率: 75.00% (3/4)
@@ -4729,7 +4729,7 @@ void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
   代码: const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& ASTAnalyzer::getAllASTNodeInfo(
   建议: 在函数入口添加日志记录，记录参数和调用上下文信息
 [函数] ASTAnalyzer::isLogFunctionCall
-  位置: src/core/ast_analyzer/ast_analyzer.cpp:900:1
+  位置: src/core/ast_analyzer/ast_analyzer.cpp:852:1
   代码: bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     if (!expr) {
         return f
@@ -4848,76 +4848,66 @@ void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :348:5
-  代码: if (isTargetFile) {
-        LOG_DEBUG_FMT("检测到目标文件: %s，启用详细调试", filePath...
-  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
-[分支] if 分支
-  位置: :354:9
-  代码: if (const clang::FileEntry* fileEntry = sourceManager.getFileEntryForID(mainFileID)) {
-            L...
-  建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
-[分支] if 分支
-  位置: :663:5
+  位置: :615:5
   代码: if (rootNode->children.empty()) {
         LOG_WARNING_FMT("警告: 文件 %s 中未识别到任何�...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :901:5
+  位置: :853:5
   代码: if (!expr) {
         return false;
     }
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :907:5
+  位置: :859:5
   代码: if (auto* callee = expr->getCalleeDecl()) {
         if (auto* funcDecl = llvm::dyn_cast<clang::Named...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :908:9
+  位置: :860:9
   代码: if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(callee)) {
             funcName = funcDecl->ge...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :911:7
+  位置: :863:7
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :911:12
+  位置: :863:12
   代码: if (auto* callee = expr->getCallee()) {
         if (auto* declRef = llvm::dyn_cast<clang::DeclRefExp...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :912:9
+  位置: :864:9
   代码: if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(callee->IgnoreParenCasts())) {
             if...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :913:13
+  位置: :865:13
   代码: if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(declRef->getDecl())) {
                 funcNam...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] else 分支
-  位置: :916:11
+  位置: :868:11
   代码: else {...}
   建议: 在else分支中添加日志记录，记录进入else分支的信息和关键变量值
 [分支] if 分支
-  位置: :916:16
+  位置: :868:16
   代码: if (auto* memberExpr = llvm::dyn_cast<clang::MemberExpr>(callee->IgnoreParenCasts())) {
             ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :917:13
+  位置: :869:13
   代码: if (auto* funcDecl = llvm::dyn_cast<clang::NamedDecl>(memberExpr->getMemberDecl())) {
               ...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :924:5
+  位置: :876:5
   代码: if (config_.log_functions.qt.enabled) {
         for (const auto& logFunc : config_.log_functions.qt....
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
 [分支] if 分支
-  位置: :938:5
+  位置: :890:5
   代码: if (config_.log_functions.custom.enabled) {
         for (const auto& [_, funcs] : config_.log_functi...
   建议: 在if条件分支中添加日志记录，记录条件判断结果和关键变量值
@@ -4985,18 +4975,18 @@ void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
     ...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzer::analyzeNamespaceRecursively
-  位置: src/core/ast_analyzer/ast_analyzer.cpp:677:1
+  位置: src/core/ast_analyzer/ast_analyzer.cpp:629:1
   代码: void ASTAnalyzer::analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDecl, 
                 ...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzer::isLogFunctionCall
-  位置: src/core/ast_analyzer/ast_analyzer.cpp:900:1
+  位置: src/core/ast_analyzer/ast_analyzer.cpp:852:1
   代码: bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     if (!expr) {
         return f...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
 [关键路径] ASTAnalyzer::getCompilerArgs
-  位置: src/core/ast_analyzer/ast_analyzer.cpp:951:1
+  位置: src/core/ast_analyzer/ast_analyzer.cpp:903:1
   代码: std::vector<std::string> ASTAnalyzer::getCompilerArgs() const {
     LOG_DEBUG("获取编译参数");...
   建议: 在此关键路径中添加详细的日志记录，记录状态和处理过程
@@ -5023,7 +5013,7 @@ void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
      ...
   建议: 此if语句被识别为关键路径，应添加日志记录异常状态和处理过程
 [关键路径] if
-  位置: :901:5
+  位置: :853:5
   代码: if (!expr) {
         return false;
     }
@@ -18082,7 +18072,7 @@ void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
 4. 函数级覆盖率较低，建议在函数入口添加debug级别日志，记录函数调用及参数。
 5. 分支覆盖率较低，建议在关键条件分支添加合适级别的日志，记录分支执行情况。
 6. 异常覆盖率不足，建议在所有异常处理块中添加warning或error级别日志。
-7. 有 3862 个未覆盖路径需要添加日志记录，请参考上述未覆盖路径列表。
+7. 有 3860 个未覆盖路径需要添加日志记录，请参考上述未覆盖路径列表。
 
 日志记录最佳实践：
 - 函数入口应使用debug级别日志，记录函数名和关键参数
