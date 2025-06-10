@@ -435,18 +435,38 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
             funcDecls++;
             bool hasBody = funcDecl->hasBody();
             
-            // 使用新的文件归属验证器进行精确判断
+            // 简化文件归属判断：只统计当前文件中真正定义的函数
             bool isRelevantFile = isInMainFile;
-            if (!isRelevantFile && !declFilePath.empty()) {
-                auto validationResult = fileValidator_->validateOwnership(
-                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
-                isRelevantFile = validationResult.isOwned;
-                
-                LOG_DEBUG_FMT("文件归属验证结果: %s -> %s, 结果=%s, 置信度=%.2f, 原因=%s",
-                             filePath.c_str(), declFilePath.c_str(),
-                             isRelevantFile ? "属于" : "不属于",
-                             validationResult.confidence,
-                             validationResult.reason.c_str());
+            
+            // 过滤隐式函数（编译器生成的构造函数、析构函数等）
+            if (funcDecl->isImplicit()) {
+                LOG_DEBUG_FMT("跳过隐式函数: %s", funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 精确过滤宏展开函数：保留函数名来自宏但函数体不是宏展开的函数（如TEST_F）
+            auto funcLoc = funcDecl->getNameInfo().getLoc();
+            bool isNameMacroExpanded = funcLoc.isValid() && sourceManager.isMacroBodyExpansion(funcLoc);
+            bool isBodyMacroExpanded = false;
+            
+            // 检查函数体是否来自宏展开
+            if (funcDecl->hasBody()) {
+                auto bodyLoc = funcDecl->getBody()->getBeginLoc();
+                isBodyMacroExpanded = bodyLoc.isValid() && sourceManager.isMacroBodyExpansion(bodyLoc);
+            }
+            
+            // 过滤完全由宏展开生成的函数，保留TEST_F等有实际函数体的函数
+            if (isNameMacroExpanded && isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("跳过完全宏展开生成的函数: %s", funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 记录宏展开状态用于调试
+            if (isNameMacroExpanded || isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("函数 %s: 名称宏展开=%s, 函数体宏展开=%s", 
+                             funcDecl->getNameAsString().c_str(),
+                             isNameMacroExpanded ? "是" : "否",
+                             isBodyMacroExpanded ? "是" : "否");
             }
             
             // 特别处理类方法（CXXMethodDecl）
@@ -459,20 +479,7 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                          isInMainFile ? "是" : "否",
                          isRelevantFile ? "是" : "否");
             
-            // 对于类方法，使用更严格的验证逻辑
-            if (isMethodDecl && hasBody && !isRelevantFile && !declFilePath.empty()) {
-                auto validationResult = fileValidator_->validateOwnership(
-                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::CANONICAL);
-                if (validationResult.isOwned && validationResult.confidence > 0.8) {
-                    isRelevantFile = true;
-                    LOG_INFO_FMT("类方法 %s 通过严格验证，设为相关文件 (置信度=%.2f)", 
-                                funcDecl->getNameAsString().c_str(), validationResult.confidence);
-                } else {
-                    LOG_DEBUG_FMT("类方法 %s 未通过严格验证，跳过 (置信度=%.2f, 原因=%s)", 
-                                 funcDecl->getNameAsString().c_str(), 
-                                 validationResult.confidence, validationResult.reason.c_str());
-                }
-            }
+            // 类方法和普通函数使用相同的文件归属判断逻辑
             
             // 检查函数是否在当前源文件中定义
             if (hasBody && isRelevantFile) {
@@ -530,18 +537,8 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
             classDecls++;
             bool hasDefinition = classDecl->hasDefinition();
             
-            // 使用文件归属验证器进行类声明的归属判断
+            // 简化文件归属判断：只统计当前文件中真正定义的类
             bool isRelevantFile = isInMainFile;
-            if (!isRelevantFile && !declFilePath.empty()) {
-                auto validationResult = fileValidator_->validateOwnership(
-                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
-                isRelevantFile = validationResult.isOwned;
-                
-                LOG_DEBUG_FMT("类声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
-                             filePath.c_str(), declFilePath.c_str(),
-                             isRelevantFile ? "属于" : "不属于",
-                             validationResult.confidence);
-            }
             
             LOG_INFO_FMT("发现类声明 #%d: %s, 有定义=%s, 在主文件=%s, 文件匹配=%s", 
                          classDecls, classDecl->getNameAsString().c_str(), 
@@ -556,6 +553,43 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                 int methodCount = 0;
                 for (auto* method : classDecl->methods()) {
                     methodCount++;
+                    
+                    // 过滤隐式方法（编译器生成的构造函数、析构函数等）
+                    if (method->isImplicit()) {
+                        LOG_DEBUG_FMT("跳过类中的隐式方法: %s::%s", 
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str());
+                        continue;
+                    }
+                    
+                    // 精确过滤宏展开方法：保留方法名来自宏但方法体不是宏展开的方法（如TEST_F）
+                    auto methodLoc = method->getNameInfo().getLoc();
+                    bool isNameMacroExpanded = methodLoc.isValid() && sourceManager.isMacroBodyExpansion(methodLoc);
+                    bool isBodyMacroExpanded = false;
+                    
+                    // 检查方法体是否来自宏展开
+                    if (method->hasBody()) {
+                        auto bodyLoc = method->getBody()->getBeginLoc();
+                        isBodyMacroExpanded = bodyLoc.isValid() && sourceManager.isMacroBodyExpansion(bodyLoc);
+                    }
+                    
+                    // 过滤完全由宏展开生成的方法，保留TEST_F等有实际方法体的方法
+                    if (isNameMacroExpanded && isBodyMacroExpanded) {
+                        LOG_DEBUG_FMT("跳过类中完全宏展开生成的方法: %s::%s", 
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str());
+                        continue;
+                    }
+                    
+                    // 记录宏展开状态用于调试
+                    if (isNameMacroExpanded || isBodyMacroExpanded) {
+                        LOG_DEBUG_FMT("类方法 %s::%s: 名称宏展开=%s, 方法体宏展开=%s", 
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str(),
+                                     isNameMacroExpanded ? "是" : "否",
+                                     isBodyMacroExpanded ? "是" : "否");
+                    }
+                    
                     if (method->hasBody()) {
                         LOG_INFO_FMT("分析类方法 #%d: %s::%s", 
                                      methodCount,
@@ -597,18 +631,8 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
         else if (auto* namespaceDecl = llvm::dyn_cast<clang::NamespaceDecl>(decl)) {
             namespaceDecls++;
             
-            // 使用文件归属验证器进行命名空间声明的归属判断
+            // 简化文件归属判断：只统计当前文件中真正定义的命名空间
             bool isRelevantFile = isInMainFile;
-            if (!isRelevantFile && !declFilePath.empty()) {
-                auto validationResult = fileValidator_->validateOwnership(
-                    filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
-                isRelevantFile = validationResult.isOwned;
-                
-                LOG_DEBUG_FMT("命名空间声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
-                             filePath.c_str(), declFilePath.c_str(),
-                             isRelevantFile ? "属于" : "不属于",
-                             validationResult.confidence);
-            }
             
             LOG_INFO_FMT("发现命名空间声明 #%d: %s, 在主文件=%s, 文件匹配=%s", 
                          namespaceDecls, namespaceDecl->getNameAsString().c_str(), 
@@ -673,18 +697,8 @@ void ASTAnalyzer::analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDec
             }
         }
         
-        // 使用文件归属验证器进行递归命名空间中声明的归属判断
+        // 简化文件归属判断：只统计当前文件中真正定义的声明
         bool isRelevantFile = isInMainFile;
-        if (!isRelevantFile && !declFilePath.empty()) {
-            auto validationResult = fileValidator_->validateOwnership(
-                filePath, declFilePath, FileOwnershipValidator::ValidationLevel::SMART);
-            isRelevantFile = validationResult.isOwned;
-            
-            LOG_DEBUG_FMT("递归命名空间声明文件归属验证: %s -> %s, 结果=%s, 置信度=%.2f",
-                         filePath.c_str(), declFilePath.c_str(),
-                         isRelevantFile ? "属于" : "不属于",
-                         validationResult.confidence);
-        }
         
         LOG_INFO_FMT("命名空间%s中的声明 #%d: 类型=%s, 主文件=%s, 文件匹配=%s", 
                      namespacePath.c_str(), declCount, decl->getDeclKindName(),
@@ -692,6 +706,40 @@ void ASTAnalyzer::analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDec
         
         if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
             bool hasBody = funcDecl->hasBody();
+            
+            // 过滤隐式函数（编译器生成的构造函数、析构函数等）
+            if (funcDecl->isImplicit()) {
+                LOG_DEBUG_FMT("跳过命名空间中的隐式函数: %s::%s", 
+                             namespacePath.c_str(), funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 精确过滤宏展开函数：保留函数名来自宏但函数体不是宏展开的函数（如TEST_F）
+            auto funcLoc = funcDecl->getNameInfo().getLoc();
+            bool isNameMacroExpanded = funcLoc.isValid() && sourceManager.isMacroBodyExpansion(funcLoc);
+            bool isBodyMacroExpanded = false;
+            
+            // 检查函数体是否来自宏展开
+            if (funcDecl->hasBody()) {
+                auto bodyLoc = funcDecl->getBody()->getBeginLoc();
+                isBodyMacroExpanded = bodyLoc.isValid() && sourceManager.isMacroBodyExpansion(bodyLoc);
+            }
+            
+            // 过滤完全由宏展开生成的函数，保留TEST_F等有实际函数体的函数
+            if (isNameMacroExpanded && isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("跳过命名空间中完全宏展开生成的函数: %s::%s", 
+                             namespacePath.c_str(), funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 记录宏展开状态用于调试
+            if (isNameMacroExpanded || isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("命名空间函数 %s::%s: 名称宏展开=%s, 函数体宏展开=%s", 
+                             namespacePath.c_str(), funcDecl->getNameAsString().c_str(),
+                             isNameMacroExpanded ? "是" : "否",
+                             isBodyMacroExpanded ? "是" : "否");
+            }
+            
             bool isMethodDecl = llvm::isa<clang::CXXMethodDecl>(funcDecl);
             std::string funcType = isMethodDecl ? "方法" : "函数";
             
@@ -766,6 +814,45 @@ void ASTAnalyzer::analyzeNamespaceRecursively(clang::NamespaceDecl* namespaceDec
                 LOG_INFO_FMT("分析命名空间中的类: %s::%s", 
                              namespacePath.c_str(), classDecl->getNameAsString().c_str());
                 for (auto* method : classDecl->methods()) {
+                    // 过滤隐式方法（编译器生成的构造函数、析构函数等）
+                    if (method->isImplicit()) {
+                        LOG_DEBUG_FMT("跳过命名空间类中的隐式方法: %s::%s::%s", 
+                                     namespacePath.c_str(),
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str());
+                        continue;
+                    }
+                    
+                    // 精确过滤宏展开方法：保留方法名来自宏但方法体不是宏展开的方法（如TEST_F）
+                    auto methodLoc = method->getNameInfo().getLoc();
+                    bool isNameMacroExpanded = methodLoc.isValid() && sourceManager.isMacroBodyExpansion(methodLoc);
+                    bool isBodyMacroExpanded = false;
+                    
+                    // 检查方法体是否来自宏展开
+                    if (method->hasBody()) {
+                        auto bodyLoc = method->getBody()->getBeginLoc();
+                        isBodyMacroExpanded = bodyLoc.isValid() && sourceManager.isMacroBodyExpansion(bodyLoc);
+                    }
+                    
+                    // 过滤完全由宏展开生成的方法，保留TEST_F等有实际方法体的方法
+                    if (isNameMacroExpanded && isBodyMacroExpanded) {
+                        LOG_DEBUG_FMT("跳过命名空间类中完全宏展开生成的方法: %s::%s::%s", 
+                                     namespacePath.c_str(),
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str());
+                        continue;
+                    }
+                    
+                    // 记录宏展开状态用于调试
+                    if (isNameMacroExpanded || isBodyMacroExpanded) {
+                        LOG_DEBUG_FMT("命名空间类方法 %s::%s::%s: 名称宏展开=%s, 方法体宏展开=%s", 
+                                     namespacePath.c_str(),
+                                     classDecl->getNameAsString().c_str(),
+                                     method->getNameAsString().c_str(),
+                                     isNameMacroExpanded ? "是" : "否",
+                                     isBodyMacroExpanded ? "是" : "否");
+                    }
+                    
                     if (method->hasBody()) {
                         auto result = functionAnalyzer.analyzeMethodDecl(method);
                         if (!result.hasError()) {
