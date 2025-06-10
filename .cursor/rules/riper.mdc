@@ -3,11 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
----
-description: 
-globs: 
-alwaysApply: false
----
 ## RIPER-5 + O1 THINKING + AGENT EXECUTION PROTOCOL 
 
 ### CONTEXT PRIMER 
