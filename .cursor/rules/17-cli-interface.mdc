@@ -1,0 +1,724 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# DLogCover 命令行接口指南
+
+## CLI架构设计
+
+### 核心组件
+
+```cpp
+// CLI系统主要组件
+namespace dlogcover::cli {
+    class CommandLineParser;     // 命令行解析器
+    class ConfigValidator;       // 配置验证器
+    struct Options;             // 命令行选项结构
+    enum class LogLevel;        // 日志级别枚举
+    enum class ReportFormat;    // 报告格式枚举
+    class ErrorResult;          // 错误结果类
+}
+```
+
+### 设计原则
+
+1. **用户友好**: 提供清晰的帮助信息和错误提示
+2. **灵活配置**: 支持多种配置来源和优先级
+3. **向后兼容**: 保持API稳定性和兼容性
+4. **错误处理**: 详细的错误信息和修复建议
+
+## 命令行选项系统
+
+### 选项分类
+
+#### 基本选项
+```cpp
+// 基本操作选项
+constexpr const char* OPTION_HELP_SHORT = "-h";
+constexpr const char* OPTION_HELP_LONG = "--help";
+constexpr const char* OPTION_VERSION_SHORT = "-v";
+constexpr const char* OPTION_VERSION_LONG = "--version";
+constexpr const char* OPTION_DIRECTORY_SHORT = "-d";
+constexpr const char* OPTION_DIRECTORY_LONG = "--directory";
+constexpr const char* OPTION_OUTPUT_SHORT = "-o";
+constexpr const char* OPTION_OUTPUT_LONG = "--output";
+constexpr const char* OPTION_CONFIG_SHORT = "-c";
+constexpr const char* OPTION_CONFIG_LONG = "--config";
+```
+
+#### 日志和输出控制
+```cpp
+// 日志控制选项
+constexpr const char* OPTION_LOG_LEVEL_SHORT = "-l";
+constexpr const char* OPTION_LOG_LEVEL_LONG = "--log-level";
+constexpr const char* OPTION_FORMAT_SHORT = "-f";
+constexpr const char* OPTION_FORMAT_LONG = "--format";
+constexpr const char* OPTION_LOG_PATH_SHORT = "-p";
+constexpr const char* OPTION_LOG_PATH_LONG = "--log-path";
+constexpr const char* OPTION_QUIET_SHORT = "-q";
+constexpr const char* OPTION_QUIET_LONG = "--quiet";
+constexpr const char* OPTION_VERBOSE_LONG = "--verbose";
+```
+
+#### 文件过滤选项
+```cpp
+// 文件过滤选项
+constexpr const char* OPTION_EXCLUDE_SHORT = "-e";
+constexpr const char* OPTION_EXCLUDE_LONG = "--exclude";
+constexpr const char* OPTION_INCLUDE_PATH_SHORT = "-I";
+constexpr const char* OPTION_INCLUDE_PATH_LONG = "--include-path";
+```
+
+#### 高级选项
+```cpp
+// 高级配置选项
+constexpr const char* OPTION_COMPILER_ARG_LONG = "--compiler-arg";
+constexpr const char* OPTION_INCLUDE_SYSTEM_HEADERS_LONG = "--include-system-headers";
+constexpr const char* OPTION_THRESHOLD_LONG = "--threshold";
+constexpr const char* OPTION_PARALLEL_LONG = "--parallel";
+```
+
+### 默认值管理
+
+```cpp
+// 默认值常量定义
+namespace dlogcover::config::cli {
+    constexpr const char* DEFAULT_DIRECTORY = ".";
+    constexpr const char* DEFAULT_OUTPUT = "";      // 运行时生成时间戳文件名
+    constexpr const char* DEFAULT_CONFIG = "";      // 自动查找dlogcover.json
+}
+
+// 运行时默认值生成
+class DefaultValueGenerator {
+public:
+    static std::string generateOutputFile() {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << "dlogcover_report_" 
+           << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") 
+           << ".txt";
+        return ss.str();
+    }
+    
+    static std::string generateLogFile() {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << "dlogcover_" 
+           << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") 
+           << ".log";
+        return ss.str();
+    }
+};
+```
+
+## 命令行解析实现
+
+### 解析流程
+
+```cpp
+// 命令行解析主流程
+class CommandLineParser {
+public:
+    ErrorResult parse(int argc, char** argv) {
+        // 1. 从环境变量加载基础选项
+        ConfigValidator validator;
+        if (!validator.loadFromEnvironment(options_)) {
+            return ErrorResult(validator.getErrorCode(), validator.getError());
+        }
+        
+        // 2. 预处理参数数组
+        std::vector<std::string> args;
+        args.reserve(argc - 1);
+        for (int i = 1; i < argc; ++i) {
+            args.emplace_back(argv[i]);
+        }
+        
+        // 3. 优先处理配置文件参数
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (isConfigOption(args[i])) {
+                auto result = handleConfigOption(args, i, validator);
+                if (result.hasError()) {
+                    return result;
+                }
+            }
+        }
+        
+        // 4. 处理其他命令行参数
+        for (size_t i = 0; i < args.size(); ++i) {
+            auto result = handleOtherOptions(args, i);
+            if (result.hasError()) {
+                return result;
+            }
+        }
+        
+        // 5. 验证最终选项
+        return options_.validate();
+    }
+
+private:
+    bool isConfigOption(const std::string& arg) {
+        return arg == OPTION_CONFIG_SHORT || arg == OPTION_CONFIG_LONG;
+    }
+};
+```
+
+### 参数处理模板
+
+```cpp
+// 通用参数处理模板
+template<typename Handler>
+ErrorResult CommandLineParser::handleOption(
+    const std::vector<std::string>& args, 
+    size_t& i, 
+    const std::string_view& arg, 
+    Handler handler) {
+    
+    if (i + 1 >= args.size()) {
+        return ErrorResult(ConfigError::MissingArgument,
+                          std::string(config::error::MISSING_ARGUMENT) + std::string(arg));
+    }
+    
+    ++i; // 移动到参数值
+    return handler(args[i]);
+}
+
+// 使用示例
+auto result = handleOption(args, i, arg, [this](std::string_view dirPath) -> ErrorResult {
+    options_.directory = std::string(dirPath);
+    return validatePath(dirPath, true);
+});
+```
+
+### 参数验证系统
+
+```cpp
+// 选项验证实现
+struct Options {
+    ErrorResult validate() const {
+        // 验证目录路径
+        if (!directory.empty() && !std::filesystem::exists(directory)) {
+            return ErrorResult(ConfigError::DirectoryNotFound, 
+                             "目录不存在: " + directory);
+        }
+        
+        // 验证输出目录
+        if (!output_file.empty()) {
+            auto parentPath = std::filesystem::path(output_file).parent_path();
+            if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
+                return ErrorResult(ConfigError::OutputDirectoryNotFound,
+                                 "输出目录不存在: " + parentPath.string());
+            }
+        }
+        
+        // 验证并行线程数
+        if (parallel < 1) {
+            return ErrorResult(ConfigError::InvalidArgument,
+                             "并行线程数必须大于0");
+        }
+        
+        // 验证覆盖率阈值
+        if (threshold < 0.0 || threshold > 1.0) {
+            return ErrorResult(ConfigError::InvalidArgument,
+                             "覆盖率阈值必须在0.0-1.0之间");
+        }
+        
+        return ErrorResult(); // 验证成功
+    }
+};
+```
+
+## 环境变量支持
+
+### 环境变量映射
+
+```cpp
+// 环境变量名称常量
+namespace EnvironmentVariables {
+    constexpr const char* DIRECTORY = "DLOGCOVER_DIRECTORY";
+    constexpr const char* OUTPUT = "DLOGCOVER_OUTPUT";
+    constexpr const char* CONFIG = "DLOGCOVER_CONFIG";
+    constexpr const char* LOG_LEVEL = "DLOGCOVER_LOG_LEVEL";
+    constexpr const char* REPORT_FORMAT = "DLOGCOVER_REPORT_FORMAT";
+    constexpr const char* EXCLUDE = "DLOGCOVER_EXCLUDE";
+    constexpr const char* LOG_PATH = "DLOGCOVER_LOG_PATH";
+}
+
+// 环境变量加载实现
+class ConfigValidator {
+public:
+    bool loadFromEnvironment(Options& options) {
+        // 加载基本路径选项
+        loadEnvString(EnvironmentVariables::DIRECTORY, options.directory);
+        loadEnvString(EnvironmentVariables::OUTPUT, options.output_file);
+        loadEnvString(EnvironmentVariables::CONFIG, options.configPath);
+        loadEnvString(EnvironmentVariables::LOG_PATH, options.log_file);
+        
+        // 加载日志级别
+        std::string logLevel;
+        if (loadEnvString(EnvironmentVariables::LOG_LEVEL, logLevel)) {
+            LogLevel level;
+            if (parseLogLevelString(logLevel, level)) {
+                options.logLevel = level;
+            }
+        }
+        
+        // 加载报告格式
+        std::string reportFormat;
+        if (loadEnvString(EnvironmentVariables::REPORT_FORMAT, reportFormat)) {
+            ReportFormat format;
+            if (parseReportFormatString(reportFormat, format)) {
+                options.reportFormat = format;
+            }
+        }
+        
+        // 加载排除模式（冒号分隔）
+        std::string excludePatterns;
+        if (loadEnvString(EnvironmentVariables::EXCLUDE, excludePatterns)) {
+            options.excludePatterns = splitString(excludePatterns, ':');
+        }
+        
+        return true;
+    }
+    
+private:
+    bool loadEnvString(const char* envName, std::string& target) {
+        const char* value = std::getenv(envName);
+        if (value && strlen(value) > 0) {
+            target = value;
+            return true;
+        }
+        return false;
+    }
+    
+    std::vector<std::string> splitString(const std::string& str, char delimiter) {
+        std::vector<std::string> result;
+        std::stringstream ss(str);
+        std::string item;
+        
+        while (std::getline(ss, item, delimiter)) {
+            if (!item.empty()) {
+                result.push_back(item);
+            }
+        }
+        
+        return result;
+    }
+};
+```
+
+## 帮助系统
+
+### 帮助信息模板
+
+```cpp
+// 帮助信息常量
+const std::string HELP_TEXT = R"(
+DLogCover - C++代码日志覆盖分析工具 v)" + VERSION + R"(
+用法: dlogcover [选项]
+
+主要选项:
+  -h, --help                 显示帮助信息
+  -v, --version              显示版本信息
+  -d, --directory <path>     指定扫描目录 (默认: ./)
+  -o, --output <path>        指定输出报告路径 (默认: ./dlogcover_report_<timestamp>.txt)
+  -c, --config <path>        指定配置文件路径 (默认: ./dlogcover.json)
+  -e, --exclude <pattern>    排除符合模式的文件或目录 (可多次使用)
+  -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fatal, all)
+  -f, --format <format>      指定报告格式 (text, json)
+  -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
+  -I, --include-path <path>  头文件搜索路径 (可多次使用)
+  -q, --quiet                静默模式，减少输出信息
+      --verbose              详细输出模式，显示更多调试信息
+
+高级选项:
+      --compiler-arg <arg>   传递给编译器的参数 (可多次使用)
+      --include-system-headers  包含系统头文件分析
+      --threshold <value>    覆盖率阈值设置 (0.0-1.0)
+      --parallel <num>       并行分析线程数 (默认: 1)
+
+环境变量:
+  DLOGCOVER_DIRECTORY       等同于 -d 选项
+  DLOGCOVER_OUTPUT          等同于 -o 选项
+  DLOGCOVER_CONFIG          等同于 -c 选项
+  DLOGCOVER_LOG_LEVEL       等同于 -l 选项
+  DLOGCOVER_REPORT_FORMAT   等同于 -f 选项
+  DLOGCOVER_EXCLUDE         排除模式列表，使用冒号分隔
+  DLOGCOVER_LOG_PATH        等同于 -p 选项
+
+配置文件格式 (JSON):
+{
+  "directory": "./src",              // 必需，扫描目录
+  "output": "./report.txt",          // 可选，输出路径
+  "log_level": "debug",             // 可选，日志级别
+  "report_format": "text",          // 可选，报告格式
+  "exclude": ["build/*", "test/*"], // 可选，排除模式列表
+  "log_path": "./dlogcover.log",    // 可选，日志文件路径
+  "include_paths": ["./include"],   // 可选，头文件搜索路径
+  "compiler_args": ["-std=c++17"],  // 可选，编译器参数
+  "parallel": 4,                    // 可选，并行线程数
+  "threshold": 0.8                  // 可选，覆盖率阈值
+}
+
+优先级:
+  命令行参数 > 配置文件 > 环境变量 > 默认值
+
+示例:
+  dlogcover -d /path/to/source -o report.txt
+  dlogcover -c config.json -e "build/*" -e "test/*"
+  dlogcover -I ./include --compiler-arg "-std=c++17" --parallel 4
+  dlogcover --quiet -f json -o report.json
+  DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
+)";
+```
+
+### 版本信息
+
+```cpp
+// 版本信息管理
+namespace Version {
+    constexpr const char* VERSION = "0.1.0";
+    constexpr const char* BUILD_DATE = __DATE__;
+    constexpr const char* BUILD_TIME = __TIME__;
+    
+    std::string getVersionString() {
+        return std::string("DLogCover v") + VERSION;
+    }
+    
+    std::string getFullVersionString() {
+        std::stringstream ss;
+        ss << "DLogCover v" << VERSION << std::endl;
+        ss << "Build: " << BUILD_DATE << " " << BUILD_TIME << std::endl;
+        ss << "Compiler: " << COMPILER_INFO << std::endl;
+        return ss.str();
+    }
+}
+
+void CommandLineParser::showVersion() const {
+    std::cout << Version::getVersionString() << std::endl;
+}
+```
+
+## 错误处理系统
+
+### 错误类型定义
+
+```cpp
+// 配置错误类型枚举
+enum class ConfigError {
+    None = 0,                           // 无错误
+    FileNotFound = 1,                   // 文件未找到
+    DirectoryNotFound = 2,              // 目录未找到
+    OutputDirectoryNotFound = 3,        // 输出目录未找到
+    InvalidVersion = 4,                 // 无效版本
+    InvalidType = 5,                    // 无效类型
+    MissingField = 6,                   // 缺少字段
+    InvalidLogLevel = 7,                // 无效日志级别
+    InvalidReportFormat = 8,            // 无效报告格式
+    InvalidExcludePattern = 9,          // 无效排除模式
+    ParseError = 10,                    // 解析错误
+    EnvironmentError = 11,              // 环境变量错误
+    UnknownOption = 12,                 // 未知选项
+    InvalidLogPath = 13,                // 无效日志路径
+    MissingValue = 14,                  // 缺少值
+    InvalidArgument = 15,               // 无效参数
+    MissingArgument = 16                // 缺少参数
+};
+
+// 错误结果类
+class ErrorResult {
+private:
+    ConfigError errorCode_;
+    std::string message_;
+
+public:
+    ErrorResult() : errorCode_(ConfigError::None) {}
+    ErrorResult(ConfigError code, const std::string& msg) 
+        : errorCode_(code), message_(msg) {}
+
+    bool hasError() const { return errorCode_ != ConfigError::None; }
+    ConfigError getErrorCode() const { return errorCode_; }
+    const std::string& message() const { return message_; }
+    
+    // 错误信息格式化
+    std::string getFormattedMessage() const {
+        if (!hasError()) return "";
+        
+        std::stringstream ss;
+        ss << "错误 [" << static_cast<int>(errorCode_) << "]: " << message_;
+        
+        // 添加修复建议
+        switch (errorCode_) {
+            case ConfigError::DirectoryNotFound:
+                ss << "\n建议: 检查目录路径是否正确，或使用 -d 选项指定正确的目录";
+                break;
+            case ConfigError::FileNotFound:
+                ss << "\n建议: 检查文件路径是否正确，或使用 -c 选项指定正确的配置文件";
+                break;
+            case ConfigError::UnknownOption:
+                ss << "\n建议: 使用 --help 查看所有可用选项";
+                break;
+            case ConfigError::MissingArgument:
+                ss << "\n建议: 为该选项提供必需的参数值";
+                break;
+            default:
+                break;
+        }
+        
+        return ss.str();
+    }
+};
+```
+
+### 错误信息常量
+
+```cpp
+// 错误信息常量定义
+namespace config::error {
+    constexpr const char* DIRECTORY_NOT_FOUND = "目录不存在: ";
+    constexpr const char* FILE_NOT_FOUND = "文件不存在: ";
+    constexpr const char* OUTPUT_DIR_NOT_FOUND = "输出目录不存在: ";
+    constexpr const char* INVALID_LOG_LEVEL = "无效的日志级别: ";
+    constexpr const char* INVALID_REPORT_FORMAT = "无效的报告格式: ";
+    constexpr const char* UNKNOWN_OPTION = "未知选项: ";
+    constexpr const char* MISSING_ARGUMENT = "缺少参数: ";
+    constexpr const char* PARSE_ERROR = "解析错误: ";
+    constexpr const char* INVALID_VERSION = "无效版本: ";
+    constexpr const char* MISSING_FIELD = "缺少字段: ";
+}
+```
+
+## 日志级别和格式管理
+
+### 日志级别枚举
+
+```cpp
+// 日志级别定义（使用统一的日志级别）
+using LogLevel = dlogcover::common::LogLevel;
+
+// 日志级别字符串映射
+const std::map<std::string, LogLevel> LOG_LEVEL_MAP = {
+    {"debug", LogLevel::DEBUG},
+    {"info", LogLevel::INFO},
+    {"warning", LogLevel::WARNING},
+    {"critical", LogLevel::CRITICAL},
+    {"fatal", LogLevel::FATAL},
+    {"all", LogLevel::ALL}
+};
+
+// 日志级别解析函数
+LogLevel parseLogLevelImpl(std::string_view level) {
+    std::string levelLower{level};
+    std::transform(levelLower.begin(), levelLower.end(), levelLower.begin(), ::tolower);
+
+    auto it = LOG_LEVEL_MAP.find(levelLower);
+    if (it != LOG_LEVEL_MAP.end()) {
+        return it->second;
+    }
+    
+    throw std::invalid_argument(std::string(config::error::INVALID_LOG_LEVEL) + std::string(level));
+}
+```
+
+### 报告格式管理
+
+```cpp
+// 报告格式枚举
+enum class ReportFormat {
+    UNKNOWN,  // 未知或未设置
+    TEXT,     // 纯文本格式
+    JSON      // JSON格式
+};
+
+// 报告格式字符串映射
+const std::map<std::string, ReportFormat> REPORT_FORMAT_MAP = {
+    {"text", ReportFormat::TEXT},
+    {"json", ReportFormat::JSON}
+};
+
+// 报告格式解析函数
+ReportFormat parseReportFormatImpl(std::string_view format) {
+    std::string formatLower{format};
+    std::transform(formatLower.begin(), formatLower.end(), formatLower.begin(), ::tolower);
+
+    auto it = REPORT_FORMAT_MAP.find(formatLower);
+    if (it != REPORT_FORMAT_MAP.end()) {
+        return it->second;
+    }
+    
+    throw std::invalid_argument(std::string(config::error::INVALID_REPORT_FORMAT) + std::string(format));
+}
+```
+
+## 主程序集成
+
+### 主函数实现
+
+```cpp
+// 主程序入口点
+int main(int argc, char* argv[]) {
+    auto programStart = std::chrono::high_resolution_clock::now();
+
+    try {
+        // 1. 解析命令行参数
+        cli::CommandLineParser commandLineParser;
+        auto parseResult = commandLineParser.parse(argc, argv);
+        
+        // 2. 处理帮助和版本请求
+        if (commandLineParser.isHelpOrVersionRequest()) {
+            return 0;
+        }
+
+        // 3. 检查解析错误
+        if (parseResult.hasError()) {
+            std::cerr << parseResult.getFormattedMessage() << std::endl << std::endl;
+            commandLineParser.showHelp();
+            return 1;
+        }
+
+        // 4. 初始化配置管理器
+        config::ConfigManager configManager;
+
+        // 5. 加载配置文件
+        const auto& parsedOptions = commandLineParser.getOptions();
+        if (!loadConfigurationFiles(configManager, parsedOptions)) {
+            return 1;
+        }
+        
+        // 6. 合并命令行参数
+        configManager.mergeWithCommandLineOptions(parsedOptions);
+        
+        // 7. 获取最终配置并继续分析...
+        const config::Config& config = configManager.getConfig();
+        
+        // 8. 执行分析流程...
+        return executeAnalysis(config);
+        
+    } catch (const std::exception& e) {
+        std::cerr << "程序执行错误: " << e.what() << std::endl;
+        return 1;
+    }
+}
+
+// 配置文件加载辅助函数
+bool loadConfigurationFiles(config::ConfigManager& configManager, 
+                           const cli::Options& options) {
+    if (!options.configPath.empty()) {
+        if (!configManager.loadConfig(options.configPath)) {
+            std::cerr << "错误: 无法加载配置文件: " << options.configPath 
+                     << " - " << configManager.getError() << std::endl;
+            return false;
+        }
+    } else {
+        // 尝试在当前目录查找dlogcover.json
+        if (std::filesystem::exists("dlogcover.json")) {
+            LOG_INFO("在当前目录找到 dlogcover.json，将加载它。");
+            if (!configManager.loadConfig("dlogcover.json")) {
+                std::cerr << "错误: 无法加载 dlogcover.json - " 
+                         << configManager.getError() << std::endl;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+```
+
+## 使用示例和最佳实践
+
+### 基本使用模式
+
+```bash
+# 1. 基本分析
+dlogcover
+
+# 2. 指定目录和输出
+dlogcover -d ./src -o analysis_report.txt
+
+# 3. 使用配置文件
+dlogcover -c project_config.json
+
+# 4. 环境变量配置
+export DLOGCOVER_DIRECTORY="./src"
+export DLOGCOVER_LOG_LEVEL="debug"
+dlogcover
+
+# 5. 复杂项目分析
+dlogcover -d ./large_project \
+          -e "build/*" -e "test/*" \
+          --parallel 8 \
+          --log-level info \
+          -f json \
+          -o detailed_report.json
+```
+
+### 错误处理最佳实践
+
+```cpp
+// CLI错误处理示例
+class CLIErrorHandler {
+public:
+    static int handleParseError(const ErrorResult& error, 
+                               const CommandLineParser& parser) {
+        // 输出格式化的错误信息
+        std::cerr << error.getFormattedMessage() << std::endl;
+        
+        // 对于某些错误类型，显示帮助信息
+        if (shouldShowHelp(error.getErrorCode())) {
+            std::cerr << std::endl;
+            parser.showHelp();
+        }
+        
+        return getExitCode(error.getErrorCode());
+    }
+    
+private:
+    static bool shouldShowHelp(ConfigError error) {
+        return error == ConfigError::UnknownOption ||
+               error == ConfigError::MissingArgument ||
+               error == ConfigError::InvalidArgument;
+    }
+    
+    static int getExitCode(ConfigError error) {
+        switch (error) {
+            case ConfigError::None: return 0;
+            case ConfigError::FileNotFound:
+            case ConfigError::DirectoryNotFound: return 2;
+            case ConfigError::InvalidArgument:
+            case ConfigError::UnknownOption: return 1;
+            default: return 1;
+        }
+    }
+};
+```
+
+### 配置优先级处理
+
+```cpp
+// 配置优先级管理
+class ConfigurationPriorityManager {
+public:
+    static void applyConfigurationPriority(config::ConfigManager& manager,
+                                          const cli::Options& cliOptions) {
+        // 1. 加载默认配置（最低优先级）
+        // 已在ConfigManager构造函数中完成
+        
+        // 2. 加载配置文件（中等优先级）
+        if (!cliOptions.configPath.empty()) {
+            manager.loadConfig(cliOptions.configPath);
+        }
+        
+        // 3. 应用命令行选项（最高优先级）
+        manager.mergeWithCommandLineOptions(cliOptions);
+        
+        // 4. 验证最终配置
+        if (!manager.validateConfig()) {
+            throw std::runtime_error("配置验证失败: " + manager.getError());
+        }
+    }
+};
+```
+
+这个CLI接口系统为DLogCover提供了完整、灵活、用户友好的命令行体验，支持多种配置方式和详细的错误处理，确保了工具的易用性和可靠性。

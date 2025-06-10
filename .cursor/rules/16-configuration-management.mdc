@@ -3,554 +3,664 @@ description:
 globs:
 alwaysApply: false
 ---
-# DLogCover 配置管理规范
+# DLogCover 配置管理系统指南
 
-## 配置系统概览
+## 配置系统架构
 
-DLogCover采用分层配置架构，支持灵活的配置管理和覆盖机制。详细的配置设计请参考：
+### 核心组件
 
-### Memory Bank配置文档
-- **[techContext.md](mdc:memory-bank/techContext.md)** - 配置系统技术实现
-- **[systemPatterns.md](mdc:memory-bank/systemPatterns.md)** - 配置管理架构模式
-
-## 配置架构设计
-
-### 1. 分层配置策略
-
-#### 配置优先级链
-```
-命令行参数 (最高优先级)
-    ↓ 覆盖
-项目配置文件 (./.dlogcover.json)
-    ↓ 覆盖  
-用户配置文件 (~/.dlogcover/config.json)
-    ↓ 覆盖
-全局默认配置 (内置默认值)
-```
-
-#### 配置合并策略
 ```cpp
-// 配置合并实现模式
-class ConfigMerger {
+// 配置系统主要组件
+namespace dlogcover {
+    namespace cli {
+        class CommandLineParser;     // 命令行解析器
+        class ConfigValidator;       // 配置验证器
+        struct Options;             // 命令行选项结构
+    }
+    
+    namespace config {
+        class ConfigManager;        // 配置管理器
+        struct Config;             // 配置结构
+        class CompileCommandsManager; // 编译命令管理器
+    }
+}
+```
+
+### 配置优先级
+
+DLogCover 采用分层配置系统，优先级从高到低：
+
+```
+命令行参数 > 配置文件 > 环境变量 > 默认值
+```
+
+## 命令行参数系统
+
+### 支持的命令行选项
+
+#### 主要选项
+```bash
+# 基本选项
+-h, --help                 # 显示帮助信息
+-v, --version              # 显示版本信息
+-d, --directory <path>     # 指定扫描目录 (默认: ./)
+-o, --output <path>        # 指定输出报告路径
+-c, --config <path>        # 指定配置文件路径 (默认: ./dlogcover.json)
+
+# 日志和输出控制
+-l, --log-level <level>    # 日志级别 (debug, info, warning, critical, fatal, all)
+-f, --format <format>      # 报告格式 (text, json)
+-p, --log-path <path>      # 日志文件路径
+-q, --quiet                # 静默模式
+    --verbose              # 详细输出模式
+
+# 文件过滤
+-e, --exclude <pattern>    # 排除模式 (可多次使用)
+-I, --include-path <path>  # 头文件搜索路径 (可多次使用)
+
+# 高级选项
+    --compiler-arg <arg>   # 编译器参数 (可多次使用)
+    --include-system-headers # 包含系统头文件分析
+    --threshold <value>    # 覆盖率阈值 (0.0-1.0)
+    --parallel <num>       # 并行分析线程数
+```
+
+#### 默认值定义
+
+```cpp
+// 默认值常量 (config_constants.h)
+namespace dlogcover::config::cli {
+    constexpr const char* DEFAULT_DIRECTORY = ".";
+    constexpr const char* DEFAULT_OUTPUT = "";
+    constexpr const char* DEFAULT_CONFIG = "";
+}
+
+// 运行时默认值生成
+namespace DefaultValues {
+    // 输出文件：dlogcover_report_<timestamp>.txt
+    std::string generateDefaultOutput() {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << "dlogcover_report_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") << ".txt";
+        return ss.str();
+    }
+    
+    // 日志文件：dlogcover_<timestamp>.log
+    std::string generateDefaultLogFile() {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << "dlogcover_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") << ".log";
+        return ss.str();
+    }
+}
+```
+
+### 命令行解析实现
+
+#### 解析流程
+
+```cpp
+// 命令行解析主流程
+class CommandLineParser {
 public:
-    Config mergeConfigs(
-        const Config& defaults,
-        const Config& userConfig, 
-        const Config& projectConfig,
-        const Options& cmdOptions
-    );
-private:
-    void mergeSection(JsonValue& target, const JsonValue& source);
-    void validateMergedConfig(const Config& config);
+    ErrorResult parse(int argc, char** argv) {
+        // 1. 从环境变量加载选项
+        ConfigValidator validator;
+        if (!validator.loadFromEnvironment(options_)) {
+            return ErrorResult(validator.getErrorCode(), validator.getError());
+        }
+        
+        // 2. 处理配置文件参数（优先处理）
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (isConfigOption(args[i])) {
+                handleConfigOption(args, i, validator);
+            }
+        }
+        
+        // 3. 处理其他命令行参数
+        for (size_t i = 0; i < args.size(); ++i) {
+            handleOtherOptions(args, i);
+        }
+        
+        // 4. 验证最终选项
+        return options_.validate();
+    }
 };
 ```
 
-### 2. 配置文件格式规范
+#### 参数验证
 
-#### 标准配置文件结构 (dlogcover.json)
-```json
-{
-    "version": "1.0",
-    "metadata": {
-        "created": "2024-12-01T00:00:00Z",
-        "description": "DLogCover分析配置",
-        "author": "项目团队"
-    },
-    "scan": {
-        "directories": ["./src", "./include"],
-        "excludes": [
-            "build/", "test/", ".git/", "third_party/",
-            "*.tmp", "*.log", "*.cache"
-        ],
-        "fileTypes": [".cpp", ".cc", ".cxx", ".h", ".hpp"],
-        "includePaths": ["./include", "./src"],
-        "isQtProject": false,
-        "compilerArgs": ["-std=c++17", "-Wall", "-Wextra"],
-        "maxFileSize": "100MB",
-        "followSymlinks": false
-    },
-    "logFunctions": {
-        "qt": {
-            "enabled": true,
-            "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
-            "categoryFunctions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"],
-            "streamOperators": true,
-            "conditionalMacros": ["QT_DEBUG"]
-        },
-        "custom": {
-            "enabled": true,
-            "functions": {
-                "debug": ["LOG_DEBUG", "DLOG_DEBUG", "logDebug"],
-                "info": ["LOG_INFO", "DLOG_INFO", "logInfo"], 
-                "warning": ["LOG_WARNING", "DLOG_WARN", "logWarning"],
-                "error": ["LOG_ERROR", "DLOG_ERROR", "logError"],
-                "fatal": ["LOG_FATAL", "DLOG_FATAL", "logFatal"]
-            },
-            "macroFunctions": ["LOG", "LOGGER", "TRACE"],
-            "namespaces": ["logging::", "spdlog::", "glog::"]
-        }
-    },
-    "analysis": {
-        "functionCoverage": {
-            "enabled": true,
-            "includeConstructors": true,
-            "includeDestructors": true,
-            "includeOperators": true,
-            "includeTemplates": true,
-            "minFunctionLines": 3
-        },
-        "branchCoverage": {
-            "enabled": true,
-            "includeIfElse": true,
-            "includeSwitchCase": true,
-            "includeTernary": true,
-            "includeShortCircuit": false,
-            "maxNestingLevel": 5
-        },
-        "exceptionCoverage": {
-            "enabled": true,
-            "includeTryBlocks": true,
-            "includeCatchBlocks": true,
-            "includeFinallyBlocks": true,
-            "includeRethrows": true
-        },
-        "keyPathCoverage": {
-            "enabled": true,
-            "identifyErrorPaths": true,
-            "identifyMainPaths": true,
-            "pathComplexityThreshold": 10
-        }
-    },
-    "performance": {
-        "maxMemoryUsage": "4GB",
-        "maxAnalysisTime": "30min",
-        "parallelAnalysis": true,
-        "cacheEnabled": true,
-        "cachePath": "./.dlogcover_cache",
-        "cacheMaxSize": "1GB",
-        "threadCount": 0  // 0表示自动检测
-    },
-    "report": {
-        "format": "text",
-        "outputPath": "./coverage_report",
-        "timestampFormat": "YYYY-MM-DD_HH-mm-ss",
-        "includeFileDetails": true,
-        "includeFunctionDetails": true,
-        "includeUncoveredPaths": true,
-        "sortBy": "coverage_ratio",
-        "filterMinCoverage": 0.0,
-        "generateSummary": true
-    },
-    "logging": {
-        "level": "info",
-        "file": "./dlogcover.log",
-        "console": true,
-        "maxFileSize": "10MB",
-        "maxFiles": 5,
-        "includeTimestamp": true,
-        "includeLocation": false
-    },
-    "validation": {
-        "strictMode": false,
-        "warnOnUnknownFields": true,
-        "validateLogFunctions": true,
-        "checkFileAccess": true
-    }
-}
-```
-
-#### 配置文件模式定义
-```json
-{
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "DLogCover Configuration Schema",
-    "type": "object",
-    "required": ["version", "scan", "logFunctions", "analysis"],
-    "properties": {
-        "version": {
-            "type": "string",
-            "pattern": "^\\d+\\.\\d+$",
-            "description": "配置文件版本号"
-        }
-    }
-}
-```
-
-### 3. 配置验证策略
-
-#### 配置验证器设计
 ```cpp
+// 选项验证实现
+struct Options {
+    ErrorResult validate() const {
+        // 验证目录路径
+        if (!directory.empty() && !std::filesystem::exists(directory)) {
+            return ErrorResult(ConfigError::DirectoryNotFound, 
+                             "目录不存在: " + directory);
+        }
+        
+        // 验证输出目录
+        if (!output_file.empty()) {
+            auto parentPath = std::filesystem::path(output_file).parent_path();
+            if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {
+                return ErrorResult(ConfigError::OutputDirectoryNotFound,
+                                 "输出目录不存在: " + parentPath.string());
+            }
+        }
+        
+        // 验证并行线程数
+        if (parallel < 1) {
+            return ErrorResult(ConfigError::InvalidArgument,
+                             "并行线程数必须大于0");
+        }
+        
+        // 验证覆盖率阈值
+        if (threshold < 0.0 || threshold > 1.0) {
+            return ErrorResult(ConfigError::InvalidArgument,
+                             "覆盖率阈值必须在0.0-1.0之间");
+        }
+        
+        return ErrorResult(); // 验证成功
+    }
+};
+```
+
+## 环境变量支持
+
+### 支持的环境变量
+
+```bash
+# 环境变量映射
+export DLOGCOVER_DIRECTORY="./src"          # 等同于 -d 选项
+export DLOGCOVER_OUTPUT="./report.txt"      # 等同于 -o 选项
+export DLOGCOVER_CONFIG="./config.json"     # 等同于 -c 选项
+export DLOGCOVER_LOG_LEVEL="debug"          # 等同于 -l 选项
+export DLOGCOVER_REPORT_FORMAT="json"       # 等同于 -f 选项
+export DLOGCOVER_EXCLUDE="build/*:test/*"   # 排除模式，冒号分隔
+export DLOGCOVER_LOG_PATH="./analysis.log"  # 等同于 -p 选项
+```
+
+### 环境变量加载实现
+
+```cpp
+// 环境变量加载器
 class ConfigValidator {
 public:
-    Result<bool> validate(const Config& config);
+    bool loadFromEnvironment(Options& options) {
+        // 加载基本路径选项
+        loadEnvString("DLOGCOVER_DIRECTORY", options.directory);
+        loadEnvString("DLOGCOVER_OUTPUT", options.output_file);
+        loadEnvString("DLOGCOVER_CONFIG", options.configPath);
+        loadEnvString("DLOGCOVER_LOG_PATH", options.log_file);
+        
+        // 加载日志级别
+        std::string logLevel;
+        if (loadEnvString("DLOGCOVER_LOG_LEVEL", logLevel)) {
+            LogLevel level;
+            if (parseLogLevelString(logLevel, level)) {
+                options.logLevel = level;
+            }
+        }
+        
+        // 加载报告格式
+        std::string reportFormat;
+        if (loadEnvString("DLOGCOVER_REPORT_FORMAT", reportFormat)) {
+            ReportFormat format;
+            if (parseReportFormatString(reportFormat, format)) {
+                options.reportFormat = format;
+            }
+        }
+        
+        // 加载排除模式（冒号分隔）
+        std::string excludePatterns;
+        if (loadEnvString("DLOGCOVER_EXCLUDE", excludePatterns)) {
+            options.excludePatterns = splitString(excludePatterns, ':');
+        }
+        
+        return true;
+    }
     
 private:
-    // 验证方法
-    Result<bool> validateVersion(const std::string& version);
-    Result<bool> validatePaths(const ScanConfig& scan);
-    Result<bool> validateLogFunctions(const LogFunctionsConfig& logFuncs);
-    Result<bool> validatePerformance(const PerformanceConfig& perf);
-    
-    // 警告收集
-    std::vector<ValidationWarning> warnings_;
-    
-    // 错误收集  
-    std::vector<ValidationError> errors_;
-};
-
-// 验证结果类型
-enum class ValidationLevel {
-    INFO,
-    WARNING, 
-    ERROR,
-    CRITICAL
-};
-
-struct ValidationIssue {
-    ValidationLevel level;
-    std::string path;     // JSON路径，如 "scan.directories[0]"
-    std::string message;
-    std::string suggestion;
+    bool loadEnvString(const char* envName, std::string& target) {
+        const char* value = std::getenv(envName);
+        if (value && strlen(value) > 0) {
+            target = value;
+            return true;
+        }
+        return false;
+    }
 };
 ```
 
-#### 验证规则定义
-```cpp
-namespace ValidationRules {
-    // 路径验证
-    constexpr auto MAX_PATH_LENGTH = 260;
-    constexpr auto MAX_DIRECTORIES = 100;
-    
-    // 性能约束验证
-    constexpr auto MAX_MEMORY_GB = 16;
-    constexpr auto MAX_ANALYSIS_HOURS = 24;
-    constexpr auto MAX_THREADS = 32;
-    
-    // 文件大小验证
-    constexpr auto MAX_FILE_SIZE_MB = 500;
-    constexpr auto MAX_CACHE_SIZE_GB = 10;
+## 配置文件系统
+
+### 配置文件结构
+
+DLogCover 使用 JSON 格式的配置文件，支持以下结构：
+
+```json
+{
+    "project": {
+        "name": "项目名称",
+        "directory": "项目根目录",
+        "build_directory": "构建目录"
+    },
+    "scan": {
+        "directories": ["扫描目录列表"],
+        "file_extensions": ["文件扩展名列表"],
+        "exclude_patterns": ["排除模式列表"]
+    },
+    "compile_commands": {
+        "path": "compile_commands.json路径",
+        "auto_generate": true,
+        "cmake_args": ["CMake参数列表"]
+    },
+    "output": {
+        "report_file": "报告文件名",
+        "log_file": "日志文件名",
+        "log_level": "日志级别"
+    },
+         "log_functions": {
+         "qt": {
+             "enabled": true,
+             "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+             "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+         },
+         "custom": {
+             "enabled": true,
+             "functions": {
+                 "debug": ["logDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"],
+                 "info": ["logInfo", "LOG_INFO", "LOG_INFO_FMT"],
+                 "warning": ["logWarning", "LOG_WARNING", "LOG_WARNING_FMT"],
+                 "error": ["logError", "LOG_ERROR", "LOG_ERROR_FMT"],
+                 "fatal": ["logFatal", "LOG_FATAL", "LOG_FATAL_FMT"]
+             }
+         }
+     },
+    "analysis": {
+        "function_coverage": true,
+        "branch_coverage": true,
+        "exception_coverage": true,
+        "key_path_coverage": true
+    }
 }
 ```
 
-## 配置管理最佳实践
+### 默认配置生成
 
-### 1. 配置文件组织
-
-#### 项目级配置 (.dlogcover.json)
-```bash
-# 项目根目录
-project_root/
-├── .dlogcover.json           # 项目主配置
-├── .dlogcover/              # 项目配置目录
-│   ├── profiles/            # 配置文件档案
-│   │   ├── debug.json       # 调试配置
-│   │   ├── release.json     # 发布配置
-│   │   └── ci.json          # CI配置
-│   ├── templates/           # 配置模板
-│   └── cache/               # 本地缓存
-└── src/
-```
-
-#### 用户级配置 (~/.dlogcover/)
-```bash
-# 用户主目录
-~/.dlogcover/
-├── config.json              # 用户全局配置
-├── profiles/                # 用户配置档案
-│   ├── work.json            # 工作环境配置
-│   ├── personal.json        # 个人项目配置
-│   └── experimental.json    # 实验性配置
-├── cache/                   # 全局缓存
-└── logs/                    # 用户日志
-```
-
-### 2. 配置模板和预设
-
-#### 常用配置模板
 ```cpp
-namespace ConfigTemplates {
-    // Qt项目配置模板
-    const char* QT_PROJECT_TEMPLATE = R"({
-        "scan": {
-            "isQtProject": true,
-            "includePaths": ["./src", "./include", "$QT_INCLUDE_PATH"]
-        },
-        "logFunctions": {
-            "qt": {"enabled": true},
-            "custom": {"enabled": false}
-        }
-    })";
-    
-    // 高性能配置模板
-    const char* HIGH_PERFORMANCE_TEMPLATE = R"({
-        "performance": {
-            "parallelAnalysis": true,
-            "threadCount": 0,
-            "cacheEnabled": true,
-            "maxMemoryUsage": "8GB"
-        }
-    })";
-    
-    // CI/CD配置模板
-    const char* CI_TEMPLATE = R"({
-        "report": {
-            "format": "json",
-            "includeFileDetails": false
-        },
-        "logging": {
-            "level": "warning",
-            "console": true,
-            "file": false
-        }
-    })";
+// 默认配置创建逻辑
+Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
+    Config config;
+    std::string actualProjectDir = project_dir.empty() ? 
+        std::filesystem::current_path().string() : project_dir;
+
+    // 项目配置
+    config.project.name = std::filesystem::path(actualProjectDir).filename().string();
+    if (config.project.name.empty() || config.project.name == ".") {
+        config.project.name = "dlog-project";
+    }
+    config.project.directory = actualProjectDir;
+    config.project.build_directory = (std::filesystem::path(actualProjectDir) / "build").string();
+
+    // 扫描配置
+    config.scan.directories = {"include", "src", "tests"};
+    config.scan.file_extensions = {".cpp", ".h", ".cxx", ".hpp"};
+    config.scan.exclude_patterns = {"*build*", "*/build/*"};
+
+    // 编译命令配置
+    config.compile_commands.path = (std::filesystem::path(config.project.build_directory) / "compile_commands.json").string();
+    config.compile_commands.auto_generate = true;
+    config.compile_commands.cmake_args = {"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"};
+
+    // 输出配置
+    config.output.report_file = "dlogcover_report.txt";
+    config.output.log_file = "dlogcover.log";
+    config.output.log_level = "INFO";
+
+    // 分析配置
+    config.analysis.function_coverage = true;
+    config.analysis.branch_coverage = true;
+    config.analysis.exception_coverage = true;
+    config.analysis.key_path_coverage = true;
+
+    return config;
 }
 ```
 
-### 3. 配置加载和管理
+### 配置文件加载和验证
 
-#### 配置管理器实现
 ```cpp
+// 配置文件解析实现
+class ConfigManager {
+public:
+    bool loadConfig(const std::string& config_path) {
+        LOG_INFO_FMT("加载配置文件: %s", config_path.c_str());
+
+        if (!std::filesystem::exists(config_path)) {
+            setError("配置文件不存在: " + config_path);
+            return false;
+        }
+
+        if (!parseConfigFile(config_path)) {
+            return false;
+        }
+
+        if (!validateConfig()) {
+            return false;
+        }
+
+        loaded_ = true;
+        LOG_INFO("配置文件加载成功");
+        return true;
+    }
+
+private:
+    bool parseConfigFile(const std::string& config_path) {
+        try {
+            std::ifstream file(config_path);
+            nlohmann::json json_config;
+            file >> json_config;
+
+            // 解析各个配置段
+            parseProjectConfig(json_config);
+            parseScanConfig(json_config);
+            parseCompileCommandsConfig(json_config);
+            parseOutputConfig(json_config);
+            
+            return true;
+        } catch (const std::exception& e) {
+            setError("解析配置文件失败: " + std::string(e.what()));
+            return false;
+        }
+    }
+};
+```
+
+## 配置合并策略
+
+### 合并流程
+
+```cpp
+// 配置合并实现
+void ConfigManager::mergeWithCommandLineOptions(const cli::Options& options) {
+    LOG_DEBUG("合并命令行选项");
+
+    // 1. 项目目录覆盖
+    if (!options.directory.empty()) {
+        config_.project.directory = options.directory;
+        LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
+    }
+
+    // 2. 排除模式追加（不覆盖）
+    if (!options.excludePatterns.empty()) {
+        config_.scan.exclude_patterns.insert(
+            config_.scan.exclude_patterns.end(),
+            options.excludePatterns.begin(),
+            options.excludePatterns.end()
+        );
+        LOG_DEBUG_FMT("添加 %zu 个命令行排除模式", options.excludePatterns.size());
+    }
+
+    // 3. 输出配置覆盖
+    if (!options.output_file.empty()) {
+        config_.output.report_file = options.output_file;
+    }
+    
+    if (!options.log_file.empty()) {
+        config_.output.log_file = options.log_file;
+    }
+
+    // 4. 日志级别转换和覆盖
+    if (options.logLevel != cli::LogLevel::UNKNOWN) {
+        config_.output.log_level = logLevelToString(options.logLevel);
+        LOG_DEBUG_FMT("设置日志级别: %s", config_.output.log_level.c_str());
+    }
+}
+```
+
+### 日志级别映射
+
+```cpp
+// 日志级别枚举和字符串映射
+enum class LogLevel {
+    UNKNOWN,    // 未设置
+    DEBUG,      // 调试信息
+    INFO,       // 一般信息
+    WARNING,    // 警告信息
+    CRITICAL,   // 严重错误
+    FATAL,      // 致命错误
+    ALL         // 所有级别
+};
+
+// 字符串到枚举的映射
+const std::map<std::string, LogLevel> LOG_LEVEL_MAP = {
+    {"debug", LogLevel::DEBUG},
+    {"info", LogLevel::INFO},
+    {"warning", LogLevel::WARNING},
+    {"critical", LogLevel::CRITICAL},
+    {"fatal", LogLevel::FATAL},
+    {"all", LogLevel::ALL}
+};
+
+// 枚举到字符串的转换
+std::string logLevelToString(LogLevel level) {
+    switch (level) {
+        case LogLevel::DEBUG:    return "DEBUG";
+        case LogLevel::INFO:     return "INFO";
+        case LogLevel::WARNING:  return "WARNING";
+        case LogLevel::CRITICAL: return "CRITICAL";
+        case LogLevel::FATAL:    return "FATAL";
+        case LogLevel::ALL:      return "ALL";
+        default:                 return "INFO";
+    }
+}
+```
+
+## 配置验证系统
+
+### 验证规则
+
+```cpp
+// 配置验证实现
 class ConfigManager {
 private:
-    Config defaultConfig_;
-    Config userConfig_;
-    Config projectConfig_;
-    Config mergedConfig_;
-    
-    std::unique_ptr<ConfigLoader> loader_;
-    std::unique_ptr<ConfigValidator> validator_;
-    std::unique_ptr<ConfigCache> cache_;
-    
-public:
-    // 加载配置链
-    Result<bool> loadConfigurations(const std::string& projectPath);
-    
-    // 获取最终配置
-    const Config& getFinalConfig() const { return mergedConfig_; }
-    
-    // 配置热重载
-    Result<bool> reloadConfigurations();
-    
-    // 配置保存
-    Result<bool> saveUserConfig(const Config& config);
-    Result<bool> saveProjectConfig(const Config& config);
-    
-    // 配置验证
-    Result<ValidationReport> validateConfiguration(const Config& config);
-    
-    // 配置模板
-    Result<Config> loadTemplate(const std::string& templateName);
-    Result<bool> saveAsTemplate(const Config& config, const std::string& name);
+    bool validateConfig() const {
+        return validateProjectConfig() && 
+               validateScanConfig() && 
+               validateCompileCommandsConfig();
+    }
+
+    bool validateProjectConfig() const {
+        if (config_.project.directory.empty()) {
+            LOG_ERROR("项目目录不能为空");
+            return false;
+        }
+
+        if (!std::filesystem::exists(config_.project.directory)) {
+            LOG_ERROR_FMT("项目目录不存在: %s", config_.project.directory.c_str());
+            return false;
+        }
+
+        return true;
+    }
+
+    bool validateScanConfig() const {
+        if (config_.scan.directories.empty()) {
+            LOG_ERROR("扫描目录列表不能为空");
+            return false;
+        }
+
+        if (config_.scan.file_extensions.empty()) {
+            LOG_ERROR("文件扩展名列表不能为空");
+            return false;
+        }
+
+        // 检查文件扩展名格式
+        for (const auto& ext : config_.scan.file_extensions) {
+            if (ext.empty() || ext[0] != '.') {
+                LOG_ERROR_FMT("文件扩展名格式错误: %s", ext.c_str());
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool validateCompileCommandsConfig() const {
+        if (config_.compile_commands.path.empty()) {
+            LOG_ERROR("compile_commands.json路径不能为空");
+            return false;
+        }
+
+        return true;
+    }
 };
 ```
 
-#### 配置加载策略
+## 错误处理系统
+
+### 错误类型定义
+
 ```cpp
-class ConfigLoader {
-public:
-    virtual Result<Config> loadFromFile(const std::string& path) = 0;
-    virtual Result<Config> loadFromString(const std::string& content) = 0;
-    virtual Result<bool> saveToFile(const Config& config, const std::string& path) = 0;
-    
-protected:
-    // 配置解析选项
-    struct LoadOptions {
-        bool allowComments = true;      // 允许JSON注释
-        bool strictMode = false;        // 严格模式
-        bool validateSchema = true;     // 模式验证
-        size_t maxFileSize = 10 * 1024 * 1024; // 最大文件大小
-    };
+// 配置错误类型枚举
+enum class ConfigError {
+    None = 0,                           // 无错误
+    FileNotFound = 1,                   // 文件未找到
+    DirectoryNotFound = 2,              // 目录未找到
+    OutputDirectoryNotFound = 3,        // 输出目录未找到
+    InvalidVersion = 4,                 // 无效版本
+    InvalidType = 5,                    // 无效类型
+    MissingField = 6,                   // 缺少字段
+    InvalidLogLevel = 7,                // 无效日志级别
+    InvalidReportFormat = 8,            // 无效报告格式
+    InvalidExcludePattern = 9,          // 无效排除模式
+    ParseError = 10,                    // 解析错误
+    EnvironmentError = 11,              // 环境变量错误
+    UnknownOption = 12,                 // 未知选项
+    InvalidLogPath = 13,                // 无效日志路径
+    MissingValue = 14,                  // 缺少值
+    InvalidArgument = 15,               // 无效参数
+    MissingArgument = 16                // 缺少参数
 };
 
-class JsonConfigLoader : public ConfigLoader {
+// 错误结果类
+class ErrorResult {
+private:
+    ConfigError errorCode_;
+    std::string message_;
+
 public:
-    Result<Config> loadFromFile(const std::string& path) override;
-    
-private:
-    Result<nlohmann::json> parseJsonWithComments(const std::string& content);
-    Result<bool> validateJsonSchema(const nlohmann::json& json);
-};
-```
+    ErrorResult() : errorCode_(ConfigError::None) {}
+    ErrorResult(ConfigError code, const std::string& msg) 
+        : errorCode_(code), message_(msg) {}
 
-## 运行时配置管理
-
-### 1. 配置监控和热重载
-
-#### 文件监控实现
-```cpp
-class ConfigWatcher {
-private:
-    std::vector<std::string> watchedFiles_;
-    std::function<void(const std::string&)> onFileChanged_;
-    std::thread watcherThread_;
-    std::atomic<bool> running_{false};
-    
-public:
-    void startWatching(const std::vector<std::string>& files);
-    void stopWatching();
-    void setChangeHandler(std::function<void(const std::string&)> handler);
-    
-private:
-    void watchLoop();
-    bool checkFileModification(const std::string& file);
+    bool hasError() const { return errorCode_ != ConfigError::None; }
+    ConfigError getErrorCode() const { return errorCode_; }
+    const std::string& message() const { return message_; }
 };
 ```
 
-### 2. 配置缓存管理
+## 使用示例
 
-#### 配置缓存策略
+### 基本使用流程
+
 ```cpp
-class ConfigCache {
-private:
-    struct CacheEntry {
-        Config config;
-        std::time_t loadTime;
-        std::string checksum;
-        size_t accessCount;
-    };
-    
-    std::unordered_map<std::string, CacheEntry> cache_;
-    size_t maxCacheSize_;
-    
-public:
-    std::optional<Config> get(const std::string& path);
-    void put(const std::string& path, const Config& config);
-    void invalidate(const std::string& path);
-    void clear();
-    
-private:
-    void evictOldEntries();
-    std::string calculateChecksum(const std::string& path);
-};
-```
+// 完整的配置加载流程
+int main(int argc, char* argv[]) {
+    try {
+        // 1. 解析命令行参数
+        cli::CommandLineParser commandLineParser;
+        auto parseResult = commandLineParser.parse(argc, argv);
+        
+        if (commandLineParser.isHelpOrVersionRequest()) {
+            return 0;
+        }
 
-## 配置安全和加密
+        if (parseResult.hasError()) {
+            std::cerr << "参数解析错误: " << parseResult.message() << std::endl;
+            commandLineParser.showHelp();
+            return 1;
+        }
 
-### 1. 敏感配置保护
+        // 2. 初始化配置管理器
+        config::ConfigManager configManager;
 
-#### 配置加密支持
-```cpp
-class SecureConfigManager {
-public:
-    Result<Config> loadEncryptedConfig(const std::string& path, const std::string& key);
-    Result<bool> saveEncryptedConfig(const Config& config, const std::string& path, const std::string& key);
+        // 3. 加载配置文件（如果指定）
+        const auto& parsedOptions = commandLineParser.getOptions();
+        if (!parsedOptions.configPath.empty()) {
+            if (!configManager.loadConfig(parsedOptions.configPath)) {
+                std::cerr << "错误: 无法加载配置文件: " << parsedOptions.configPath 
+                         << " - " << configManager.getError() << std::endl;
+                return 1;
+            }
+        } else {
+            // 尝试在当前目录查找dlogcover.json
+            if (std::filesystem::exists("dlogcover.json")) {
+                LOG_INFO("在当前目录找到 dlogcover.json，将加载它。");
+                if (!configManager.loadConfig("dlogcover.json")) {
+                    std::cerr << "错误: 无法加载 dlogcover.json - " 
+                             << configManager.getError() << std::endl;
+                    return 1;
+                }
+            }
+        }
+        
+        // 4. 合并命令行参数
+        configManager.mergeWithCommandLineOptions(parsedOptions);
+        
+        // 5. 获取最终配置
+        const config::Config& config = configManager.getConfig();
+        
+        // 6. 使用配置进行分析...
+        
+    } catch (const std::exception& e) {
+        std::cerr << "程序执行错误: " << e.what() << std::endl;
+        return 1;
+    }
     
-private:
-    std::unique_ptr<Encryptor> encryptor_;
-    
-    // 识别敏感字段
-    bool isSensitiveField(const std::string& fieldPath);
-    
-    // 加密/解密特定字段
-    Result<std::string> encryptField(const std::string& value, const std::string& key);
-    Result<std::string> decryptField(const std::string& encryptedValue, const std::string& key);
-};
-```
-
-### 2. 配置访问控制
-
-#### 权限验证
-```cpp
-namespace ConfigSecurity {
-    enum class Permission {
-        READ = 1,
-        WRITE = 2,
-        MODIFY = 4,
-        DELETE = 8
-    };
-    
-    class PermissionChecker {
-    public:
-        bool hasPermission(const std::string& configPath, Permission perm);
-        void setPermission(const std::string& configPath, Permission perm, bool allow);
-    };
+    return 0;
 }
 ```
 
-## 配置迁移和兼容性
+### 配置文件生成
 
-### 1. 版本兼容性管理
-
-#### 配置迁移器
 ```cpp
-class ConfigMigrator {
-public:
-    Result<Config> migrateToCurrentVersion(const Config& oldConfig, const std::string& fromVersion);
+// 生成默认配置文件
+bool generateDefaultConfigFile(const std::string& project_dir) {
+    std::string config_path = project_dir + "/dlogcover.json";
     
-private:
-    using MigrationFunc = std::function<Result<Config>(const Config&)>;
-    std::map<std::string, MigrationFunc> migrators_;
-    
-    // 注册迁移函数
-    void registerMigrator(const std::string& fromVersion, MigrationFunc migrator);
-    
-    // 版本比较
-    bool isVersionNewer(const std::string& version1, const std::string& version2);
-};
+    if (config::ConfigManager::generateDefaultConfig(config_path, project_dir)) {
+        std::cout << "成功生成默认配置文件: " << config_path << std::endl;
+        return true;
+    } else {
+        std::cerr << "生成默认配置文件失败" << std::endl;
+        return false;
+    }
+}
 ```
 
-### 2. 向后兼容性保证
+## 最佳实践
 
-#### 兼容性检查
-```cpp
-class CompatibilityChecker {
-public:
-    Result<CompatibilityReport> checkCompatibility(const Config& config);
-    
-private:
-    struct CompatibilityIssue {
-        std::string field;
-        std::string issue;
-        std::string recommendation;
-        bool canAutoFix;
-    };
-    
-    std::vector<CompatibilityIssue> checkDeprecatedFields(const Config& config);
-    std::vector<CompatibilityIssue> checkNewRequiredFields(const Config& config);
-};
-```
+### 配置文件组织
 
-## 配置调试和诊断
+1. **项目级配置**: 在项目根目录放置 `dlogcover.json`
+2. **用户级配置**: 在用户主目录放置 `.dlogcover.json`
+3. **系统级配置**: 在系统配置目录放置全局配置
 
-### 1. 配置诊断工具
+### 参数优先级使用
 
-#### 配置验证命令
-```bash
-# 验证配置文件
-dlogcover config validate [--config=path] [--strict]
+1. **开发阶段**: 使用命令行参数快速调试
+2. **CI/CD**: 使用环境变量配置
+3. **项目标准**: 使用配置文件定义项目标准
 
-# 显示最终合并配置
-dlogcover config show [--merged] [--format=json|yaml]
+### 错误处理
 
-# 配置差异比较
-dlogcover config diff config1.json config2.json
+1. **详细错误信息**: 提供具体的错误位置和原因
+2. **优雅降级**: 配置错误时使用默认值
+3. **用户友好**: 提供修复建议和帮助信息
 
-# 配置模板生成
-dlogcover config template --type=qt --output=template.json
-```
-
-### 2. 配置日志和审计
-
-#### 配置变更审计
-```cpp
-class ConfigAuditor {
-private:
-    struct ConfigChange {
-        std::time_t timestamp;
-        std::string source;        // 变更来源
-        std::string path;          // 配置路径
-        std::string oldValue;      // 旧值
-        std::string newValue;      // 新值
-        std::string reason;        // 变更原因
-    };
-    
-    std::vector<ConfigChange> auditLog_;
-    
-public:
-    void recordChange(const ConfigChange& change);
-    std::vector<ConfigChange> getChanges(const std::time_t& since);
-    void exportAuditLog(const std::string& outputPath);
-};
-```
-
-这套配置管理规范确保DLogCover具有灵活、安全、易维护的配置系统，支持各种使用场景和部署环境。
+这个配置管理系统为DLogCover提供了灵活、可扩展的配置能力，支持多种配置来源和验证机制，确保了系统的可靠性和易用性。
