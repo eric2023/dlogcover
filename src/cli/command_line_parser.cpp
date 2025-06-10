@@ -130,17 +130,47 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   DLOGCOVER_LOG_PATH        等同于 -p 选项
 
 配置文件格式 (JSON):
+支持两种格式：
+
+1. 完整嵌套格式 (推荐):
 {
-  "directory": "./src",              // 必需，扫描目录
-  "output": "./report.txt",          // 可选，输出路径
-  "log_level": "debug",             // 可选，日志级别
-  "report_format": "text",          // 可选，报告格式
-  "exclude": ["build/*", "test/*"], // 可选，排除模式列表
-  "log_path": "./dlogcover.log",    // 可选，日志文件路径
-  "include_paths": ["./include"],   // 可选，头文件搜索路径
-  "compiler_args": ["-std=c++17"],  // 可选，编译器参数
-  "parallel": 4,                    // 可选，并行线程数
-  "threshold": 0.8                  // 可选，覆盖率阈值
+  "project": {
+    "name": "my-project",
+    "directory": "./src",
+    "build_directory": "./build"
+  },
+  "scan": {
+    "directories": ["src", "include"],
+    "file_extensions": [".cpp", ".h"],
+    "exclude_patterns": ["build/*", "test/*"]
+  },
+  "output": {
+    "report_file": "./report.txt",
+    "log_file": "./dlogcover.log",
+    "log_level": "debug"
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo"]
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["LOG_DEBUG"],
+        "info": ["LOG_INFO"]
+      }
+    }
+  }
+}
+
+2. 简化格式 (兼容):
+{
+  "directory": "./src",
+  "output": "./report.txt",
+  "log_level": "debug",
+  "exclude": ["build/*", "test/*"],
+  "log_path": "./dlogcover.log"
 }
 
 优先级:

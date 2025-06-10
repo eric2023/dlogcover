@@ -151,6 +151,19 @@ bool ConfigManager::generateDefaultConfig(const std::string& config_path,
         json_config["output"]["log_file"] = default_config.output.log_file;
         json_config["output"]["log_level"] = default_config.output.log_level;
 
+        // 日志函数配置
+        json_config["log_functions"]["qt"]["enabled"] = default_config.log_functions.qt.enabled;
+        json_config["log_functions"]["qt"]["functions"] = default_config.log_functions.qt.functions;
+        json_config["log_functions"]["qt"]["category_functions"] = default_config.log_functions.qt.category_functions;
+        json_config["log_functions"]["custom"]["enabled"] = default_config.log_functions.custom.enabled;
+        json_config["log_functions"]["custom"]["functions"] = default_config.log_functions.custom.functions;
+
+        // 分析配置
+        json_config["analysis"]["function_coverage"] = default_config.analysis.function_coverage;
+        json_config["analysis"]["branch_coverage"] = default_config.analysis.branch_coverage;
+        json_config["analysis"]["exception_coverage"] = default_config.analysis.exception_coverage;
+        json_config["analysis"]["key_path_coverage"] = default_config.analysis.key_path_coverage;
+
         // 写入文件
         std::ofstream file(config_path);
         if (!file.is_open()) {
@@ -292,6 +305,74 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
             }
             if (output.find("log_level") != output.end() && output["log_level"].is_string()) {
                 config_.output.log_level = output["log_level"].get<std::string>();
+            }
+        }
+
+        // 解析日志函数配置
+        if (json_config.find("log_functions") != json_config.end()) {
+            const auto& log_funcs = json_config["log_functions"];
+            
+            // 解析Qt日志函数配置
+            if (log_funcs.find("qt") != log_funcs.end()) {
+                const auto& qt = log_funcs["qt"];
+                if (qt.find("enabled") != qt.end() && qt["enabled"].is_boolean()) {
+                    config_.log_functions.qt.enabled = qt["enabled"].get<bool>();
+                }
+                if (qt.find("functions") != qt.end() && qt["functions"].is_array()) {
+                    config_.log_functions.qt.functions.clear();
+                    for (const auto& func : qt["functions"]) {
+                        if (func.is_string()) {
+                            config_.log_functions.qt.functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+                if (qt.find("category_functions") != qt.end() && qt["category_functions"].is_array()) {
+                    config_.log_functions.qt.category_functions.clear();
+                    for (const auto& func : qt["category_functions"]) {
+                        if (func.is_string()) {
+                            config_.log_functions.qt.category_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+            }
+            
+            // 解析自定义日志函数配置
+            if (log_funcs.find("custom") != log_funcs.end()) {
+                const auto& custom = log_funcs["custom"];
+                if (custom.find("enabled") != custom.end() && custom["enabled"].is_boolean()) {
+                    config_.log_functions.custom.enabled = custom["enabled"].get<bool>();
+                }
+                if (custom.find("functions") != custom.end() && custom["functions"].is_object()) {
+                    config_.log_functions.custom.functions.clear();
+                    for (const auto& [level, funcs] : custom["functions"].items()) {
+                        if (funcs.is_array()) {
+                            std::vector<std::string> func_list;
+                            for (const auto& func : funcs) {
+                                if (func.is_string()) {
+                                    func_list.push_back(func.get<std::string>());
+                                }
+                            }
+                            config_.log_functions.custom.functions[level] = func_list;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 解析分析配置
+        if (json_config.find("analysis") != json_config.end()) {
+            const auto& analysis = json_config["analysis"];
+            if (analysis.find("function_coverage") != analysis.end() && analysis["function_coverage"].is_boolean()) {
+                config_.analysis.function_coverage = analysis["function_coverage"].get<bool>();
+            }
+            if (analysis.find("branch_coverage") != analysis.end() && analysis["branch_coverage"].is_boolean()) {
+                config_.analysis.branch_coverage = analysis["branch_coverage"].get<bool>();
+            }
+            if (analysis.find("exception_coverage") != analysis.end() && analysis["exception_coverage"].is_boolean()) {
+                config_.analysis.exception_coverage = analysis["exception_coverage"].get<bool>();
+            }
+            if (analysis.find("key_path_coverage") != analysis.end() && analysis["key_path_coverage"].is_boolean()) {
+                config_.analysis.key_path_coverage = analysis["key_path_coverage"].get<bool>();
             }
         }
 

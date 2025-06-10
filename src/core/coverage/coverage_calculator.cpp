@@ -370,6 +370,20 @@ void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo
     for (const auto* branchNode : branchNodes) {
         bool isCovered = branchNode->hasLogging;
 
+        // 增强的覆盖检测: 检查分支节点是否含有日志调用
+        if (!isCovered) {
+            isCovered = containsLogMacros(branchNode);
+            if (isCovered) {
+                LOG_DEBUG_FMT("分支 %s 在子节点中包含配置的日志函数或宏调用", getBranchName(branchNode).c_str());
+            }
+        }
+
+        // 使用递归方式检查子节点的日志调用
+        if (!isCovered && hasLoggingInSubtree(branchNode)) {
+            isCovered = true;
+            LOG_DEBUG_FMT("分支 %s 在子节点中有日志调用", getBranchName(branchNode).c_str());
+        }
+
         // 如果仍然未覆盖，检查是否在logCalls中有记录
         if (!isCovered) {
             // 获取分支的起始和结束行
@@ -445,6 +459,22 @@ void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeI
     // 计算已覆盖的异常处理数量
     for (const auto* exceptionNode : exceptionNodes) {
         bool isCovered = exceptionNode->hasLogging;
+
+        // 增强的覆盖检测: 检查异常节点是否含有日志调用
+        if (!isCovered) {
+            isCovered = containsLogMacros(exceptionNode);
+            if (isCovered) {
+                std::string exceptionName = (exceptionNode->type == ast_analyzer::NodeType::TRY_STMT) ? "try" : "catch";
+                LOG_DEBUG_FMT("异常处理 %s 在子节点中包含配置的日志函数或宏调用", exceptionName.c_str());
+            }
+        }
+
+        // 使用递归方式检查子节点的日志调用
+        if (!isCovered && hasLoggingInSubtree(exceptionNode)) {
+            isCovered = true;
+            std::string exceptionName = (exceptionNode->type == ast_analyzer::NodeType::TRY_STMT) ? "try" : "catch";
+            LOG_DEBUG_FMT("异常处理 %s 在子节点中有日志调用", exceptionName.c_str());
+        }
 
         // 如果仍然未覆盖，检查是否在logCalls中有记录
         if (!isCovered) {
@@ -539,6 +569,20 @@ void CoverageCalculator::calculateKeyPathCoverage(const ast_analyzer::ASTNodeInf
     // 计算已覆盖的关键路径数量
     for (const auto* keyPathNode : keyPathNodes) {
         bool isCovered = keyPathNode->hasLogging;
+
+        // 增强的覆盖检测: 检查关键路径节点是否含有日志调用
+        if (!isCovered) {
+            isCovered = containsLogMacros(keyPathNode);
+            if (isCovered) {
+                LOG_DEBUG_FMT("关键路径 %s 在子节点中包含配置的日志函数或宏调用", keyPathNode->name.c_str());
+            }
+        }
+
+        // 使用递归方式检查子节点的日志调用
+        if (!isCovered && hasLoggingInSubtree(keyPathNode)) {
+            isCovered = true;
+            LOG_DEBUG_FMT("关键路径 %s 在子节点中有日志调用", keyPathNode->name.c_str());
+        }
 
         // 如果节点本身没有标记为有日志，检查它的子节点
         if (!isCovered) {
