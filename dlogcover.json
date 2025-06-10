@@ -1,0 +1,45 @@
+{
+    "project": {
+        "name": "dlog-project",
+        "directory": ".",
+        "build_directory": "./build"
+    },
+    "scan": {
+        "directories": ["include", "src", "tests"],
+        "file_extensions": [".cpp", ".h", ".cxx", ".hpp"],
+        "exclude_patterns": ["*build*", "*/build/*"]
+    },
+    "compile_commands": {
+        "path": "./build/compile_commands.json",
+        "auto_generate": true,
+        "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
+    },
+    "output": {
+        "report_file": "dlogcover_report.txt",
+        "log_file": "dlogcover.log",
+        "log_level": "INFO"
+    },
+    "log_functions": {
+        "qt": {
+            "enabled": true,
+            "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+            "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+        },
+        "custom": {
+            "enabled": true,
+            "functions": {
+                "debug": ["logDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"],
+                "info": ["logInfo", "LOG_INFO", "LOG_INFO_FMT"],
+                "warning": ["logWarning", "LOG_WARNING", "LOG_WARNING_FMT"],
+                "error": ["logError", "LOG_ERROR", "LOG_ERROR_FMT"],
+                "fatal": ["logFatal", "LOG_FATAL", "LOG_FATAL_FMT"]
+            }
+        }
+    },
+    "analysis": {
+        "function_coverage": true,
+        "branch_coverage": true,
+        "exception_coverage": true,
+        "key_path_coverage": true
+    }
+} 
