@@ -122,11 +122,7 @@ void ASTCache::cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo
         }
         
         // 创建缓存条目
-        auto timePoint = std::chrono::system_clock::from_time_t(
-            std::chrono::duration_cast<std::chrono::seconds>(
-                lastModified.time_since_epoch()).count());
-        
-        ASTCacheEntry entry(filePath, timePoint, fileSize, contentHash, std::move(astInfo));
+        ASTCacheEntry entry(filePath, lastModified, fileSize, contentHash, std::move(astInfo));
         cache_[filePath] = std::move(entry);
         
         debugLog("缓存AST信息: " + filePath + 
@@ -228,13 +224,10 @@ bool ASTCache::hasFileChanged(const std::string& filePath, const ASTCacheEntry& 
         auto currentModTime = std::filesystem::last_write_time(filePath);
         auto currentSize = std::filesystem::file_size(filePath);
         
-        // 转换时间点进行比较
-        auto currentTimePoint = std::chrono::system_clock::from_time_t(
-            std::chrono::duration_cast<std::chrono::seconds>(
-                currentModTime.time_since_epoch()).count());
-        
-        // 检查修改时间和文件大小
-        if (currentTimePoint != entry.lastModified || currentSize != entry.fileSize) {
+        // 直接比较文件系统时间类型和文件大小
+        if (currentModTime != entry.lastModified || currentSize != entry.fileSize) {
+            debugLog("文件已变化: " + filePath + 
+                    ", 时间或大小不匹配");
             return true;
         }
         

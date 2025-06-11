@@ -14,6 +14,7 @@
 #include <mutex>
 #include <chrono>
 #include <atomic>
+#include <filesystem>
 
 namespace dlogcover {
 namespace core {
@@ -24,7 +25,7 @@ namespace ast_analyzer {
  */
 struct ASTCacheEntry {
     std::string filePath;                                    ///< 文件路径
-    std::chrono::system_clock::time_point lastModified;     ///< 最后修改时间
+    std::filesystem::file_time_type lastModified;           ///< 最后修改时间
     size_t fileSize;                                         ///< 文件大小
     std::string contentHash;                                 ///< 文件内容哈希
     std::unique_ptr<ASTNodeInfo> astInfo;                    ///< AST信息
@@ -46,7 +47,7 @@ struct ASTCacheEntry {
      * @param ast AST信息
      */
     ASTCacheEntry(const std::string& path, 
-                  const std::chrono::system_clock::time_point& modTime,
+                  const std::filesystem::file_time_type& modTime,
                   size_t size, 
                   const std::string& hash,
                   std::unique_ptr<ASTNodeInfo> ast)

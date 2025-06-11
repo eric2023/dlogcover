@@ -191,17 +191,17 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
     futures.reserve(sourceFiles.size());
     
     for (const auto& sourceFile : sourceFiles) {
-        futures.emplace_back(threadPool_->enqueue([this, &sourceFile, &processedCount, &errorCount, &sourceFiles]() {
+        futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
             auto result = this->analyzeSingleFile(sourceFile.path);
             
             size_t currentProcessed = processedCount.fetch_add(1) + 1;
             
             if (result.hasError()) {
                 errorCount.fetch_add(1);
-                LOG_ERROR_FMT("文件分析失败: %s, 错误: %s", 
+                LOG_ERROR_FMT("并行文件分析失败: %s, 错误: %s", 
                              sourceFile.path.c_str(), result.errorMessage().c_str());
             } else {
-                LOG_DEBUG_FMT("文件分析成功: %s", sourceFile.path.c_str());
+                LOG_DEBUG_FMT("并行文件分析成功: %s", sourceFile.path.c_str());
             }
             
             // 每处理10个文件报告一次进度
