@@ -189,6 +189,9 @@ find_package(Clang REQUIRED CONFIG)
 message(STATUS "Found Clang ${CLANG_VERSION}")
 message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
+# 查找线程库
+find_package(Threads REQUIRED)
+
 # 链接依赖库
 target_link_libraries(dlogcover
     PRIVATE
@@ -199,6 +202,8 @@ target_link_libraries(dlogcover
     LLVMSupport
     # 添加对filesystem库的支持
     stdc++fs
+    # 添加线程库支持
+    Threads::Threads
 )
 
 # 如果找到了nlohmann_json，正确链接

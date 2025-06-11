@@ -5,6 +5,8 @@ set(TEST_SOURCES
     source_manager_test.cpp
     log_identifier_test.cpp
     ast_analyzer_test.cpp
+    ast_analyzer_parallel_test.cpp
+    ast_cache_time_test.cpp
     file_utils_test.cpp
     command_line_parser_test.cpp
     reporter_test.cpp
@@ -13,6 +15,7 @@ set(TEST_SOURCES
     cmake_parser_test.cpp
     file_ownership_validator_test.cpp
     path_normalizer_test.cpp
+    result_test.cpp
 )
 
 # 收集项目源文件（排除main.cpp）

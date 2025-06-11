@@ -86,6 +86,19 @@ struct AnalysisConfig {
 };
 
 /**
+ * @brief 性能配置
+ */
+struct PerformanceConfig {
+    bool enable_parallel_analysis = true;   ///< 是否启用并行分析
+    size_t max_threads = 0;                 ///< 最大线程数，0表示自动检测
+    bool enable_ast_cache = true;           ///< 是否启用AST缓存
+    size_t max_cache_size = 100;            ///< 最大缓存大小
+    bool enable_io_optimization = true;     ///< 是否启用I/O优化
+    size_t file_buffer_size = 64 * 1024;    ///< 文件缓冲区大小
+    bool enable_file_preloading = true;     ///< 是否启用文件预加载
+};
+
+/**
  * @brief 总配置类
  */
 struct Config {
@@ -95,6 +108,7 @@ struct Config {
     OutputConfig output;                     ///< 输出配置
     LogFunctionsConfig log_functions;        ///< 日志函数配置
     AnalysisConfig analysis;                 ///< 分析配置
+    PerformanceConfig performance;           ///< 性能配置
 };
 
 } // namespace config

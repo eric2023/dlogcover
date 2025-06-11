@@ -9,6 +9,7 @@
 
 #include <string>
 #include <variant>
+#include <type_traits>
 
 namespace dlogcover {
 
@@ -31,7 +32,7 @@ private:
         std::string message;
     };
 
-    std::variant<T, ErrorInfo> data_;  ///< 数据存储
+    std::variant<std::decay_t<T>, ErrorInfo> data_;  ///< 数据存储
 
 public:
     /**
@@ -44,7 +45,7 @@ public:
      * @brief 成功构造函数（左值）
      * @param value 成功值
      */
-    explicit Result(const T& value) : data_(value) {}
+    explicit Result(const std::decay_t<T>& value) : data_(value) {}
 
     /**
      * @brief 错误构造函数
@@ -59,7 +60,7 @@ public:
      * @return 如果成功返回true，否则返回false
      */
     bool isSuccess() const {
-        return std::holds_alternative<T>(data_);
+        return std::holds_alternative<std::decay_t<T>>(data_);
     }
 
     /**
@@ -91,8 +92,8 @@ public:
      * @return 成功值的引用
      * @throws std::bad_variant_access 如果不是成功状态
      */
-    T& value() {
-        return std::get<T>(data_);
+    std::decay_t<T>& value() {
+        return std::get<std::decay_t<T>>(data_);
     }
 
     /**
@@ -100,8 +101,8 @@ public:
      * @return 成功值的常量引用
      * @throws std::bad_variant_access 如果不是成功状态
      */
-    const T& value() const {
-        return std::get<T>(data_);
+    const std::decay_t<T>& value() const {
+        return std::get<std::decay_t<T>>(data_);
     }
 
     /**
@@ -133,15 +134,27 @@ public:
 };
 
 /**
- * @brief 创建成功结果的辅助函数
+ * @brief 创建成功结果的辅助函数（右值版本）
  * @tparam T 值类型
  * @tparam E 错误类型
  * @param value 成功值
  * @return 成功结果
  */
 template<typename T, typename E>
-Result<T, E> makeSuccess(T&& value) {
-    return Result<T, E>(std::forward<T>(value));
+Result<std::decay_t<T>, E> makeSuccess(T&& value) {
+    return Result<std::decay_t<T>, E>(std::forward<T>(value));
+}
+
+/**
+ * @brief 创建成功结果的辅助函数（左值版本）
+ * @tparam T 值类型
+ * @tparam E 错误类型
+ * @param value 成功值
+ * @return 成功结果
+ */
+template<typename T, typename E>
+Result<T, E> makeSuccess(const T& value) {
+    return Result<T, E>(value);
 }
 
 /**

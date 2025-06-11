@@ -134,6 +134,11 @@ Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
 Result<bool> ASTAnalyzer::analyzeAll() {
     LOG_DEBUG("开始分析所有源文件");
 
+    // 如果启用了并行模式，使用并行分析
+    if (parallelEnabled_) {
+        return analyzeAllParallel();
+    }
+
     bool allSuccess = true;
     for (const auto& sourceFile : sourceManager_.getSourceFiles()) {
         auto result = analyze(sourceFile.path);
@@ -144,6 +149,189 @@ Result<bool> ASTAnalyzer::analyzeAll() {
     }
 
     return makeSuccess(std::move(allSuccess));
+}
+
+Result<bool> ASTAnalyzer::analyzeAllParallel() {
+    LOG_INFO("开始并行分析所有源文件");
+    
+    const auto& sourceFiles = sourceManager_.getSourceFiles();
+    if (sourceFiles.empty()) {
+        LOG_WARNING("没有找到需要分析的源文件");
+        return makeSuccess(true);
+    }
+    
+    // 确定线程数
+    size_t numThreads = maxThreads_;
+    if (numThreads == 0) {
+        numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) {
+            numThreads = 4; // 默认4个线程
+        }
+    }
+    
+    // 限制线程数不超过文件数
+    numThreads = std::min(numThreads, sourceFiles.size());
+    
+    LOG_INFO_FMT("使用 %zu 个线程并行分析 %zu 个文件", numThreads, sourceFiles.size());
+    
+    // 如果只有一个文件或一个线程，回退到串行处理
+    if (numThreads <= 1 || sourceFiles.size() <= 1) {
+        LOG_INFO("文件数量较少，使用串行处理");
+        return analyzeAll();
+    }
+    
+    // 创建线程池
+    threadPool_ = std::make_unique<utils::ThreadPool>(numThreads);
+    
+    // 提交分析任务
+    std::vector<std::future<Result<bool>>> futures;
+    std::atomic<size_t> processedCount{0};
+    std::atomic<size_t> errorCount{0};
+    
+    futures.reserve(sourceFiles.size());
+    
+    for (const auto& sourceFile : sourceFiles) {
+        futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
+            auto result = this->analyzeSingleFile(sourceFile.path);
+            
+            size_t currentProcessed = processedCount.fetch_add(1) + 1;
+            
+            if (result.hasError()) {
+                errorCount.fetch_add(1);
+                LOG_ERROR_FMT("并行文件分析失败: %s, 错误: %s", 
+                             sourceFile.path.c_str(), result.errorMessage().c_str());
+            } else {
+                LOG_DEBUG_FMT("并行文件分析成功: %s", sourceFile.path.c_str());
+            }
+            
+            // 每处理10个文件报告一次进度
+            if (currentProcessed % 10 == 0 || currentProcessed == sourceFiles.size()) {
+                LOG_INFO_FMT("分析进度: %zu/%zu (%.1f%%)", 
+                           currentProcessed, sourceFiles.size(), 
+                           (currentProcessed * 100.0) / sourceFiles.size());
+            }
+            
+            return result;
+        }));
+    }
+    
+    // 等待所有任务完成
+    bool allSuccess = true;
+    for (auto& future : futures) {
+        try {
+            auto result = future.get();
+            if (result.hasError()) {
+                allSuccess = false;
+            }
+        } catch (const std::exception& e) {
+            LOG_ERROR_FMT("获取分析结果时发生异常: %s", e.what());
+            allSuccess = false;
+        }
+    }
+    
+    // 关闭线程池
+    threadPool_.reset();
+    
+    size_t successCount = sourceFiles.size() - errorCount.load();
+    LOG_INFO_FMT("并行分析完成，成功: %zu, 失败: %zu, 总计: %zu", 
+                successCount, errorCount.load(), sourceFiles.size());
+    
+    return makeSuccess(std::move(allSuccess));
+}
+
+void ASTAnalyzer::setParallelMode(bool enabled, size_t maxThreads) {
+    parallelEnabled_ = enabled;
+    maxThreads_ = maxThreads;
+    
+    LOG_INFO_FMT("并行模式设置: %s, 最大线程数: %zu", 
+                enabled ? "启用" : "禁用", maxThreads);
+}
+
+void ASTAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_t maxMemoryMB) {
+    cacheEnabled_ = enabled;
+    
+    if (enabled) {
+        astCache_ = std::make_unique<ASTCache>(maxCacheSize, maxMemoryMB);
+        astCache_->setDebugMode(false); // 可以根据需要调整
+        LOG_INFO_FMT("启用AST缓存，最大条目数: %zu, 最大内存: %zu MB", 
+                    maxCacheSize, maxMemoryMB);
+    } else {
+        astCache_.reset();
+        LOG_INFO("禁用AST缓存");
+    }
+}
+
+std::string ASTAnalyzer::getCacheStatistics() const {
+    if (astCache_) {
+        return astCache_->getStatistics();
+    }
+    return "AST缓存未启用";
+}
+
+Result<bool> ASTAnalyzer::analyzeSingleFile(const std::string& filePath) {
+    LOG_DEBUG_FMT("开始分析文件: %s", filePath.c_str());
+
+    // 检查缓存
+    if (cacheEnabled_ && astCache_ && astCache_->isCacheValid(filePath)) {
+        auto cachedAST = astCache_->getCachedAST(filePath);
+        if (cachedAST) {
+            // 线程安全地保存缓存的AST节点信息
+            {
+                std::lock_guard<std::mutex> lock(astNodesMutex_);
+                astNodes_[filePath] = std::move(cachedAST);
+            }
+            LOG_DEBUG_FMT("使用缓存的AST信息: %s", filePath.c_str());
+            return makeSuccess(true);
+        }
+    }
+
+    // 获取源文件信息
+    const source_manager::SourceFileInfo* sourceFile = sourceManager_.getSourceFile(filePath);
+    if (!sourceFile) {
+        return makeError<bool>(ASTAnalyzerError::FILE_NOT_FOUND, "无法找到源文件: " + filePath);
+    }
+
+    // 读取文件内容
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        return makeError<bool>(ASTAnalyzerError::FILE_READ_ERROR, "无法打开文件: " + filePath);
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+    file.close();
+
+    // 创建AST单元（每个线程使用独立的AST单元）
+    auto astUnit = createASTUnit(filePath, content);
+    if (!astUnit) {
+        return makeError<bool>(ASTAnalyzerError::COMPILATION_ERROR, "创建AST单元失败: " + filePath);
+    }
+
+    // 分析AST上下文
+    LOG_DEBUG_FMT("准备调用analyzeASTContext: %s", filePath.c_str());
+    auto result = analyzeASTContext(astUnit->getASTContext(), filePath);
+    if (result.hasError()) {
+        return makeError<bool>(result.error(), result.errorMessage());
+    }
+
+    // 获取分析结果
+    auto astInfo = std::move(result.value());
+    
+    // 缓存分析结果（创建拷贝用于缓存）
+    if (cacheEnabled_ && astCache_ && astInfo) {
+        auto astInfoCopy = std::make_unique<ASTNodeInfo>(*astInfo);
+        astCache_->cacheAST(filePath, std::move(astInfoCopy));
+    }
+
+    // 线程安全地保存AST节点信息
+    {
+        std::lock_guard<std::mutex> lock(astNodesMutex_);
+        astNodes_[filePath] = std::move(astInfo);
+    }
+
+    LOG_DEBUG_FMT("文件分析完成: %s", filePath.c_str());
+    return makeSuccess(true);
 }
 
 const ASTNodeInfo* ASTAnalyzer::getASTNodeInfo(const std::string& filePath) const {

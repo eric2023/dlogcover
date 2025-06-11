@@ -157,8 +157,11 @@ void exception_log() {
         ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
         ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
 
+        // 创建配置管理器
+        configManager_ = std::make_unique<config::ConfigManager>();
+        
         // 创建AST分析器
-        astAnalyzer_ = std::make_unique<ASTAnalyzer>(config_, *sourceManager_);
+        astAnalyzer_ = std::make_unique<ASTAnalyzer>(config_, *sourceManager_, *configManager_);
     }
 
     void TearDown() override {
@@ -171,6 +174,7 @@ void exception_log() {
         }
         astAnalyzer_.reset();
         sourceManager_.reset();
+        configManager_.reset();
     }
 
     void createTestFile(const std::string& path, const std::string& content) {
@@ -210,6 +214,7 @@ void exception_log() {
 
     std::string testDir_;
     config::Config config_;
+    std::unique_ptr<config::ConfigManager> configManager_;
     std::unique_ptr<source_manager::SourceManager> sourceManager_;
     std::unique_ptr<ASTAnalyzer> astAnalyzer_;
 };

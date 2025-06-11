@@ -381,7 +381,7 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
 
         EXPECT_FALSE(result.hasError());
         EXPECT_EQ(dirPath, parser.getOptions().directory);
-        EXPECT_EQ(outputPath, parser.getOptions().outputPath);
+        EXPECT_EQ(outputPath, parser.getOptions().output_file);
         EXPECT_EQ(configPath, parser.getOptions().configPath);
         EXPECT_EQ(LogLevel::DEBUG, parser.getOptions().logLevel);
     }

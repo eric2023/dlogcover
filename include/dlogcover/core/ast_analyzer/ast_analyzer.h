@@ -10,8 +10,10 @@
 #include <dlogcover/core/ast_analyzer/ast_types.h>
 #include <dlogcover/core/ast_analyzer/ast_function_analyzer.h>
 #include <dlogcover/core/ast_analyzer/ast_expression_analyzer.h>
+#include <dlogcover/core/ast_analyzer/ast_cache.h>
 #include <dlogcover/config/config.h>
 #include <dlogcover/source_manager/source_manager.h>
+#include <dlogcover/utils/thread_pool.h>
 
 // Clang headers
 #include <clang/AST/ASTContext.h>
@@ -22,6 +24,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
+#include <atomic>
 
 namespace dlogcover {
 namespace config {
@@ -69,6 +73,33 @@ public:
     Result<bool> analyzeAll();
 
     /**
+     * @brief 并行分析所有文件
+     * @return 分析结果
+     */
+    Result<bool> analyzeAllParallel();
+
+    /**
+     * @brief 设置并行模式
+     * @param enabled 是否启用并行模式
+     * @param maxThreads 最大线程数，0表示自动检测
+     */
+    void setParallelMode(bool enabled, size_t maxThreads = 0);
+
+    /**
+     * @brief 启用AST缓存
+     * @param enabled 是否启用缓存
+     * @param maxCacheSize 最大缓存大小
+     * @param maxMemoryMB 最大内存使用量（MB）
+     */
+    void enableCache(bool enabled, size_t maxCacheSize = 100, size_t maxMemoryMB = 512);
+
+    /**
+     * @brief 获取缓存统计信息
+     * @return 缓存统计信息字符串
+     */
+    std::string getCacheStatistics() const;
+
+    /**
      * @brief 获取分析结果
      * @return AST节点信息列表
      */
@@ -105,6 +136,16 @@ private:
     std::unique_ptr<clang::ASTUnit> currentASTUnit_;        ///< 当前AST单元
     std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>> astNodes_;  ///< AST节点缓存
     std::unique_ptr<FileOwnershipValidator> fileValidator_; ///< 文件归属验证器
+
+    // 并行处理相关成员
+    std::unique_ptr<utils::ThreadPool> threadPool_;  ///< 线程池
+    std::mutex astNodesMutex_;                       ///< 保护astNodes_的并发访问
+    bool parallelEnabled_ = false;                   ///< 是否启用并行模式
+    size_t maxThreads_ = 0;                         ///< 最大线程数
+
+    // 缓存相关成员
+    std::unique_ptr<ASTCache> astCache_;             ///< AST缓存
+    bool cacheEnabled_ = false;                      ///< 是否启用缓存
 
     /**
      * @brief 创建AST单元
@@ -152,6 +193,13 @@ private:
      * @return 编译参数列表
      */
     std::vector<std::string> getCompilerArgs() const;
+
+    /**
+     * @brief 分析单个文件（线程安全版本）
+     * @param filePath 文件路径
+     * @return 分析结果
+     */
+    Result<bool> analyzeSingleFile(const std::string& filePath);
 };
 
 } // namespace ast_analyzer

@@ -74,6 +74,45 @@ std::unique_ptr<ASTNodeInfo> ASTNodeAnalyzer::createNodeInfo(NodeType type, cons
     return nodeInfo;
 }
 
+// ASTNodeInfo拷贝构造函数和拷贝赋值运算符实现
+ASTNodeInfo::ASTNodeInfo(const ASTNodeInfo& other) 
+    : type(other.type)
+    , name(other.name)
+    , location(other.location)
+    , endLocation(other.endLocation)
+    , text(other.text)
+    , hasLogging(other.hasLogging) {
+    
+    // 深拷贝子节点
+    children.reserve(other.children.size());
+    for (const auto& child : other.children) {
+        if (child) {
+            children.push_back(std::make_unique<ASTNodeInfo>(*child));
+        }
+    }
+}
+
+ASTNodeInfo& ASTNodeInfo::operator=(const ASTNodeInfo& other) {
+    if (this != &other) {
+        type = other.type;
+        name = other.name;
+        location = other.location;
+        endLocation = other.endLocation;
+        text = other.text;
+        hasLogging = other.hasLogging;
+        
+        // 清空并深拷贝子节点
+        children.clear();
+        children.reserve(other.children.size());
+        for (const auto& child : other.children) {
+            if (child) {
+                children.push_back(std::make_unique<ASTNodeInfo>(*child));
+            }
+        }
+    }
+    return *this;
+}
+
 }  // namespace ast_analyzer
 }  // namespace core
 }  // namespace dlogcover
