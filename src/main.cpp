@@ -409,6 +409,26 @@ int main(int argc, char* argv[]) {
                 
                 // 创建AST分析器
                 core::ast_analyzer::ASTAnalyzer astAnalyzer(config, sourceManager, configManager);
+                
+                // 配置并行处理
+                if (config.performance.enable_parallel_analysis && !parsedOptions.disableParallel) {
+                    size_t maxThreads = parsedOptions.maxThreads > 0 ? parsedOptions.maxThreads : config.performance.max_threads;
+                    astAnalyzer.setParallelMode(true, maxThreads);
+                    LOG_INFO_FMT("启用并行分析模式，最大线程数: %zu", maxThreads);
+                } else {
+                    astAnalyzer.setParallelMode(false, 0);
+                    LOG_INFO("使用串行分析模式");
+                }
+
+                // 配置AST缓存
+                if (config.performance.enable_ast_cache && !parsedOptions.disableCache) {
+                    size_t maxCacheSize = parsedOptions.maxCacheSize > 0 ? parsedOptions.maxCacheSize : config.performance.max_cache_size;
+                    astAnalyzer.enableCache(true, maxCacheSize, 512); // 默认512MB内存限制
+                    LOG_INFO_FMT("启用AST缓存，最大条目数: %zu", maxCacheSize);
+                } else {
+                    astAnalyzer.enableCache(false, 0, 0);
+                    LOG_INFO("禁用AST缓存");
+                }
 
                 // 执行AST分析
                 if (!performASTAnalysis(config, sourceManager, astAnalyzer)) {
@@ -431,6 +451,11 @@ int main(int argc, char* argv[]) {
                         exitCode = 1;
                     } else {
                         LOG_INFO("报告生成完成: " + config.output.report_file);
+                        
+                        // 输出缓存统计信息
+                        std::string cacheStats = astAnalyzer.getCacheStatistics();
+                        LOG_INFO("AST缓存统计:");
+                        LOG_INFO(cacheStats.c_str());
                     }
                 }
             }

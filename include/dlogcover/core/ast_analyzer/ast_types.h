@@ -127,9 +127,15 @@ struct ASTNodeInfo {
      */
     ASTNodeInfo& operator=(ASTNodeInfo&&) = default;
     
-    // 禁用复制构造函数和复制赋值运算符
-    ASTNodeInfo(const ASTNodeInfo&) = delete;
-    ASTNodeInfo& operator=(const ASTNodeInfo&) = delete;
+    /**
+     * @brief 拷贝构造函数（用于缓存深拷贝）
+     */
+    ASTNodeInfo(const ASTNodeInfo& other);
+    
+    /**
+     * @brief 拷贝赋值运算符
+     */
+    ASTNodeInfo& operator=(const ASTNodeInfo& other);
 };
 
 // Result类型别名

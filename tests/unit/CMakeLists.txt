@@ -13,6 +13,7 @@ set(TEST_SOURCES
     cmake_parser_test.cpp
     file_ownership_validator_test.cpp
     path_normalizer_test.cpp
+    result_test.cpp
 )
 
 # 收集项目源文件（排除main.cpp）

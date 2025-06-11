@@ -42,6 +42,13 @@ struct Options {
     bool includeSystemHeaders;                  ///< 是否包含系统头文件分析
     int parallel;                               ///< 并行分析线程数
     double threshold;                           ///< 覆盖率阈值 (0.0-1.0)
+    
+    // 性能相关选项
+    bool disableParallel;                       ///< 禁用并行分析
+    size_t maxThreads;                          ///< 最大线程数
+    bool disableCache;                          ///< 禁用AST缓存
+    size_t maxCacheSize;                        ///< 最大缓存大小
+    bool disableIOOptimization;                 ///< 禁用I/O优化
 
     /**
      * @brief 默认构造函数
@@ -56,6 +63,11 @@ struct Options {
         , includeSystemHeaders(false)
         , parallel(0)
         , threshold(-1.0)
+        , disableParallel(false)
+        , maxThreads(0)
+        , disableCache(false)
+        , maxCacheSize(100)
+        , disableIOOptimization(false)
     {
         // 字符串成员默认构造为空字符串 ""
     }

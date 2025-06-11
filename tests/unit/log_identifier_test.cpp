@@ -5,6 +5,7 @@
  */
 
 #include <dlogcover/config/config.h>
+#include <dlogcover/config/config_manager.h>
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
 #include <dlogcover/core/log_identifier/log_identifier.h>
 #include <dlogcover/source_manager/source_manager.h>
@@ -62,8 +63,11 @@ protected:
         ASSERT_FALSE(collectResult.hasError()) << "收集源文件失败: " << collectResult.errorMessage();
         ASSERT_TRUE(collectResult.value()) << "未能有效收集源文件";
 
+        // 创建配置管理器
+        configManager_ = std::make_unique<config::ConfigManager>();
+        
         // 创建AST分析器
-        astAnalyzer_ = std::make_unique<ast_analyzer::ASTAnalyzer>(config_, *sourceManager_);
+        astAnalyzer_ = std::make_unique<ast_analyzer::ASTAnalyzer>(config_, *sourceManager_, *configManager_);
 
         // 分析所有文件
         auto analyzeResult = astAnalyzer_->analyzeAll();
@@ -84,6 +88,7 @@ protected:
         logIdentifier_.reset();
         astAnalyzer_.reset();
         sourceManager_.reset();
+        configManager_.reset();
     }
 
     void createTestFile(const std::string& path, const std::string& content) {
@@ -123,6 +128,7 @@ protected:
 
     std::string testDir_;
     config::Config config_;
+    std::unique_ptr<config::ConfigManager> configManager_;
     std::unique_ptr<source_manager::SourceManager> sourceManager_;
     std::unique_ptr<ast_analyzer::ASTAnalyzer> astAnalyzer_;
     std::unique_ptr<LogIdentifier> logIdentifier_;
