@@ -71,7 +71,23 @@ public:
         return ReportFormat::TEXT;
     }
 
+    /**
+     * @brief 设置配置
+     * @param config 配置
+     */
+    void setConfig(const config::Config& config) override;
+
+    /**
+     * @brief 生成覆盖率条形图
+     * @param percentage 百分比
+     * @param width 条形图宽度
+     * @return 条形图字符串
+     */
+    std::string generateProgressBar(double percentage, int width = 50) const;
+
 private:
+    config::Config config_; ///< 配置信息
+
     /**
      * @brief 生成总体统计信息的文本
      * @param stats 统计信息
@@ -135,14 +151,6 @@ private:
      * @return 格式化后的百分比字符串
      */
     std::string formatPercentage(double value) const;
-
-    /**
-     * @brief 生成覆盖率条形图
-     * @param percentage 百分比
-     * @param width 条形图宽度
-     * @return 条形图字符串
-     */
-    std::string generateProgressBar(double percentage, int width = 50) const;
 };
 
 } // namespace reporter

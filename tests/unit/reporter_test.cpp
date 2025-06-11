@@ -331,7 +331,7 @@ TEST_F(ReporterTestFixture, ReporterFactory) {
     auto textStrategy = factory.createStrategy(ReportFormat::TEXT);
     EXPECT_NE(textStrategy, nullptr) << "无法创建文本报告策略";
     EXPECT_EQ(textStrategy->getFormat(), ReportFormat::TEXT) << "文本报告策略格式不正确";
-    EXPECT_EQ(textStrategy->getName(), "Text") << "文本报告策略名称不正确";
+    EXPECT_EQ(textStrategy->getName(), "TEXT") << "文本报告策略名称不正确";
 
     // 测试创建JSON策略
     auto jsonStrategy = factory.createStrategy(ReportFormat::JSON);

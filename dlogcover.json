@@ -17,7 +17,8 @@
     "output": {
         "report_file": "dlogcover_report.txt",
         "log_file": "dlogcover.log",
-        "log_level": "INFO"
+        "log_level": "INFO",
+        "show_uncovered_paths_details": false
     },
     "log_functions": {
         "qt": {

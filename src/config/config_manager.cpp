@@ -150,6 +150,7 @@ bool ConfigManager::generateDefaultConfig(const std::string& config_path,
         json_config["output"]["report_file"] = default_config.output.report_file;
         json_config["output"]["log_file"] = default_config.output.log_file;
         json_config["output"]["log_level"] = default_config.output.log_level;
+        json_config["output"]["show_uncovered_paths_details"] = default_config.output.show_uncovered_paths_details;
 
         // 日志函数配置
         json_config["log_functions"]["qt"]["enabled"] = default_config.log_functions.qt.enabled;
@@ -209,6 +210,7 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     config.output.report_file = "dlogcover_report.txt";
     config.output.log_file = "dlogcover.log";
     config.output.log_level = "INFO";
+    config.output.show_uncovered_paths_details = false;
 
     // 分析配置
     config.analysis.function_coverage = true;
@@ -305,6 +307,9 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
             }
             if (output.find("log_level") != output.end() && output["log_level"].is_string()) {
                 config_.output.log_level = output["log_level"].get<std::string>();
+            }
+            if (output.find("show_uncovered_paths_details") != output.end() && output["show_uncovered_paths_details"].is_boolean()) {
+                config_.output.show_uncovered_paths_details = output["show_uncovered_paths_details"].get<bool>();
             }
         }
 

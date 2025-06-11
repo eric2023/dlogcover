@@ -16,6 +16,11 @@
 namespace dlogcover {
 namespace reporter {
 
+void JsonReporterStrategy::setConfig(const config::Config& config) {
+    config_ = config;
+    LOG_DEBUG("JSON报告策略配置已设置");
+}
+
 Result<bool> JsonReporterStrategy::generateReport(
     const std::string& outputPath,
     const core::coverage::CoverageStats& stats,
@@ -79,13 +84,15 @@ Result<bool> JsonReporterStrategy::generateReport(
         }
 
         // 添加未覆盖路径信息
-        nlohmann::json uncoveredPathsJson = nlohmann::json::array();
+        if (config_.output.show_uncovered_paths_details) {
+            nlohmann::json uncoveredPathsJson = nlohmann::json::array();
 
-        for (const auto& uncoveredPath : stats.uncoveredPaths) {
-            uncoveredPathsJson.push_back(createUncoveredPathJson(uncoveredPath));
+            for (const auto& uncoveredPath : stats.uncoveredPaths) {
+                uncoveredPathsJson.push_back(createUncoveredPathJson(uncoveredPath));
+            }
+
+            report["uncovered_paths"] = uncoveredPathsJson;
         }
-
-        report["uncovered_paths"] = uncoveredPathsJson;
 
         // 进度回调
         if (progressCallback) {

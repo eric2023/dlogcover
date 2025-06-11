@@ -48,6 +48,7 @@ struct OutputConfig {
     std::string report_file;                 ///< 报告文件名
     std::string log_file;                    ///< 日志文件名
     std::string log_level;                   ///< 日志级别
+    bool show_uncovered_paths_details = false; ///< 是否显示未覆盖路径详细列表
 };
 
 /**

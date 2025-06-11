@@ -72,7 +72,15 @@ public:
         return ReportFormat::JSON;
     }
 
+    /**
+     * @brief 设置配置
+     * @param config 配置
+     */
+    void setConfig(const config::Config& config) override;
+
 private:
+    config::Config config_; ///< 配置信息
+
     /**
      * @brief 创建统计信息的JSON对象
      * @param stats 统计信息
