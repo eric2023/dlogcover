@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <memory>
 
 #include "../common/test_utils.h"
 
@@ -28,7 +29,8 @@ class ConfigWorkflowTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 先创建临时目录
-        test_dir_ = TestUtils::createTestTempDir("config_test_");
+        temp_dir_manager_ = std::make_unique<dlogcover::tests::common::TempDirectoryManager>("config_test_");
+        test_dir_ = temp_dir_manager_->getPath();
         ASSERT_FALSE(test_dir_.empty()) << "创建临时目录失败";
 
         // 初始化日志系统
@@ -40,10 +42,8 @@ protected:
         // 先关闭日志系统
         Logger::shutdown();
 
-        // 再清理临时目录
-        if (!test_dir_.empty()) {
-            EXPECT_TRUE(TestUtils::cleanupTestTempDir(test_dir_)) << "清理临时目录失败";
-        }
+        // 临时目录管理器会自动清理
+        temp_dir_manager_.reset();
     }
 
     // 创建测试配置文件
@@ -59,6 +59,7 @@ protected:
     }
 
 protected:
+    std::unique_ptr<dlogcover::tests::common::TempDirectoryManager> temp_dir_manager_;
     std::string test_dir_;
     std::string log_file_;
 };

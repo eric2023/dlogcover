@@ -1,165 +1,135 @@
-#include "../common/test_utils.h"
+/**
+ * @file test_utils.cpp
+ * @brief 测试工具类实现
+ * @copyright Copyright (c) 2023 DLogCover Team
+ */
 
-#include <chrono>
-#include <filesystem>
-#include <future>
+#include "test_utils.h"
 #include <random>
-#include <thread>
+#include <sstream>
+#include <cmath>
+#include <algorithm>
 
 namespace dlogcover {
-namespace test {
+namespace tests {
+namespace common {
 
-std::string TestUtils::generateUniqueDirName(const std::string& prefix) {
-    // 使用随机数生成器创建唯一名称
+// TempDirectoryManager 实现
+TempDirectoryManager::TempDirectoryManager(const std::string& prefix) {
+    // 使用系统临时目录，确保跨平台兼容性
+    auto tempBase = std::filesystem::temp_directory_path();
+    
+    // 生成唯一的目录名
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 999999);
-
-    return prefix + std::to_string(dis(gen));
+    std::uniform_int_distribution<> dis(1000, 9999);
+    
+    std::string uniqueName = prefix + "_" + std::to_string(dis(gen));
+    tempDir_ = tempBase / uniqueName;
+    
+    // 创建目录
+    std::filesystem::create_directories(tempDir_);
 }
 
-std::string TestUtils::createTestTempDir(const std::string& prefix, std::chrono::seconds timeout) {
-    auto start_time = std::chrono::steady_clock::now();
-    std::error_code ec;
-
-    while (true) {
-        // 检查是否超时
-        auto current_time = std::chrono::steady_clock::now();
-        if (current_time - start_time > timeout) {
-            throw std::runtime_error("创建临时目录超时");
-        }
-
-        // 在系统临时目录下创建测试目录
-        auto temp_path = std::filesystem::temp_directory_path() / generateUniqueDirName(prefix);
-
-        // 尝试创建目录
-        if (std::filesystem::create_directories(temp_path, ec)) {
-            return temp_path.string();
-        }
-
-        // 如果目录已存在或创建失败，等待一小段时间后重试
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
-        // 清除错误代码以便下次尝试
-        ec.clear();
-    }
+TempDirectoryManager::~TempDirectoryManager() {
+    cleanup();
 }
 
-bool TestUtils::cleanupTestTempDir(const std::string& path, std::chrono::seconds timeout) {
-    auto cleanup_task = std::async(std::launch::async, [&]() {
-        std::error_code ec;
-        return std::filesystem::remove_all(path, ec);
-    });
-
-    // 等待清理完成或超时
-    auto status = cleanup_task.wait_for(timeout);
-    if (status == std::future_status::timeout) {
-        return false;
-    }
-
-    return cleanup_task.get() > 0;
-}
-
-config::Config TestUtils::createTestConfig(const std::string& testDir) {
-    config::Config config;
-
-    // 设置扫描目录
-    config.scan.directories = {testDir};
-
-    // 设置文件类型
-    config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".c"};
-    config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
-
-    // 设置日志函数
-    config.log_functions.qt.enabled = true;
-    config.log_functions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
-
-    // 设置分类日志函数
-    config.log_functions.custom.enabled = true;
-    config.log_functions.custom.functions["debug"] = {"LogDebug", "LOG_DEBUG", "log_debug"};
-    config.log_functions.custom.functions["info"] = {"LogInfo", "LOG_INFO", "log_info"};
-    config.log_functions.custom.functions["warning"] = {"LogWarning", "LOG_WARNING", "log_warning"};
-    config.log_functions.custom.functions["error"] = {"LogError", "LOG_ERROR", "log_error"};
-    config.log_functions.custom.functions["critical"] = {"LogCritical", "LOG_CRITICAL", "log_critical"};
-
-    // 设置分析参数
-    config.analysis.function_coverage = true;
-    config.analysis.branch_coverage = true;
-    config.analysis.exception_coverage = true;
-    config.analysis.key_path_coverage = true;
-
-    // 编译命令配置
-    config.compile_commands.path = "./build/compile_commands.json";
-    config.compile_commands.auto_generate = true;
-    config.compile_commands.cmake_args = {
-        "-std=c++17", "-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",
-        "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include",
-        // Qt头文件路径
-        "-I/usr/include/x86_64-linux-gnu/qt5", "-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
-        "-I/usr/include/x86_64-linux-gnu/qt5/QtGui", "-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
-        // 系统定义
-        "-D__GNUG__", "-D__linux__", "-D__x86_64__"};
-
-    // 输出配置
-    config.output.report_file = "test_coverage_report.txt";
-    config.output.log_file = "test_analysis.log";
-    config.output.log_level = "INFO";
-
-    return config;
-}
-
-std::unique_ptr<source_manager::SourceManager> TestUtils::createTestSourceManager(const config::Config& config) {
-    return std::make_unique<source_manager::SourceManager>(config);
-}
-
-bool TestUtils::collectAndAnalyzeSource(source_manager::SourceManager& sourceManager,
-                                        core::ast_analyzer::ASTAnalyzer& astAnalyzer) {
-    // 收集源文件
-    auto collectResult = sourceManager.collectSourceFiles();
-    if (collectResult.hasError()) {
-        return false;
-    }
-
-    // 分析所有文件
-    auto analyzeResult = astAnalyzer.analyzeAll();
-    if (analyzeResult.hasError()) {
-        return false;
-    }
-
-    return true;
-}
-
-bool TestUtils::identifyLogs(core::ast_analyzer::ASTAnalyzer& astAnalyzer,
-                             core::log_identifier::LogIdentifier& logIdentifier) {
-    // 识别日志调用
-    auto identifyResult = logIdentifier.identifyLogCalls();
-    if (identifyResult.hasError()) {
-        return false;
-    }
-
-    return true;
-}
-
-bool TestUtils::calculateCoverage(core::log_identifier::LogIdentifier& logIdentifier,
-                                  core::ast_analyzer::ASTAnalyzer& astAnalyzer,
-                                  core::coverage::CoverageCalculator& coverageCalculator) {
-    // 计算覆盖率
-    return coverageCalculator.calculate();
-}
-
-std::string TestUtils::createTestSourceFile(const std::string& dirPath, const std::string& filename,
-                                            const std::string& content) {
-    std::string filePath = dirPath + "/" + filename;
+std::filesystem::path TempDirectoryManager::createTestFile(const std::string& filename, const std::string& content) {
+    auto filePath = tempDir_ / filename;
+    
+    // 确保父目录存在
+    std::filesystem::create_directories(filePath.parent_path());
+    
+    // 创建文件
     std::ofstream file(filePath);
-    if (!file.is_open()) {
-        throw std::runtime_error("无法创建测试源文件: " + filePath);
+    if (file.is_open()) {
+        file << content;
+        file.close();
+        createdFiles_.push_back(filePath);
     }
-
-    file << content;
-    file.close();
-
+    
     return filePath;
 }
 
-}  // namespace test
-}  // namespace dlogcover
+void TempDirectoryManager::cleanup() {
+    try {
+        if (std::filesystem::exists(tempDir_)) {
+            std::filesystem::remove_all(tempDir_);
+        }
+        createdFiles_.clear();
+    } catch (const std::exception&) {
+        // 忽略清理错误，避免测试失败
+    }
+}
+
+// PerformanceTimer 实现
+PerformanceTimer::PerformanceTimer() {
+    reset();
+}
+
+std::chrono::milliseconds PerformanceTimer::elapsed() const {
+    auto now = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime_);
+}
+
+void PerformanceTimer::reset() {
+    startTime_ = std::chrono::high_resolution_clock::now();
+}
+
+// FloatComparator 实现
+bool FloatComparator::nearEqual(double a, double b, double tolerance) {
+    if (std::isnan(a) || std::isnan(b)) {
+        return std::isnan(a) && std::isnan(b);
+    }
+    
+    if (std::isinf(a) || std::isinf(b)) {
+        return a == b;
+    }
+    
+    return std::abs(a - b) <= tolerance;
+}
+
+bool FloatComparator::relativeEqual(double a, double b, double relativeError) {
+    if (std::isnan(a) || std::isnan(b)) {
+        return std::isnan(a) && std::isnan(b);
+    }
+    
+    if (std::isinf(a) || std::isinf(b)) {
+        return a == b;
+    }
+    
+    if (a == b) {
+        return true;
+    }
+    
+    double maxValue = std::max(std::abs(a), std::abs(b));
+    if (maxValue == 0.0) {
+        return true;
+    }
+    
+    return std::abs(a - b) / maxValue <= relativeError;
+}
+
+// TimeoutManager 实现
+TimeoutManager::TimeoutManager(std::chrono::milliseconds timeoutMs) 
+    : timeout_(timeoutMs) {
+    startTime_ = std::chrono::high_resolution_clock::now();
+}
+
+bool TimeoutManager::isTimeout() const {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime_);
+    return elapsed >= timeout_;
+}
+
+std::chrono::milliseconds TimeoutManager::remainingTime() const {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime_);
+    auto remaining = timeout_ - elapsed;
+    return remaining.count() > 0 ? remaining : std::chrono::milliseconds(0);
+}
+
+} // namespace common
+} // namespace tests
+} // namespace dlogcover 
