@@ -17,6 +17,11 @@
 namespace dlogcover {
 namespace reporter {
 
+void TextReporterStrategy::setConfig(const config::Config& config) {
+    config_ = config;
+    LOG_DEBUG("文本报告策略配置已设置");
+}
+
 Result<bool> TextReporterStrategy::generateReport(
     const std::string& outputPath, const core::coverage::CoverageStats& stats,
     const std::unordered_map<std::string, core::coverage::CoverageStats>& allStats,
@@ -102,7 +107,7 @@ Result<bool> TextReporterStrategy::generateReport(
         }
 
         // 生成未覆盖路径信息
-        if (!stats.uncoveredPaths.empty()) {
+        if (config_.output.show_uncovered_paths_details && !stats.uncoveredPaths.empty()) {
             file << std::endl << "未覆盖路径列表" << std::endl;
             file << "----------------------------------------------------" << std::endl;
 

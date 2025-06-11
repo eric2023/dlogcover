@@ -26,6 +26,7 @@ Reporter::Reporter(const config::Config& config, const core::coverage::CoverageC
     // ReportFormat format = parseReportFormat(config.report.format);
     ReportFormat format = ReportFormat::TEXT; // 默认使用文本格式
     strategy_ = ReporterFactory::getInstance().createStrategy(format);
+    strategy_->setConfig(config_);
     LOG_DEBUG_FMT("使用默认报告策略: %s", strategy_->getName().c_str());
 }
 
@@ -64,6 +65,7 @@ Result<bool> Reporter::generateReport(const std::string& outputPath, ReportForma
 
     // 获取指定格式的策略
     auto tmpStrategy = ReporterFactory::getInstance().createStrategy(format);
+    tmpStrategy->setConfig(config_);
 
     // 临时设置策略
     auto oldStrategy = strategy_;
@@ -85,6 +87,7 @@ void Reporter::setStrategy(std::shared_ptr<IReporterStrategy> strategy) {
     }
 
     LOG_DEBUG_FMT("设置报告策略: %s", strategy->getName().c_str());
+    strategy->setConfig(config_);
     strategy_ = strategy;
 }
 

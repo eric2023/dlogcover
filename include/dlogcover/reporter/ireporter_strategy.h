@@ -9,6 +9,7 @@
 
 #include <dlogcover/reporter/reporter_types.h>
 #include <dlogcover/core/coverage/coverage_stats.h>
+#include <dlogcover/config/config.h>
 #include <functional>
 #include <string>
 #include <vector>
@@ -65,6 +66,12 @@ public:
      * @return 报告格式
      */
     virtual ReportFormat getFormat() const = 0;
+
+    /**
+     * @brief 设置配置
+     * @param config 配置
+     */
+    virtual void setConfig(const config::Config& config) = 0;
 };
 
 } // namespace reporter
