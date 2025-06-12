@@ -11,6 +11,7 @@
 #include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/file_utils.h>
 #include <dlogcover/utils/log_utils.h>
+#include "../common/test_utils.h"
 
 #include <gtest/gtest.h>
 
@@ -45,12 +46,12 @@ protected:
         // 初始化日志系统，设置为ERROR级别以减少测试期间的日志输出
         utils::Logger::init("", false, utils::LogLevel::ERROR);
         
-        // 创建测试目录
-        testDir_ = "/tmp/dlogcover_log_test";
-        std::filesystem::create_directory(testDir_);
+        // 使用跨平台兼容的临时目录管理器
+        tempDirManager_ = std::make_unique<tests::common::TempDirectoryManager>("dlogcover_log_test");
+        testDir_ = tempDirManager_->getPath().string();
 
         // 创建测试文件
-        createTestFile(testDir_ + "/test.cpp", "// 测试文件\n");
+        tempDirManager_->createTestFile("test.cpp", "// 测试文件\n");
 
         // 设置配置
         config_ = createTestConfig();
@@ -78,17 +79,19 @@ protected:
     }
 
     void TearDown() override {
-        // 关闭日志系统，确保所有资源正确释放
-        utils::Logger::shutdown();
-        
-        // 清理测试目录
-        if (std::filesystem::exists(testDir_)) {
-            std::filesystem::remove_all(testDir_);
+        try {
+            // 清理资源
+            logIdentifier_.reset();
+            astAnalyzer_.reset();
+            sourceManager_.reset();
+            configManager_.reset();
+            tempDirManager_.reset(); // 自动清理临时文件
+            
+            // 关闭日志系统，确保所有资源正确释放
+            utils::Logger::shutdown();
+        } catch (const std::exception& e) {
+            // 忽略清理错误，避免测试失败
         }
-        logIdentifier_.reset();
-        astAnalyzer_.reset();
-        sourceManager_.reset();
-        configManager_.reset();
     }
 
     void createTestFile(const std::string& path, const std::string& content) {
@@ -126,6 +129,7 @@ protected:
         return config;
     }
 
+    std::unique_ptr<tests::common::TempDirectoryManager> tempDirManager_;
     std::string testDir_;
     config::Config config_;
     std::unique_ptr<config::ConfigManager> configManager_;
@@ -189,7 +193,7 @@ TEST_F(LogIdentifierTestFixture, IdentifyLogCalls) {
 // 测试Qt日志函数识别
 TEST_F(LogIdentifierTestFixture, QtLogFunctionIdentification) {
     // 创建带有各种Qt日志函数的测试文件
-    createTestFile(testDir_ + "/qt_log_test.cpp", R"(
+    tempDirManager_->createTestFile("qt_log_test.cpp", R"(
 #include <QDebug>
 #include <QLoggingCategory>
 

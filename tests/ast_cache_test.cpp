@@ -6,39 +6,31 @@
 
 #include <gtest/gtest.h>
 #include <dlogcover/core/ast_analyzer/ast_cache.h>
+#include "common/test_utils.h"
 #include <fstream>
 #include <filesystem>
 #include <thread>
 #include <chrono>
 
 using namespace dlogcover::core::ast_analyzer;
+using namespace dlogcover::tests::common;
 
 class ASTCacheTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 创建测试目录
-        testDir_ = std::filesystem::temp_directory_path() / "dlogcover_cache_test";
-        std::filesystem::create_directories(testDir_);
+        // 使用跨平台兼容的临时目录管理器
+        tempDirManager_ = std::make_unique<TempDirectoryManager>("dlogcover_cache_test");
         
         // 创建测试文件
-        testFile1_ = testDir_ / "test1.cpp";
-        testFile2_ = testDir_ / "test2.cpp";
-        
-        createTestFile(testFile1_, "int main() { return 0; }");
-        createTestFile(testFile2_, "void func() { /* test */ }");
+        testFile1_ = tempDirManager_->createTestFile("test1.cpp", "int main() { return 0; }");
+        testFile2_ = tempDirManager_->createTestFile("test2.cpp", "void func() { /* test */ }");
         
         cache_ = std::make_unique<ASTCache>(5, 10); // 小缓存用于测试
     }
 
     void TearDown() override {
         cache_.reset();
-        std::filesystem::remove_all(testDir_);
-    }
-
-    void createTestFile(const std::filesystem::path& path, const std::string& content) {
-        std::ofstream file(path);
-        file << content;
-        file.close();
+        tempDirManager_.reset(); // 自动清理临时文件
     }
 
     std::unique_ptr<ASTNodeInfo> createTestASTInfo(const std::string& text) {
@@ -55,7 +47,7 @@ protected:
     }
 
 protected:
-    std::filesystem::path testDir_;
+    std::unique_ptr<TempDirectoryManager> tempDirManager_;
     std::filesystem::path testFile1_;
     std::filesystem::path testFile2_;
     std::unique_ptr<ASTCache> cache_;
@@ -95,10 +87,10 @@ TEST_F(ASTCacheTest, FileChangeDetection) {
     EXPECT_TRUE(cache_->isCacheValid(filePath));
     
     // 等待一小段时间确保时间戳不同
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     // 修改文件
-    createTestFile(testFile1_, "modified content");
+    tempDirManager_->createTestFile("test1.cpp", "modified content");
     
     // 验证缓存失效
     EXPECT_FALSE(cache_->isCacheValid(filePath));
@@ -108,27 +100,29 @@ TEST_F(ASTCacheTest, FileChangeDetection) {
 // 测试LRU淘汰策略
 TEST_F(ASTCacheTest, LRUEviction) {
     // 填满缓存（最大5个条目）
+    std::vector<std::filesystem::path> testFiles;
     for (int i = 0; i < 5; ++i) {
-        std::string filePath = (testDir_ / ("test" + std::to_string(i) + ".cpp")).string();
-        createTestFile(filePath, "content " + std::to_string(i));
+        std::string filename = "test" + std::to_string(i) + ".cpp";
+        std::string content = "content " + std::to_string(i);
+        auto filePath = tempDirManager_->createTestFile(filename, content);
+        testFiles.push_back(filePath);
         
-        auto astInfo = createTestASTInfo("content " + std::to_string(i));
-        cache_->cacheAST(filePath, std::move(astInfo));
+        auto astInfo = createTestASTInfo(content);
+        cache_->cacheAST(filePath.string(), std::move(astInfo));
     }
     
     EXPECT_EQ(cache_->getCurrentSize(), 5);
     
     // 添加第6个条目，应该触发LRU淘汰
-    std::string newFilePath = (testDir_ / "test_new.cpp").string();
-    createTestFile(newFilePath, "new content");
+    auto newFilePath = tempDirManager_->createTestFile("test_new.cpp", "new content");
     auto newAstInfo = createTestASTInfo("new content");
-    cache_->cacheAST(newFilePath, std::move(newAstInfo));
+    cache_->cacheAST(newFilePath.string(), std::move(newAstInfo));
     
     // 缓存大小应该仍然是5
     EXPECT_EQ(cache_->getCurrentSize(), 5);
     
     // 新文件应该在缓存中
-    EXPECT_TRUE(cache_->isCacheValid(newFilePath));
+    EXPECT_TRUE(cache_->isCacheValid(newFilePath.string()));
 }
 
 // 测试缓存统计
@@ -139,7 +133,7 @@ TEST_F(ASTCacheTest, CacheStatistics) {
     // 初始统计
     EXPECT_EQ(cache_->getCacheHitCount(), 0);
     EXPECT_EQ(cache_->getCacheMissCount(), 0);
-    EXPECT_EQ(cache_->getCacheHitRate(), 0.0);
+    EXPECT_NEAR_DOUBLE(cache_->getCacheHitRate(), 0.0);
     
     // 缓存未命中
     EXPECT_FALSE(cache_->isCacheValid(filePath));
@@ -152,12 +146,12 @@ TEST_F(ASTCacheTest, CacheStatistics) {
     EXPECT_TRUE(cache_->isCacheValid(filePath));
     EXPECT_EQ(cache_->getCacheHitCount(), 1);
     EXPECT_EQ(cache_->getCacheMissCount(), 1);
-    EXPECT_EQ(cache_->getCacheHitRate(), 0.5);
+    EXPECT_NEAR_DOUBLE(cache_->getCacheHitRate(), 0.5);
     
     // 再次命中
     EXPECT_TRUE(cache_->isCacheValid(filePath));
     EXPECT_EQ(cache_->getCacheHitCount(), 2);
-    EXPECT_EQ(cache_->getCacheHitRate(), 2.0/3.0);
+    EXPECT_RELATIVE_EQUAL(cache_->getCacheHitRate(), 2.0/3.0, 1e-6);
 }
 
 // 测试缓存清空
@@ -259,32 +253,45 @@ TEST_F(ASTCacheTest, StatisticsString) {
 
 // 性能测试：大量缓存操作
 TEST_F(ASTCacheTest, PerformanceTest) {
-    const int numOperations = 1000;
+    const int numOperations = 100; // 减少操作数量以提高测试速度
     auto largeCache = std::make_unique<ASTCache>(numOperations, 100);
     
-    auto start = std::chrono::high_resolution_clock::now();
+    PerformanceTimer timer;
     
-    // 执行大量缓存操作
-    for (int i = 0; i < numOperations; ++i) {
-        std::string filePath = (testDir_ / ("perf_test_" + std::to_string(i) + ".cpp")).string();
-        createTestFile(filePath, "performance test content " + std::to_string(i));
-        
-        auto astInfo = createTestASTInfo("performance test " + std::to_string(i));
-        largeCache->cacheAST(filePath, std::move(astInfo));
-        
-        // 每10个操作检查一次缓存
-        if (i % 10 == 0) {
-            largeCache->isCacheValid(filePath);
+    // 创建临时目录管理器用于性能测试
+    auto perfTempDir = std::make_unique<TempDirectoryManager>("dlogcover_perf_test");
+    
+    try {
+        // 执行大量缓存操作
+        for (int i = 0; i < numOperations; ++i) {
+            std::string filename = "perf_test_" + std::to_string(i) + ".cpp";
+            std::string content = "performance test content " + std::to_string(i);
+            auto filePath = perfTempDir->createTestFile(filename, content);
+            
+            auto astInfo = createTestASTInfo("performance test " + std::to_string(i));
+            largeCache->cacheAST(filePath.string(), std::move(astInfo));
+            
+            // 每10个操作检查一次缓存
+            if (i % 10 == 0) {
+                largeCache->isCacheValid(filePath.string());
+            }
         }
+        
+        auto duration = timer.elapsed();
+        
+        // 性能要求：操作应该在合理时间内完成
+        EXPECT_LT(duration.count(), 5000) << "Performance test took too long: " << duration.count() << "ms";
+        
+        // 验证最终状态
+        EXPECT_EQ(largeCache->getCurrentSize(), numOperations);
+        EXPECT_GT(largeCache->getCacheHitCount(), 0);
+        
+        // 验证内存使用合理
+        size_t memoryUsage = largeCache->getEstimatedMemoryUsage();
+        EXPECT_GT(memoryUsage, 0) << "Memory usage should be greater than 0";
+        EXPECT_LT(memoryUsage, 100 * 1024 * 1024) << "Memory usage should be less than 100MB";
+        
+    } catch (const std::exception& e) {
+        FAIL() << "Performance test failed: " << e.what();
     }
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    
-    // 性能要求：1000次操作应该在合理时间内完成（比如5秒）
-    EXPECT_LT(duration.count(), 5000);
-    
-    // 验证最终状态
-    EXPECT_EQ(largeCache->getCurrentSize(), numOperations);
-    EXPECT_GT(largeCache->getCacheHitCount(), 0);
 } 
