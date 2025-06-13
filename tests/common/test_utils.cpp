@@ -132,4 +132,85 @@ std::chrono::milliseconds TimeoutManager::remainingTime() const {
 
 } // namespace common
 } // namespace tests
+
+// 实现TestUtils类
+namespace test {
+
+std::string TestUtils::createTestTempDir(const std::string& prefix) {
+    // 使用现有的TempDirectoryManager来创建临时目录
+    static std::vector<std::unique_ptr<tests::common::TempDirectoryManager>> tempDirs;
+    
+    auto tempDirManager = std::make_unique<tests::common::TempDirectoryManager>(prefix);
+    std::string path = tempDirManager->getPath().string();
+    
+    // 保存管理器实例以便后续清理
+    tempDirs.push_back(std::move(tempDirManager));
+    
+    return path;
+}
+
+config::Config TestUtils::createTestConfig(const std::string& testDir) {
+    config::Config config;
+    
+    // 设置项目配置
+    config.project.name = "test_project";
+    config.project.directory = testDir;
+    config.project.build_directory = testDir + "/build";
+    
+    // 设置扫描配置
+    config.scan.directories = {"src"};
+    config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".cxx"};
+    
+    // 设置编译命令配置
+    config.compile_commands.path = testDir + "/compile_commands.json";
+    config.compile_commands.auto_generate = true;
+    
+    // 设置输出配置
+    config.output.report_file = testDir + "/output/report.txt";
+    config.output.log_file = testDir + "/output/test.log";
+    config.output.log_level = "INFO";
+    
+    // 设置日志函数配置（Qt日志函数默认启用）
+    config.log_functions.qt.enabled = true;
+    config.log_functions.custom.enabled = true;
+    
+    // 设置分析配置
+    config.analysis.function_coverage = true;
+    config.analysis.branch_coverage = true;
+    config.analysis.exception_coverage = true;
+    config.analysis.key_path_coverage = true;
+    
+    // 设置性能配置（测试时禁用并行以避免复杂性）
+    config.performance.enable_parallel_analysis = false;
+    config.performance.max_threads = 1;
+    config.performance.enable_ast_cache = true;
+    
+    // 创建必要的目录
+    std::filesystem::create_directories(testDir + "/src");
+    std::filesystem::create_directories(testDir + "/output");
+    std::filesystem::create_directories(testDir + "/build");
+    
+    return config;
+}
+
+std::unique_ptr<source_manager::SourceManager> TestUtils::createTestSourceManager(const config::Config& config) {
+    // 创建源文件管理器
+    auto sourceManager = std::make_unique<source_manager::SourceManager>(config);
+    
+    return sourceManager;
+}
+
+bool TestUtils::cleanupTestTempDir(const std::string& path) {
+    try {
+        if (std::filesystem::exists(path)) {
+            std::filesystem::remove_all(path);
+            return true;
+        }
+        return true; // 目录不存在也算成功
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+} // namespace test
 } // namespace dlogcover 

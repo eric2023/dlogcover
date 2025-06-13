@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <thread>
 #include <chrono>
+#include <iostream>
 
 using namespace dlogcover::core::ast_analyzer;
 using namespace dlogcover::tests::common;
@@ -154,24 +155,32 @@ TEST_F(ASTCacheTest, CacheStatistics) {
     EXPECT_RELATIVE_EQUAL(cache_->getCacheHitRate(), 2.0/3.0, 1e-6);
 }
 
-// 测试缓存清空
-TEST_F(ASTCacheTest, CacheClear) {
+// 测试缓存清空功能
+TEST_F(ASTCacheTest, TestClearCacheFunction) {
+    // 使用fixture中的缓存实例
     std::string filePath = testFile1_.string();
     auto astInfo = createTestASTInfo("test content");
     
-    // 添加缓存条目
+    // 添加一些内容到缓存
     cache_->cacheAST(filePath, std::move(astInfo));
     EXPECT_EQ(cache_->getCurrentSize(), 1);
+    
+    // 触发一次缓存命中
     EXPECT_TRUE(cache_->isCacheValid(filePath));
+    EXPECT_EQ(cache_->getCacheHitCount(), 1);
+    EXPECT_EQ(cache_->getCacheMissCount(), 0);
     
     // 清空缓存
     cache_->clearCache();
     
-    // 验证缓存已清空
+    // 验证缓存已清空且统计信息已重置
     EXPECT_EQ(cache_->getCurrentSize(), 0);
-    EXPECT_FALSE(cache_->isCacheValid(filePath));
     EXPECT_EQ(cache_->getCacheHitCount(), 0);
     EXPECT_EQ(cache_->getCacheMissCount(), 0);
+    
+    // 验证缓存确实无效（这会增加未命中计数）
+    EXPECT_FALSE(cache_->isCacheValid(filePath));
+    EXPECT_EQ(cache_->getCacheMissCount(), 1);
 }
 
 // 测试空AST信息处理

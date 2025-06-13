@@ -32,6 +32,18 @@ bool CompileCommandsManager::generateCompileCommands(const std::string& project_
     LOG_INFO_FMT("开始生成compile_commands.json: 项目目录=%s, 构建目录=%s", 
                  project_dir.c_str(), build_dir.c_str());
 
+    // 删除旧的compile_commands.json文件
+    std::string compile_commands_path = build_dir + "/compile_commands.json";
+    if (std::filesystem::exists(compile_commands_path)) {
+        LOG_INFO_FMT("删除旧的compile_commands.json文件: %s", compile_commands_path.c_str());
+        try {
+            std::filesystem::remove(compile_commands_path);
+        } catch (const std::exception& e) {
+            LOG_WARNING_FMT("删除旧compile_commands.json文件失败: %s", e.what());
+            // 继续执行，不将此视为致命错误
+        }
+    }
+
     // 检查CMake是否可用
     if (!isCMakeAvailable()) {
         setError("CMake不可用，请确保已安装CMake并添加到PATH");
