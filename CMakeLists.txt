@@ -181,8 +181,14 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
 )
 
+# 分离主函数和库源文件
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
+# 创建库目标（供测试使用）
+add_library(dlogcover_lib STATIC ${SOURCES})
+
 # 创建可执行文件
-add_executable(dlogcover ${SOURCES})
+add_executable(dlogcover src/main.cpp)
 
 # 查找Clang依赖
 find_package(Clang REQUIRED CONFIG)
@@ -192,9 +198,9 @@ message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 # 查找线程库
 find_package(Threads REQUIRED)
 
-# 链接依赖库
-target_link_libraries(dlogcover
-    PRIVATE
+# 链接库目标的依赖库
+target_link_libraries(dlogcover_lib
+    PUBLIC
     clangTooling
     clangAST
     clangSema
@@ -206,9 +212,15 @@ target_link_libraries(dlogcover
     Threads::Threads
 )
 
+# 链接可执行文件
+target_link_libraries(dlogcover
+    PRIVATE
+    dlogcover_lib
+)
+
 # 如果找到了nlohmann_json，正确链接
 if(nlohmann_json_FOUND)
-    target_link_libraries(dlogcover PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(dlogcover_lib PUBLIC nlohmann_json::nlohmann_json)
 elseif(NLOHMANN_JSON_FOUND)
     # Header-only版本无需链接
 endif()

@@ -1,21 +1,6 @@
 # 单元测试的CMakeLists.txt
 
-# 收集项目源文件（排除main.cpp）
-file(GLOB_RECURSE PROJECT_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/common/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/config/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/source_manager/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/utils/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/cli/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/ast_analyzer/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/log_identifier/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/coverage/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/reporter/*.cpp"
-)
-# 排除main.cpp
-list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
-
-# 添加测试工具类源文件
+# 添加测试工具类源文件（测试专用，不在静态库中）
 set(TEST_COMMON_SOURCES
     "${CMAKE_SOURCE_DIR}/tests/common/test_utils.cpp"
 )
@@ -49,38 +34,26 @@ foreach(ROOT_TEST_SOURCE ${ROOT_TEST_SOURCES})
     # 获取文件名（不含扩展名）作为目标名
     get_filename_component(ROOT_TEST_NAME ${ROOT_TEST_SOURCE} NAME_WE)
 
-    # 创建测试可执行文件
-    add_executable(${ROOT_TEST_NAME} ${ROOT_TEST_SOURCE} ${PROJECT_SOURCES} ${TEST_COMMON_SOURCES})
+    # 创建测试可执行文件 - 使用静态库
+    add_executable(${ROOT_TEST_NAME} ${ROOT_TEST_SOURCE} ${TEST_COMMON_SOURCES})
 
     # 包含头文件目录
-    target_include_directories(${ROOT_TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_include_directories(${ROOT_TEST_NAME} PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/tests/common
+    )
 
-    # 链接依赖库
+    # 链接依赖库 - 使用静态库简化依赖
     target_link_libraries(${ROOT_TEST_NAME}
         PRIVATE
+        dlogcover_lib  # 使用静态库，包含所有核心依赖
         ${GTEST_LIBRARIES}
         ${GTEST_MAIN_LIBRARIES}
         pthread
-        stdc++fs
-        # 添加Clang/LLVM库
-        clangTooling
-        clangBasic
-        clangASTMatchers
-        clangAST
-        clangFrontend
-        clangLex
-        clangParse
-        clangSema
-        LLVM
     )
 
-    # 如果找到了nlohmann_json的CMake模块，使用它
-    if(nlohmann_json_FOUND)
-        target_link_libraries(${ROOT_TEST_NAME} PRIVATE nlohmann_json::nlohmann_json)
-    endif()
-
-    # 添加依赖关系，确保先构建主项目
-    add_dependencies(${ROOT_TEST_NAME} dlogcover)
+    # 添加依赖关系，确保先构建静态库
+    add_dependencies(${ROOT_TEST_NAME} dlogcover_lib)
 
     # 添加到CTest
     add_test(NAME ${ROOT_TEST_NAME} COMMAND ${ROOT_TEST_NAME})
@@ -96,46 +69,34 @@ foreach(TEST_SOURCE ${TEST_SOURCES})
     # 获取文件名（不含扩展名）作为目标名
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
 
-    # 创建测试可执行文件
-    add_executable(${TEST_NAME} ${TEST_SOURCE} ${PROJECT_SOURCES} ${TEST_COMMON_SOURCES})
+    # 创建测试可执行文件 - 使用静态库
+    add_executable(${TEST_NAME} ${TEST_SOURCE} ${TEST_COMMON_SOURCES})
 
-# 包含头文件目录
-    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    # 包含头文件目录
+    target_include_directories(${TEST_NAME} PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/tests/common
+    )
 
-# 链接依赖库
+    # 链接依赖库 - 使用静态库简化依赖
     target_link_libraries(${TEST_NAME}
-    PRIVATE
-    ${GTEST_LIBRARIES}
-    ${GTEST_MAIN_LIBRARIES}
-    pthread
-    stdc++fs
-    # 添加Clang/LLVM库
-    clangTooling
-    clangBasic
-    clangASTMatchers
-    clangAST
-    clangFrontend
-    clangLex
-    clangParse
-    clangSema
-    LLVM
-)
+        PRIVATE
+        dlogcover_lib  # 使用静态库，包含所有核心依赖
+        ${GTEST_LIBRARIES}
+        ${GTEST_MAIN_LIBRARIES}
+        pthread
+    )
 
-# 如果找到了nlohmann_json的CMake模块，使用它
-if(nlohmann_json_FOUND)
-        target_link_libraries(${TEST_NAME} PRIVATE nlohmann_json::nlohmann_json)
-endif()
-
-# 添加依赖关系，确保先构建主项目
-    add_dependencies(${TEST_NAME} dlogcover)
+    # 添加依赖关系，确保先构建静态库
+    add_dependencies(${TEST_NAME} dlogcover_lib)
 
     # 添加到CTest
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 
     # 设置测试属性
     set_tests_properties(${TEST_NAME} PROPERTIES
-    ENVIRONMENT "GTEST_COLOR=1"
-    TIMEOUT 300)
+        ENVIRONMENT "GTEST_COLOR=1"
+        TIMEOUT 300)
 endforeach()
 
 # 创建一个运行所有单元测试的目标

@@ -8,60 +8,36 @@ set(INTEGRATION_TEST_SOURCES
     error_handling_test.cpp
 )
 
-# 收集项目源文件（排除main.cpp）
-file(GLOB_RECURSE PROJECT_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/config/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/source_manager/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/utils/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/cli/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/ast_analyzer/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/log_identifier/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/coverage/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/reporter/*.cpp"
-    "${CMAKE_SOURCE_DIR}/tests/common/*.cpp"
+# 添加测试工具类源文件（测试专用，不在静态库中）
+set(TEST_COMMON_SOURCES
+    "${CMAKE_SOURCE_DIR}/tests/common/test_utils.cpp"
 )
-list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 
 # 创建集成测试可执行文件
 foreach(TEST_SOURCE ${INTEGRATION_TEST_SOURCES})
     # 获取文件名（不含扩展名）作为目标名
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
 
-    # 创建测试可执行文件
-    add_executable(${TEST_NAME} ${TEST_SOURCE} ${PROJECT_SOURCES})
+    # 创建测试可执行文件 - 使用静态库
+    add_executable(${TEST_NAME} ${TEST_SOURCE} ${TEST_COMMON_SOURCES})
 
     # 包含头文件目录
     target_include_directories(${TEST_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests/common
     )
 
-# 链接依赖库
+    # 链接依赖库 - 使用静态库简化依赖
     target_link_libraries(${TEST_NAME}
-    PRIVATE
-    ${GTEST_LIBRARIES}
-    ${GTEST_MAIN_LIBRARIES}
-    pthread
-        stdc++fs
-        # 添加Clang/LLVM库
-        clangTooling
-        clangBasic
-        clangASTMatchers
-        clangAST
-        clangFrontend
-        clangLex
-        clangParse
-        clangSema
-        LLVM
+        PRIVATE
+        dlogcover_lib  # 使用静态库，包含所有核心依赖
+        ${GTEST_LIBRARIES}
+        ${GTEST_MAIN_LIBRARIES}
+        pthread
     )
 
-    # 如果找到了nlohmann_json，链接它
-    if(nlohmann_json_FOUND)
-        target_link_libraries(${TEST_NAME} PRIVATE nlohmann_json::nlohmann_json)
-    endif()
-
-    # 添加依赖关系
-    add_dependencies(${TEST_NAME} dlogcover)
+    # 添加依赖关系，确保先构建静态库
+    add_dependencies(${TEST_NAME} dlogcover_lib)
 
     # 添加到CTest
     add_test(NAME "integration_${TEST_NAME}" COMMAND ${TEST_NAME})
