@@ -177,11 +177,40 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
     // 如果只有一个文件或一个线程，回退到串行处理
     if (numThreads <= 1 || sourceFiles.size() <= 1) {
         LOG_INFO("文件数量较少，使用串行处理");
-        return analyzeAll();
+        // 直接进行串行分析，避免递归调用analyzeAll()
+        bool allSuccess = true;
+        for (const auto& sourceFile : sourceFiles) {
+            auto result = analyze(sourceFile.path);
+            if (result.hasError()) {
+                LOG_ERROR_FMT("串行分析文件失败: %s, 错误: %s", 
+                             sourceFile.path.c_str(), result.errorMessage().c_str());
+                allSuccess = false;
+            }
+        }
+        return makeSuccess(std::move(allSuccess));
     }
     
     // 创建线程池
     threadPool_ = std::make_unique<utils::ThreadPool>(numThreads);
+    
+    // 使用RAII确保线程池正确关闭
+    class ThreadPoolGuard {
+        std::unique_ptr<utils::ThreadPool>& pool_;
+    public:
+        explicit ThreadPoolGuard(std::unique_ptr<utils::ThreadPool>& pool) : pool_(pool) {}
+        ~ThreadPoolGuard() {
+            if (pool_) {
+                try {
+                    pool_->shutdown();
+                    pool_.reset();
+                } catch (const std::exception& e) {
+                    LOG_ERROR_FMT("线程池关闭异常: %s", e.what());
+                }
+            }
+        }
+    };
+    
+    ThreadPoolGuard poolGuard(threadPool_);
     
     // 提交分析任务
     std::vector<std::future<Result<bool>>> futures;
@@ -190,37 +219,58 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
     
     futures.reserve(sourceFiles.size());
     
-    for (const auto& sourceFile : sourceFiles) {
-        futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
-            auto result = this->analyzeSingleFile(sourceFile.path);
-            
-            size_t currentProcessed = processedCount.fetch_add(1) + 1;
-            
-            if (result.hasError()) {
-                errorCount.fetch_add(1);
-                LOG_ERROR_FMT("并行文件分析失败: %s, 错误: %s", 
-                             sourceFile.path.c_str(), result.errorMessage().c_str());
-            } else {
-                LOG_DEBUG_FMT("并行文件分析成功: %s", sourceFile.path.c_str());
-            }
-            
-            // 每处理10个文件报告一次进度
-            if (currentProcessed % 10 == 0 || currentProcessed == sourceFiles.size()) {
-                LOG_INFO_FMT("分析进度: %zu/%zu (%.1f%%)", 
-                           currentProcessed, sourceFiles.size(), 
-                           (currentProcessed * 100.0) / sourceFiles.size());
-            }
-            
-            return result;
-        }));
+    try {
+        for (const auto& sourceFile : sourceFiles) {
+            futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
+                auto result = this->analyzeSingleFile(sourceFile.path);
+                
+                size_t currentProcessed = processedCount.fetch_add(1) + 1;
+                
+                if (result.hasError()) {
+                    errorCount.fetch_add(1);
+                    LOG_ERROR_FMT("并行文件分析失败: %s, 错误: %s", 
+                                 sourceFile.path.c_str(), result.errorMessage().c_str());
+                } else {
+                    LOG_DEBUG_FMT("并行文件分析成功: %s", sourceFile.path.c_str());
+                }
+                
+                // 每处理10个文件报告一次进度
+                if (currentProcessed % 10 == 0 || currentProcessed == sourceFiles.size()) {
+                    LOG_INFO_FMT("分析进度: %zu/%zu (%.1f%%)", 
+                               currentProcessed, sourceFiles.size(), 
+                               (currentProcessed * 100.0) / sourceFiles.size());
+                }
+                
+                return result;
+            }));
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR_FMT("提交任务时发生异常: %s", e.what());
+        return makeError<bool>(ASTAnalyzerError::COMPILATION_ERROR, "任务提交失败: " + std::string(e.what()));
     }
     
-    // 等待所有任务完成
+    // 等待所有任务完成，带超时检查
     bool allSuccess = true;
-    for (auto& future : futures) {
+    const auto timeout = std::chrono::seconds(60);  // 60秒超时
+    
+    for (size_t i = 0; i < futures.size(); ++i) {
         try {
-            auto result = future.get();
-            if (result.hasError()) {
+            auto& future = futures[i];
+            auto status = future.wait_for(timeout);
+            
+            if (status == std::future_status::timeout) {
+                LOG_ERROR_FMT("任务 %zu 执行超时，可能存在死锁", i + 1);
+                allSuccess = false;
+                continue;
+            }
+            
+            if (status == std::future_status::ready) {
+                auto result = future.get();
+                if (result.hasError()) {
+                    allSuccess = false;
+                }
+            } else {
+                LOG_ERROR_FMT("任务 %zu 状态异常", i + 1);
                 allSuccess = false;
             }
         } catch (const std::exception& e) {
@@ -229,8 +279,7 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
         }
     }
     
-    // 关闭线程池
-    threadPool_.reset();
+    // ThreadPoolGuard 会自动关闭线程池
     
     size_t successCount = sourceFiles.size() - errorCount.load();
     LOG_INFO_FMT("并行分析完成，成功: %zu, 失败: %zu, 总计: %zu", 

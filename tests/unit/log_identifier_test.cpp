@@ -112,6 +112,18 @@ protected:
         // 设置日志函数
         config.log_functions.qt.enabled = true;
         config.log_functions.qt.functions = {"qDebug", "qInfo", "qWarning", "qCritical", "qFatal"};
+        // 添加Qt分类日志函数
+        config.log_functions.qt.category_functions = {"qCDebug", "qCInfo", "qCWarning", "qCCritical"};
+        
+        // 添加自定义日志函数
+        config.log_functions.custom.enabled = true;
+        config.log_functions.custom.functions = {
+            {"debug", {"debug", "log_debug"}},
+            {"info", {"info", "log_info"}},
+            {"warning", {"warning", "log_warning"}},
+            {"error", {"error", "log_error"}},
+            {"fatal", {"fatal", "log_fatal"}}
+        };
 
         // 注释掉编译参数和Qt项目标志，因为新配置结构中没有这些字段
         // config.scan.compilerArgs = {"-I/usr/include", "-I/usr/include/c++/8", "-I/usr/include/x86_64-linux-gnu/c++/8",

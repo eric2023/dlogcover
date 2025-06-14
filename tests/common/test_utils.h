@@ -15,6 +15,11 @@
 #include <vector>
 #include <fstream>
 
+// 添加必要的业务代码头文件
+#include <dlogcover/config/config.h>
+#include <dlogcover/config/config_manager.h>
+#include <dlogcover/source_manager/source_manager.h>
+
 namespace dlogcover {
 namespace tests {
 namespace common {
@@ -156,6 +161,54 @@ private:
 
 } // namespace common
 } // namespace tests
+
+// 添加TestUtils类到test命名空间
+namespace test {
+
+/**
+ * @brief 测试工具类 - 提供集成测试所需的辅助功能
+ * 
+ * 这个类提供了创建测试环境、配置和管理器的静态方法
+ */
+class TestUtils {
+public:
+    /**
+     * @brief 创建测试临时目录
+     * @param prefix 目录前缀
+     * @return 创建的临时目录路径
+     */
+    static std::string createTestTempDir(const std::string& prefix = "test_");
+    
+    /**
+     * @brief 创建测试配置
+     * @param testDir 测试目录路径
+     * @return 测试配置对象
+     */
+    static config::Config createTestConfig(const std::string& testDir);
+    
+    /**
+     * @brief 创建测试源文件管理器
+     * @param config 配置对象
+     * @return 源文件管理器智能指针
+     */
+    static std::unique_ptr<source_manager::SourceManager> createTestSourceManager(const config::Config& config);
+    
+    /**
+     * @brief 清理测试临时目录
+     * @param path 要清理的目录路径
+     * @return 清理是否成功
+     */
+    static bool cleanupTestTempDir(const std::string& path);
+
+private:
+    // 私有构造函数，防止实例化
+    TestUtils() = delete;
+    ~TestUtils() = delete;
+    TestUtils(const TestUtils&) = delete;
+    TestUtils& operator=(const TestUtils&) = delete;
+};
+
+} // namespace test
 } // namespace dlogcover
 
 #endif // DLOGCOVER_TESTS_COMMON_TEST_UTILS_H

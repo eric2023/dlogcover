@@ -154,7 +154,7 @@ int main() {
 
         // 设置文件类型
         config.scan.file_extensions = {".cpp", ".h", ".hpp", ".cc", ".c"};
-        config.scan.exclude_patterns = {"*test*", "*Test*", "*/tests/*", "*/build/*", "*/.git/*"};
+        config.scan.exclude_patterns = {"*/tests/*", "*/build/*", "*/.git/*", "*/CMakeFiles/*"};
 
         // 设置日志函数
         config.log_functions.qt.enabled = true;
