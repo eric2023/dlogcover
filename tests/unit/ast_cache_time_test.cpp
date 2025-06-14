@@ -26,7 +26,7 @@ protected:
         
         // 创建AST缓存实例
         cache_ = std::make_unique<ASTCache>(10, 64); // 10个条目，64MB内存限制
-        cache_->setDebugMode(true);
+        cache_->setDebugMode(false);  // 修正：关闭调试模式以避免大量日志输出导致超时
     }
     
     void TearDown() override {

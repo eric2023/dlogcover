@@ -175,13 +175,13 @@ bool prepareCompileCommands(const config::Config& config, config::ConfigManager&
     std::string compileCommandsPath = config.compile_commands.path;
     bool needGenerate = config.compile_commands.auto_generate;
     
-    if (needGenerate) {
-        // 检查现有文件是否有效
-        if (compileManager.isCompileCommandsValid(compileCommandsPath)) {
-            LOG_INFO("发现有效的 compile_commands.json，跳过生成");
-            needGenerate = false;
-        }
-    }
+    // if (needGenerate) {
+    //     // 检查现有文件是否有效
+    //     if (compileManager.isCompileCommandsValid(compileCommandsPath)) {
+    //         LOG_INFO("发现有效的 compile_commands.json，跳过生成");
+    //         needGenerate = false;
+    //     }
+    // }
     
     if (needGenerate) {
         LOG_INFO("开始生成 compile_commands.json");
