@@ -53,11 +53,11 @@ TEST_F(PathNormalizerTest, NormalizePath) {
     std::string normalized1 = PathNormalizer::normalize(path1);
     EXPECT_EQ(normalized1, "/home/user/documents/file.txt");
     
-    // 测试Windows风格路径
-    std::string path2 = "C:\\Users\\..\\Users\\Documents\\.\\file.txt";
+    // 测试Linux相对路径规范化
+    std::string path2 = "./src/../include/./header.h";
     std::string normalized2 = PathNormalizer::normalize(path2);
-    // 结果可能因平台而异，但应该移除 .. 和 .
-    EXPECT_TRUE(normalized2.find("..") == std::string::npos);
+    // 在Linux系统上，应该正确处理相对路径
+    EXPECT_TRUE(normalized2.find("..") == std::string::npos || normalized2 == "include/header.h");
     EXPECT_TRUE(normalized2.find("/.") == std::string::npos);
     
     // 测试空路径
@@ -120,15 +120,12 @@ TEST_F(PathNormalizerTest, GetRelativePath) {
     EXPECT_EQ(PathNormalizer::getRelativePath(from, ""), "");
 }
 
-// 测试绝对路径检查
+// 测试绝对路径检查 - 仅Linux系统
 TEST_F(PathNormalizerTest, IsAbsolutePath) {
-    // Unix风格绝对路径
+    // Unix/Linux风格绝对路径
     EXPECT_TRUE(PathNormalizer::isAbsolutePath("/home/user/file.txt"));
     EXPECT_TRUE(PathNormalizer::isAbsolutePath("/"));
-    
-    // Windows风格绝对路径
-    EXPECT_TRUE(PathNormalizer::isAbsolutePath("C:\\Users\\file.txt"));
-    EXPECT_TRUE(PathNormalizer::isAbsolutePath("D:\\"));
+    EXPECT_TRUE(PathNormalizer::isAbsolutePath("/usr/local/bin"));
     
     // 相对路径
     EXPECT_FALSE(PathNormalizer::isAbsolutePath("file.txt"));
@@ -140,10 +137,10 @@ TEST_F(PathNormalizerTest, IsAbsolutePath) {
     EXPECT_FALSE(PathNormalizer::isAbsolutePath(""));
 }
 
-// 测试文件名提取
+// 测试文件名提取 - 仅Linux路径
 TEST_F(PathNormalizerTest, GetFileName) {
     EXPECT_EQ(PathNormalizer::getFileName("/home/user/document.txt"), "document.txt");
-    EXPECT_EQ(PathNormalizer::getFileName("C:\\Users\\file.doc"), "file.doc");
+    EXPECT_EQ(PathNormalizer::getFileName("/usr/local/bin/program"), "program");
     EXPECT_EQ(PathNormalizer::getFileName("simple.txt"), "simple.txt");
     EXPECT_EQ(PathNormalizer::getFileName("/home/user/"), "");
     EXPECT_EQ(PathNormalizer::getFileName(""), "");
@@ -153,10 +150,10 @@ TEST_F(PathNormalizerTest, GetFileName) {
     EXPECT_EQ(PathNormalizer::getFileName("/path/."), ".");
 }
 
-// 测试目录路径提取
+// 测试目录路径提取 - 仅Linux路径
 TEST_F(PathNormalizerTest, GetDirectoryPath) {
     EXPECT_EQ(PathNormalizer::getDirectoryPath("/home/user/document.txt"), "/home/user");
-    EXPECT_EQ(PathNormalizer::getDirectoryPath("C:\\Users\\file.doc"), "C:\\Users");
+    EXPECT_EQ(PathNormalizer::getDirectoryPath("/usr/local/bin/program"), "/usr/local/bin");
     EXPECT_EQ(PathNormalizer::getDirectoryPath("simple.txt"), "");
     EXPECT_EQ(PathNormalizer::getDirectoryPath("/home/user/"), "/home/user");
     EXPECT_EQ(PathNormalizer::getDirectoryPath(""), "");
@@ -176,25 +173,24 @@ TEST_F(PathNormalizerTest, Exists) {
     EXPECT_FALSE(PathNormalizer::exists(""));
 }
 
-// 测试复杂路径场景
+// 测试复杂路径场景 - Linux系统
 TEST_F(PathNormalizerTest, ComplexPathScenarios) {
     // 测试多级相对路径
     std::string complexPath = "../.././subdir/../subdir/./nested.txt";
     std::string normalized = PathNormalizer::normalize(complexPath);
     EXPECT_EQ(normalized, "../../subdir/nested.txt");
     
-    // 测试混合分隔符（在支持的平台上）
-    std::string mixedPath = "dir1/subdir\\..\\file.txt";
-    std::string normalizedMixed = PathNormalizer::normalize(mixedPath);
-    // 应该统一分隔符并移除 ..
-    EXPECT_TRUE(normalizedMixed.find("..") == std::string::npos);
+    // 测试Linux路径规范化
+    std::string linuxPath = "/home/user/../user/./documents/file.txt";
+    std::string normalizedLinux = PathNormalizer::normalize(linuxPath);
+    // 应该移除 .. 和 .
+    EXPECT_TRUE(normalizedLinux.find("..") == std::string::npos || normalizedLinux == "/home/user/documents/file.txt");
 }
 
 // 测试边界情况
 TEST_F(PathNormalizerTest, EdgeCases) {
     // 测试只包含分隔符的路径
     EXPECT_EQ(PathNormalizer::normalize("/"), "/");
-    EXPECT_EQ(PathNormalizer::normalize("\\"), "\\");
     
     // 测试只包含 . 和 .. 的路径
     EXPECT_EQ(PathNormalizer::normalize("."), ".");

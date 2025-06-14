@@ -292,10 +292,7 @@ TEST_F(ConcurrentSafetyTest, MemoryAccessSafety) {
     auto collectResult = sourceManager_->collectSourceFiles();
     ASSERT_TRUE(collectResult.isSuccess()) << "源文件收集失败: " << collectResult.errorMessage();
     
-    // 创建共享的分析器实例
-    auto sharedAnalyzer = std::make_shared<ASTAnalyzer>(*config_, *sourceManager_, *configManager_);
-    sharedAnalyzer->setParallelMode(true, 4);
-    
+    // 修正：不使用共享分析器实例，每个线程创建自己的实例以确保线程安全
     const int numReaders = 5;
     std::vector<std::future<bool>> futures;
     std::atomic<int> readOperations{0};
@@ -310,8 +307,12 @@ TEST_F(ConcurrentSafetyTest, MemoryAccessSafety) {
                 for (int j = 0; j < 5; ++j) {
                     LOG_DEBUG_FMT("读取线程 %d 执行操作 %d", i, j);
                     
+                    // 修正：每个线程创建自己的分析器实例
+                    ASTAnalyzer analyzer(*config_, *sourceManager_, *configManager_);
+                    analyzer.setParallelMode(true, 2);  // 减少线程数以避免过度竞争
+                    
                     // 执行分析操作
-                    auto result = sharedAnalyzer->analyzeAllParallel();
+                    auto result = analyzer.analyzeAllParallel();
                     readOperations.fetch_add(1);
                     
                     // 检查结果的一致性

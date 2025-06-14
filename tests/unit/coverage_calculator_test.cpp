@@ -343,6 +343,272 @@ void anotherFunction() {
     }
 }
 
+// 测试错误处理路径
+TEST_F(CoverageCalculatorTestFixture, ErrorHandlingPaths) {
+    // 计算覆盖率
+    auto calculateResult = coverageCalculator_->calculate();
+    EXPECT_TRUE(calculateResult) << "计算覆盖率失败";
+
+    // 测试获取不存在文件的覆盖率统计（应该返回空统计）
+    std::string nonExistentFile = testDir_ + "/non_existent.cpp";
+    const CoverageStats& emptyStats = coverageCalculator_->getCoverageStats(nonExistentFile);
+    
+    // 验证返回的是空统计对象
+    EXPECT_EQ(emptyStats.totalFunctions, 0) << "不存在文件应该返回空统计";
+    EXPECT_EQ(emptyStats.coveredFunctions, 0) << "不存在文件应该返回空统计";
+    EXPECT_EQ(emptyStats.functionCoverage, 0.0) << "不存在文件应该返回0覆盖率";
+    EXPECT_EQ(emptyStats.branchCoverage, 0.0) << "不存在文件应该返回0覆盖率";
+    EXPECT_EQ(emptyStats.exceptionCoverage, 0.0) << "不存在文件应该返回0覆盖率";
+    EXPECT_EQ(emptyStats.keyPathCoverage, 0.0) << "不存在文件应该返回0覆盖率";
+    EXPECT_EQ(emptyStats.overallCoverage, 0.0) << "不存在文件应该返回0覆盖率";
+}
+
+// 测试空文件和边界条件
+TEST_F(CoverageCalculatorTestFixture, EmptyFileAndBoundaryConditions) {
+    // 创建空文件
+    std::string emptyFilePath = testDir_ + "/empty.cpp";
+    createTestFile(emptyFilePath, "");
+
+    // 重新收集源文件
+    auto collectResult = sourceManager_->collectSourceFiles();
+    ASSERT_FALSE(collectResult.hasError()) << "重新收集源文件失败: " << collectResult.errorMessage();
+
+    // 重新分析AST
+    auto analyzeResult = astAnalyzer_->analyzeAll();
+    ASSERT_FALSE(analyzeResult.hasError()) << "重新分析AST失败: " << analyzeResult.errorMessage();
+
+    // 重新识别日志调用
+    auto identifyResult = logIdentifier_->identifyLogCalls();
+    ASSERT_FALSE(identifyResult.hasError()) << "重新识别日志调用失败: " << identifyResult.errorMessage();
+
+    // 计算覆盖率
+    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+
+    // 获取空文件的覆盖率统计
+    const auto& stats = coverageCalculator_->getCoverageStats(emptyFilePath);
+    
+    // 验证空文件的处理
+    EXPECT_GE(stats.totalFunctions, 0) << "空文件函数统计应该是非负数";
+    EXPECT_GE(stats.functionCoverage, 0.0) << "空文件覆盖率应该是非负数";
+    EXPECT_LE(stats.functionCoverage, 1.0) << "空文件覆盖率应该不超过1.0";
+}
+
+// 测试复合语句跳过逻辑
+TEST_F(CoverageCalculatorTestFixture, CompoundStatementSkipping) {
+    // 创建包含复合语句的测试文件
+    std::string testContent = R"(
+#include <iostream>
+#include <QDebug>
+
+// 模拟Qt日志函数定义
+#define qDebug() QDebugMock()
+#define qInfo() QInfoMock()
+
+class QDebugMock {
+public:
+    QDebugMock& operator<<(const char* msg) { return *this; }
+};
+
+class QInfoMock {
+public:
+    QInfoMock& operator<<(const char* msg) { return *this; }
+};
+
+// 包含日志的函数
+void functionWithLogging() {
+    qDebug() << "这是一个调试消息";
+    
+    // 复合语句块
+    {
+        int x = 1;
+        qInfo() << "复合语句中的日志";
+    }
+    
+    // 嵌套复合语句
+    {
+        {
+            int y = 2;
+            std::cout << "嵌套复合语句" << std::endl;
+        }
+    }
+}
+
+// 不包含日志的函数
+void functionWithoutLogging() {
+    std::cout << "普通函数" << std::endl;
+    
+    // 复合语句块
+    {
+        int z = 3;
+        std::cout << "复合语句中的普通代码" << std::endl;
+    }
+}
+)";
+
+    std::string testFilePath = testDir_ + "/compound_stmt_test.cpp";
+    createTestFile(testFilePath, testContent);
+
+    // 重新收集源文件
+    auto collectResult = sourceManager_->collectSourceFiles();
+    ASSERT_FALSE(collectResult.hasError()) << "重新收集源文件失败: " << collectResult.errorMessage();
+
+    // 重新分析AST
+    auto analyzeResult = astAnalyzer_->analyzeAll();
+    ASSERT_FALSE(analyzeResult.hasError()) << "重新分析AST失败: " << analyzeResult.errorMessage();
+
+    // 重新识别日志调用
+    auto identifyResult = logIdentifier_->identifyLogCalls();
+    ASSERT_FALSE(identifyResult.hasError()) << "重新识别日志调用失败: " << identifyResult.errorMessage();
+
+    // 计算覆盖率
+    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+
+    // 获取测试文件的覆盖率统计
+    const auto& stats = coverageCalculator_->getCoverageStats(testFilePath);
+    
+    // 验证复合语句不被计算为函数
+    EXPECT_GE(stats.totalFunctions, 0) << "函数统计应该是非负数";
+    
+    // 如果统计功能已实现，验证只计算真实函数
+    if (stats.totalFunctions > 0) {
+        // 注意：实际实现可能会检测到更多函数（如构造函数、析构函数等）
+        // 这里主要验证不会因为复合语句而崩溃
+        EXPECT_GE(stats.totalFunctions, 2) << "应该至少检测到2个真实函数";
+        EXPECT_LE(stats.totalFunctions, 10) << "函数数量应该在合理范围内";
+    }
+}
+
+// 测试日志调用为空的情况
+TEST_F(CoverageCalculatorTestFixture, EmptyLogCallsHandling) {
+    // 创建没有日志调用的测试文件
+    std::string testContent = R"(
+#include <iostream>
+
+// 普通函数，没有日志调用
+void regularFunction1() {
+    std::cout << "普通函数1" << std::endl;
+    int x = 42;
+}
+
+void regularFunction2() {
+    std::cout << "普通函数2" << std::endl;
+    for (int i = 0; i < 10; ++i) {
+        std::cout << i << " ";
+    }
+}
+
+class TestClass {
+public:
+    void memberFunction() {
+        std::cout << "成员函数" << std::endl;
+    }
+};
+)";
+
+    std::string testFilePath = testDir_ + "/no_logs_test.cpp";
+    createTestFile(testFilePath, testContent);
+
+    // 重新收集源文件
+    auto collectResult = sourceManager_->collectSourceFiles();
+    ASSERT_FALSE(collectResult.hasError()) << "重新收集源文件失败: " << collectResult.errorMessage();
+
+    // 重新分析AST
+    auto analyzeResult = astAnalyzer_->analyzeAll();
+    ASSERT_FALSE(analyzeResult.hasError()) << "重新分析AST失败: " << analyzeResult.errorMessage();
+
+    // 重新识别日志调用
+    auto identifyResult = logIdentifier_->identifyLogCalls();
+    ASSERT_FALSE(identifyResult.hasError()) << "重新识别日志调用失败: " << identifyResult.errorMessage();
+
+    // 计算覆盖率
+    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+
+    // 获取测试文件的覆盖率统计
+    const auto& stats = coverageCalculator_->getCoverageStats(testFilePath);
+    
+    // 验证没有日志调用的文件处理
+    EXPECT_GE(stats.totalFunctions, 0) << "函数统计应该是非负数";
+    EXPECT_GE(stats.functionCoverage, 0.0) << "覆盖率应该是非负数";
+    EXPECT_LE(stats.functionCoverage, 1.0) << "覆盖率应该不超过1.0";
+    
+    // 没有日志调用的文件，函数覆盖率应该是0
+    if (stats.totalFunctions > 0) {
+        EXPECT_EQ(stats.functionCoverage, 0.0) << "没有日志调用的文件，函数覆盖率应该是0";
+    }
+}
+
+// 测试函数覆盖检测的增强逻辑
+TEST_F(CoverageCalculatorTestFixture, EnhancedCoverageDetection) {
+    // 创建包含子节点日志调用的测试文件
+    std::string testContent = R"(
+#include <iostream>
+#include <QDebug>
+
+// 模拟Qt日志函数定义
+#define qDebug() QDebugMock()
+#define qWarning() QWarningMock()
+
+class QDebugMock {
+public:
+    QDebugMock& operator<<(const char* msg) { return *this; }
+};
+
+class QWarningMock {
+public:
+    QWarningMock& operator<<(const char* msg) { return *this; }
+};
+
+// 函数本身没有直接日志调用，但子节点有
+void parentFunction() {
+    if (true) {
+        qDebug() << "子节点中的日志调用";
+    }
+    
+    for (int i = 0; i < 5; ++i) {
+        if (i % 2 == 0) {
+            qWarning() << "循环中的日志调用";
+        }
+    }
+}
+
+// 直接包含日志调用的函数
+void directLogFunction() {
+    qDebug() << "直接的日志调用";
+}
+)";
+
+    std::string testFilePath = testDir_ + "/enhanced_detection_test.cpp";
+    createTestFile(testFilePath, testContent);
+
+    // 重新收集源文件
+    auto collectResult = sourceManager_->collectSourceFiles();
+    ASSERT_FALSE(collectResult.hasError()) << "重新收集源文件失败: " << collectResult.errorMessage();
+
+    // 重新分析AST
+    auto analyzeResult = astAnalyzer_->analyzeAll();
+    ASSERT_FALSE(analyzeResult.hasError()) << "重新分析AST失败: " << analyzeResult.errorMessage();
+
+    // 重新识别日志调用
+    auto identifyResult = logIdentifier_->identifyLogCalls();
+    ASSERT_FALSE(identifyResult.hasError()) << "重新识别日志调用失败: " << identifyResult.errorMessage();
+
+    // 计算覆盖率
+    EXPECT_TRUE(coverageCalculator_->calculate()) << "计算覆盖率失败";
+
+    // 获取测试文件的覆盖率统计
+    const auto& stats = coverageCalculator_->getCoverageStats(testFilePath);
+    
+    // 验证增强的覆盖检测逻辑
+    EXPECT_GE(stats.totalFunctions, 0) << "函数统计应该是非负数";
+    EXPECT_GE(stats.functionCoverage, 0.0) << "覆盖率应该是非负数";
+    EXPECT_LE(stats.functionCoverage, 1.0) << "覆盖率应该不超过1.0";
+    
+    // 如果检测到函数，应该有合理的覆盖率
+    if (stats.totalFunctions > 0) {
+        EXPECT_GT(stats.functionCoverage, 0.0) << "包含日志调用的文件应该有正覆盖率";
+    }
+}
+
 }  // namespace test
 }  // namespace coverage
 }  // namespace core
