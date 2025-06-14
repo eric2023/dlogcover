@@ -137,15 +137,13 @@ std::chrono::milliseconds TimeoutManager::remainingTime() const {
 namespace test {
 
 std::string TestUtils::createTestTempDir(const std::string& prefix) {
-    // 使用现有的TempDirectoryManager来创建临时目录
-    static std::vector<std::unique_ptr<tests::common::TempDirectoryManager>> tempDirs;
-    
+    // 创建临时目录管理器
     auto tempDirManager = std::make_unique<tests::common::TempDirectoryManager>(prefix);
     std::string path = tempDirManager->getPath().string();
     
-    // 保存管理器实例以便后续清理
-    tempDirs.push_back(std::move(tempDirManager));
-    
+    // 直接返回路径，不需要保存对象
+    // tempDirManager 会在函数结束时自动析构，但临时目录已经创建
+    // 后续通过 cleanupTestTempDir 函数进行清理
     return path;
 }
 
