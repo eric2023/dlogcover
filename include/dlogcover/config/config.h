@@ -79,6 +79,14 @@ struct LogFunctionsConfig {
  * @brief 分析配置
  */
 struct AnalysisConfig {
+    std::string mode = "cpp_only";           ///< 分析模式：cpp_only, go_only, auto_detect
+    
+    /// 自动检测配置
+    struct AutoDetectionConfig {
+        size_t sample_size = 10;             ///< 抽样文件数量
+        double confidence_threshold = 0.8;   ///< 置信度阈值
+    } auto_detection;
+    
     bool function_coverage = true;           ///< 是否分析函数覆盖率
     bool branch_coverage = true;             ///< 是否分析分支覆盖率
     bool exception_coverage = true;          ///< 是否分析异常处理覆盖率
@@ -99,6 +107,66 @@ struct PerformanceConfig {
 };
 
 /**
+ * @brief Go语言配置
+ */
+struct GoConfig {
+    bool enabled = false;                    ///< 是否启用Go语言支持，默认关闭
+    std::vector<std::string> file_extensions = {".go"}; ///< Go文件扩展名列表
+    
+    /// 标准库log包配置
+    struct StandardLogConfig {
+        bool enabled = true;                 ///< 是否启用标准库log函数识别
+        std::vector<std::string> functions = {
+            "log.Print", "log.Printf", "log.Println",
+            "log.Fatal", "log.Fatalf", "log.Fatalln",
+            "log.Panic", "log.Panicf", "log.Panicln"
+        };
+    } standard_log;
+    
+    /// Logrus日志库配置
+    struct LogrusConfig {
+        bool enabled = true;                 ///< 是否启用Logrus函数识别
+        std::vector<std::string> functions = {
+            "logrus.Trace", "logrus.Debug", "logrus.Info", 
+            "logrus.Warn", "logrus.Error", "logrus.Fatal", "logrus.Panic"
+        };
+        std::vector<std::string> formatted_functions = {
+            "logrus.Tracef", "logrus.Debugf", "logrus.Infof",
+            "logrus.Warnf", "logrus.Errorf", "logrus.Fatalf", "logrus.Panicf"
+        };
+        std::vector<std::string> line_functions = {
+            "logrus.Traceln", "logrus.Debugln", "logrus.Infoln",
+            "logrus.Warnln", "logrus.Errorln", "logrus.Fatalln", "logrus.Panicln"
+        };
+    } logrus;
+    
+    /// Zap日志库配置
+    struct ZapConfig {
+        bool enabled = true;                 ///< 是否启用Zap函数识别
+        std::vector<std::string> logger_functions = {
+            "Debug", "Info", "Warn", "Error", "DPanic", "Panic", "Fatal"
+        };
+        std::vector<std::string> sugared_functions = {
+            "Debugf", "Debugln", "Debugw", "Infof", "Infoln", "Infow",
+            "Warnf", "Warnln", "Warnw", "Errorf", "Errorln", "Errorw",
+            "DPanicf", "DPanicln", "DPanicw", "Panicf", "Panicln", "Panicw",
+            "Fatalf", "Fatalln", "Fatalw"
+        };
+    } zap;
+    
+    /// golib logger模块配置
+    struct GolibConfig {
+        bool enabled = true;                 ///< 是否启用golib logger函数识别
+        std::vector<std::string> functions = {
+            "log.Info", "log.Error", "log.Debug", "log.Warn"
+        };
+        std::vector<std::string> formatted_functions = {
+            "log.Infof", "log.Errorf", "log.Debugf", "log.Warnf"
+        };
+    } golib;
+};
+
+/**
  * @brief 总配置类
  */
 struct Config {
@@ -109,6 +177,7 @@ struct Config {
     LogFunctionsConfig log_functions;        ///< 日志函数配置
     AnalysisConfig analysis;                 ///< 分析配置
     PerformanceConfig performance;           ///< 性能配置
+    GoConfig go;                             ///< Go语言配置
 };
 
 } // namespace config

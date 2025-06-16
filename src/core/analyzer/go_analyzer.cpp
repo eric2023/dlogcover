@@ -1,0 +1,562 @@
+/**
+ * @file go_analyzer.cpp
+ * @brief Go语言分析器实现
+ * @copyright Copyright (c) 2023 DLogCover Team
+ */
+
+#include <dlogcover/core/analyzer/go_analyzer.h>
+#include <dlogcover/core/language_detector/language_detector.h>
+#include <dlogcover/utils/log_utils.h>
+
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <filesystem>
+#include <cstdio>
+#include <sstream>
+#include <ctime>
+
+namespace dlogcover {
+namespace core {
+namespace analyzer {
+
+GoAnalyzer::GoAnalyzer(const config::Config& config)
+    : config_(config) {
+    LOG_DEBUG("初始化Go分析器");
+    
+    // 查找Go分析器工具
+    goAnalyzerPath_ = findGoAnalyzerTool();
+    
+    if (config_.go.enabled) {
+        LOG_INFO("Go语言支持已启用");
+        if (goAnalyzerPath_.empty()) {
+            LOG_WARNING("未找到Go分析器工具，Go语言分析功能将受限");
+        } else {
+            LOG_INFO_FMT("Go分析器工具路径: %s", goAnalyzerPath_.c_str());
+        }
+    } else {
+        LOG_DEBUG("Go语言支持未启用");
+    }
+}
+
+GoAnalyzer::~GoAnalyzer() {
+    LOG_DEBUG("销毁Go分析器");
+}
+
+ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
+    LOG_DEBUG_FMT("Go分析器分析文件: %s", filePath.c_str());
+    
+    // 检查Go语言支持是否启用
+    if (!config_.go.enabled) {
+        LOG_DEBUG("Go语言支持未启用，跳过分析");
+        return ast_analyzer::makeSuccess(true);
+    }
+    
+    // 检查文件是否为Go文件
+    auto language = language_detector::LanguageDetector::detectLanguage(filePath);
+    if (language != language_detector::SourceLanguage::GO) {
+        LOG_WARNING_FMT("文件不是Go文件，跳过分析: %s", filePath.c_str());
+        return ast_analyzer::makeSuccess(true);
+    }
+    
+    // 检查文件是否存在
+    if (!std::filesystem::exists(filePath)) {
+        LOG_ERROR_FMT("Go文件不存在: %s", filePath.c_str());
+        return ast_analyzer::makeError<bool>(
+            ast_analyzer::ASTAnalyzerError::FILE_NOT_FOUND,
+            "Go文件不存在: " + filePath
+        );
+    }
+    
+    // 阶段2完整实现：执行Go分析器
+    LOG_INFO_FMT("开始分析Go文件: %s", filePath.c_str());
+    
+    // 执行Go分析器
+    auto result = executeGoAnalyzer(filePath);
+    if (result.hasError()) {
+        LOG_ERROR_FMT("Go分析器执行失败: %s, 错误: %s", filePath.c_str(), result.errorMessage().c_str());
+        return ast_analyzer::makeError<bool>(ast_analyzer::ASTAnalyzerError::ANALYSIS_ERROR, result.errorMessage());
+    }
+    
+    // 解析JSON结果
+    auto parseResult = parseGoAnalysisResult(result.value());
+    if (parseResult.hasError()) {
+        LOG_ERROR_FMT("解析Go分析结果失败: %s, 错误: %s", filePath.c_str(), parseResult.errorMessage().c_str());
+        return ast_analyzer::makeError<bool>(ast_analyzer::ASTAnalyzerError::PARSE_ERROR, parseResult.errorMessage());
+    }
+    
+    // 添加分析结果
+    auto astNodes = std::move(parseResult.value());
+    for (auto& node : astNodes) {
+        results_.push_back(std::move(node));
+    }
+    
+    // 更新统计信息
+    statistics_.analyzedFiles++;
+    statistics_.totalFunctions += astNodes.size();
+    for (const auto& node : astNodes) {
+        if (node && node->hasLogging) {
+            statistics_.totalLogCalls++;
+        }
+    }
+    
+    LOG_INFO_FMT("Go文件分析完成: %s，找到 %zu 个函数", filePath.c_str(), astNodes.size());
+    return ast_analyzer::makeSuccess(true);
+}
+
+const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& GoAnalyzer::getResults() const {
+    return results_;
+}
+
+void GoAnalyzer::clear() {
+    LOG_DEBUG("清空Go分析器结果");
+    results_.clear();
+    statistics_ = Statistics{};
+}
+
+std::string GoAnalyzer::getLanguageName() const {
+    return "Go";
+}
+
+bool GoAnalyzer::isEnabled() const {
+    return config_.go.enabled;
+}
+
+std::vector<std::string> GoAnalyzer::getSupportedExtensions() const {
+    return config_.go.file_extensions;
+}
+
+std::string GoAnalyzer::getStatistics() const {
+    return "Go分析统计: " + std::to_string(statistics_.analyzedFiles) + " 个文件, " +
+           std::to_string(statistics_.totalFunctions) + " 个函数, " +
+           std::to_string(statistics_.totalLogCalls) + " 个日志调用";
+}
+
+std::string GoAnalyzer::findGoAnalyzerTool() {
+    std::vector<std::string> searchPaths = {
+        "./tools/go-analyzer/dlogcover-go-analyzer",
+        "./dlogcover-go-analyzer",
+        "dlogcover-go-analyzer"  // 系统PATH中查找
+    };
+    
+    for (const auto& path : searchPaths) {
+        if (std::filesystem::exists(path)) {
+            LOG_DEBUG_FMT("找到Go分析器工具: %s", path.c_str());
+            return path;
+        }
+    }
+    
+    // 如果没有找到编译好的二进制文件，尝试使用go run
+    std::string goSourcePath = "./tools/go-analyzer/main.go";
+    if (std::filesystem::exists(goSourcePath)) {
+        LOG_DEBUG_FMT("找到Go源文件，将使用go run: %s", goSourcePath.c_str());
+        return "go run " + goSourcePath;
+    }
+    
+    LOG_WARNING("未找到Go分析器工具。请确保：");
+    LOG_WARNING("1. Go环境已正确安装 (go version >= 1.19)");
+    LOG_WARNING("2. Go分析器源文件存在: ./tools/go-analyzer/main.go");
+    LOG_WARNING("3. 或者已编译的Go分析器二进制文件存在");
+    LOG_WARNING("请参考README.md中的环境搭建说明");
+    return "";  // 返回空字符串表示未找到
+}
+
+ast_analyzer::Result<std::string> GoAnalyzer::executeGoAnalyzer(const std::string& filePath) {
+    LOG_DEBUG_FMT("执行Go分析器: %s", filePath.c_str());
+    
+    // 生成配置文件
+    std::string configPath = generateGoConfig();
+    if (configPath.empty()) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+            "生成Go分析器配置失败"
+        );
+    }
+    
+    // 创建请求JSON
+    std::string requestPath = "/tmp/dlogcover_go_request.json";
+    std::ofstream requestFile(requestPath);
+    if (!requestFile.is_open()) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::FILE_READ_ERROR,
+            "无法创建请求文件: " + requestPath
+        );
+    }
+    
+    // 构建请求JSON
+    requestFile << "{\n";
+    requestFile << "  \"file_path\": \"" << filePath << "\",\n";
+    requestFile << "  \"config\": {\n";
+    requestFile << "    \"standard_log\": {\n";
+    requestFile << "      \"enabled\": " << (config_.go.standard_log.enabled ? "true" : "false") << ",\n";
+    requestFile << "      \"functions\": [";
+    for (size_t i = 0; i < config_.go.standard_log.functions.size(); ++i) {
+        if (i > 0) requestFile << ", ";
+        requestFile << "\"" << config_.go.standard_log.functions[i] << "\"";
+    }
+    requestFile << "]\n";
+    requestFile << "    },\n";
+    requestFile << "    \"logrus\": {\n";
+    requestFile << "      \"enabled\": " << (config_.go.logrus.enabled ? "true" : "false") << ",\n";
+    requestFile << "      \"functions\": [";
+    for (size_t i = 0; i < config_.go.logrus.functions.size(); ++i) {
+        if (i > 0) requestFile << ", ";
+        requestFile << "\"" << config_.go.logrus.functions[i] << "\"";
+    }
+    requestFile << "]\n";
+    requestFile << "    },\n";
+    requestFile << "    \"zap\": {\n";
+    requestFile << "      \"enabled\": " << (config_.go.zap.enabled ? "true" : "false") << ",\n";
+    requestFile << "      \"logger_functions\": [";
+    for (size_t i = 0; i < config_.go.zap.logger_functions.size(); ++i) {
+        if (i > 0) requestFile << ", ";
+        requestFile << "\"" << config_.go.zap.logger_functions[i] << "\"";
+    }
+    requestFile << "],\n";
+    requestFile << "      \"sugared_functions\": [";
+    for (size_t i = 0; i < config_.go.zap.sugared_functions.size(); ++i) {
+        if (i > 0) requestFile << ", ";
+        requestFile << "\"" << config_.go.zap.sugared_functions[i] << "\"";
+    }
+    requestFile << "]\n";
+    requestFile << "    },\n";
+    requestFile << "    \"golib\": {\n";
+    requestFile << "      \"enabled\": " << (config_.go.golib.enabled ? "true" : "false") << ",\n";
+    requestFile << "      \"functions\": [";
+    for (size_t i = 0; i < config_.go.golib.functions.size(); ++i) {
+        if (i > 0) requestFile << ", ";
+        requestFile << "\"" << config_.go.golib.functions[i] << "\"";
+    }
+    requestFile << "]\n";
+    requestFile << "    }\n";
+    requestFile << "  }\n";
+    requestFile << "}\n";
+    requestFile.close();
+    
+    // 构建命令
+    std::string command = goAnalyzerPath_ + " " + requestPath;
+    
+    // 执行命令
+    auto result = executeCommand(command);
+    
+    // 清理临时文件
+    std::filesystem::remove(requestPath);
+    std::filesystem::remove(configPath);
+    
+    return result;
+}
+
+std::string GoAnalyzer::generateGoConfig() {
+    LOG_DEBUG("生成Go分析器配置");
+    
+    std::string configPath = "/tmp/dlogcover_go_config.json";
+    std::ofstream configFile(configPath);
+    if (!configFile.is_open()) {
+        LOG_ERROR_FMT("无法创建Go配置文件: %s", configPath.c_str());
+        return "";
+    }
+    
+    // 生成配置JSON
+    nlohmann::json config;
+    
+    // 标准库log配置
+    config["standard_log"]["enabled"] = config_.go.standard_log.enabled;
+    config["standard_log"]["functions"] = config_.go.standard_log.functions;
+    
+    // Logrus配置
+    config["logrus"]["enabled"] = config_.go.logrus.enabled;
+    config["logrus"]["functions"] = config_.go.logrus.functions;
+    
+    // Zap配置
+    config["zap"]["enabled"] = config_.go.zap.enabled;
+    config["zap"]["logger_functions"] = config_.go.zap.logger_functions;
+    config["zap"]["sugared_functions"] = config_.go.zap.sugared_functions;
+    
+    // Golib配置
+    config["golib"]["enabled"] = config_.go.golib.enabled;
+    config["golib"]["functions"] = config_.go.golib.functions;
+    
+    configFile << config.dump(2);
+    configFile.close();
+    
+    LOG_DEBUG_FMT("Go配置文件生成完成: %s", configPath.c_str());
+    return configPath;
+}
+
+ast_analyzer::Result<std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>> 
+GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
+    LOG_DEBUG("解析Go分析器结果");
+    
+    std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> results;
+    
+    try {
+        // 解析JSON
+        auto json = nlohmann::json::parse(jsonResult);
+        
+        // 检查是否成功
+        if (json.find("success") == json.end() || !json["success"].get<bool>()) {
+            std::string error = json.find("error") != json.end() ? json["error"].get<std::string>() : "未知错误";
+            return ast_analyzer::makeError<std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>>(
+                ast_analyzer::ASTAnalyzerError::ANALYSIS_ERROR,
+                "Go分析器执行失败: " + error
+            );
+        }
+        
+        // 解析函数信息
+        if (json.find("functions") != json.end()) {
+            for (const auto& funcJson : json["functions"]) {
+                auto nodeInfo = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                
+                // 基本信息
+                nodeInfo->type = ast_analyzer::NodeType::FUNCTION;
+                nodeInfo->name = funcJson.value("name", "unknown");
+                nodeInfo->location.line = funcJson.value("line", 0);
+                nodeInfo->location.column = funcJson.value("column", 0);
+                nodeInfo->endLocation.line = funcJson.value("end_line", 0);
+                nodeInfo->endLocation.column = funcJson.value("end_column", 0);
+                nodeInfo->hasLogging = funcJson.value("has_logging", false);
+                
+                // 设置文件路径
+                if (json.find("file_path") != json.end()) {
+                    nodeInfo->location.filePath = json["file_path"].get<std::string>();
+                    nodeInfo->location.fileName = std::filesystem::path(nodeInfo->location.filePath).filename().string();
+                }
+                
+                // 解析日志调用（作为子节点）
+                if (funcJson.find("log_calls") != funcJson.end()) {
+                    for (const auto& logCallJson : funcJson["log_calls"]) {
+                        auto logNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                        logNode->type = ast_analyzer::NodeType::LOG_CALL;
+                        logNode->name = logCallJson.value("function_name", "unknown");
+                        logNode->location.line = logCallJson.value("line", 0);
+                        logNode->location.column = logCallJson.value("column", 0);
+                        logNode->location.filePath = nodeInfo->location.filePath;
+                        logNode->location.fileName = nodeInfo->location.fileName;
+                        logNode->hasLogging = true;
+                        
+                        // 构建日志调用的文本描述
+                        std::string library = logCallJson.value("library", "unknown");
+                        std::string level = logCallJson.value("level", "info");
+                        logNode->text = library + " " + level + " log call";
+                        
+                        nodeInfo->children.push_back(std::move(logNode));
+                    }
+                }
+                
+                results.push_back(std::move(nodeInfo));
+            }
+        }
+        
+        LOG_DEBUG_FMT("成功解析Go分析结果，找到 %zu 个函数", results.size());
+        
+    } catch (const nlohmann::json::exception& e) {
+        return ast_analyzer::makeError<std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>>(
+            ast_analyzer::ASTAnalyzerError::PARSE_ERROR,
+            "JSON解析失败: " + std::string(e.what())
+        );
+    }
+    
+    return ast_analyzer::makeSuccess(std::move(results));
+}
+
+ast_analyzer::Result<std::string> GoAnalyzer::executeCommand(const std::string& command) {
+    LOG_DEBUG_FMT("执行命令: %s", command.c_str());
+    
+    // 使用popen执行命令
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+            "无法执行命令: " + command
+        );
+    }
+    
+    std::stringstream result;
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result << buffer;
+    }
+    
+    int exitCode = pclose(pipe);
+    if (exitCode != 0) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+            "命令执行失败，退出码: " + std::to_string(exitCode)
+        );
+    }
+    
+    return ast_analyzer::makeSuccess(result.str());
+}
+
+void GoAnalyzer::setParallelMode(bool enabled, size_t maxThreads) {
+    LOG_DEBUG_FMT("设置Go分析器并行模式: enabled=%s, maxThreads=%zu", 
+                  enabled ? "true" : "false", maxThreads);
+    
+    parallelEnabled_ = enabled;
+    maxThreads_ = maxThreads > 0 ? maxThreads : 1;
+}
+
+ast_analyzer::Result<bool> GoAnalyzer::analyzeFiles(const std::vector<std::string>& filePaths) {
+    LOG_INFO_FMT("Go分析器批量分析 %zu 个文件", filePaths.size());
+    
+    if (filePaths.empty()) {
+        LOG_WARNING("没有文件需要分析");
+        return ast_analyzer::makeSuccess(true);
+    }
+    
+    // 如果启用并行模式且文件数量足够，使用批量分析
+    if (parallelEnabled_ && filePaths.size() > 1) {
+        return analyzeFilesParallel(filePaths);
+    } else {
+        return analyzeFilesSerial(filePaths);
+    }
+}
+
+ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesSerial(const std::vector<std::string>& filePaths) {
+    LOG_DEBUG_FMT("Go分析器串行分析 %zu 个文件", filePaths.size());
+    
+    bool hasErrors = false;
+    for (const auto& filePath : filePaths) {
+        auto result = analyze(filePath);
+        if (result.hasError()) {
+            LOG_ERROR_FMT("Go文件分析失败: %s, 错误: %s", 
+                         filePath.c_str(), result.errorMessage().c_str());
+            hasErrors = true;
+        }
+    }
+    
+    if (hasErrors) {
+        return ast_analyzer::makeError<bool>(
+            ast_analyzer::ASTAnalyzerError::ANALYSIS_ERROR,
+            "部分Go文件分析失败"
+        );
+    }
+    
+    return ast_analyzer::makeSuccess(true);
+}
+
+ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesParallel(const std::vector<std::string>& filePaths) {
+    LOG_INFO_FMT("Go分析器并行分析 %zu 个文件，使用 %zu 个线程", filePaths.size(), maxThreads_);
+    
+    // 生成批量分析配置
+    std::string batchConfigFile = generateBatchAnalysisConfig(filePaths);
+    if (batchConfigFile.empty()) {
+        LOG_ERROR("生成批量分析配置失败，回退到串行分析");
+        return analyzeFilesSerial(filePaths);
+    }
+    
+    // 调用Go工具的并行分析功能
+    std::string cmd = goAnalyzerPath_ + 
+                     " --mode=batch" +
+                     " --config=" + batchConfigFile +
+                     " --parallel=" + std::to_string(maxThreads_) +
+                     " --output=json";
+    
+    auto result = executeCommand(cmd);
+    
+    // 清理临时配置文件
+    std::filesystem::remove(batchConfigFile);
+    
+    if (result.hasError()) {
+        LOG_ERROR_FMT("Go批量分析失败: %s，回退到串行分析", result.errorMessage().c_str());
+        return analyzeFilesSerial(filePaths);
+    }
+    
+    // 解析批量分析结果
+    return parseBatchAnalysisResult(result.value());
+}
+
+std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::string>& filePaths) {
+    LOG_DEBUG("生成Go批量分析配置");
+    
+    std::string configPath = "/tmp/dlogcover_go_batch_" + 
+                            std::to_string(std::time(nullptr)) + ".json";
+    std::ofstream configFile(configPath);
+    if (!configFile.is_open()) {
+        LOG_ERROR_FMT("无法创建Go批量配置文件: %s", configPath.c_str());
+        return "";
+    }
+    
+    // 生成批量配置JSON
+    nlohmann::json batchConfig;
+    batchConfig["files"] = filePaths;
+    batchConfig["parallel"] = maxThreads_;
+    
+    // 添加Go分析配置
+    nlohmann::json goConfig;
+    goConfig["standard_log"]["enabled"] = config_.go.standard_log.enabled;
+    goConfig["standard_log"]["functions"] = config_.go.standard_log.functions;
+    goConfig["logrus"]["enabled"] = config_.go.logrus.enabled;
+    goConfig["logrus"]["functions"] = config_.go.logrus.functions;
+    goConfig["zap"]["enabled"] = config_.go.zap.enabled;
+    goConfig["zap"]["logger_functions"] = config_.go.zap.logger_functions;
+    goConfig["zap"]["sugared_functions"] = config_.go.zap.sugared_functions;
+    goConfig["golib"]["enabled"] = config_.go.golib.enabled;
+    goConfig["golib"]["functions"] = config_.go.golib.functions;
+    
+    batchConfig["config"] = goConfig;
+    
+    configFile << batchConfig.dump(2);
+    configFile.close();
+    
+    LOG_DEBUG_FMT("Go批量配置文件生成完成: %s", configPath.c_str());
+    return configPath;
+}
+
+ast_analyzer::Result<bool> GoAnalyzer::parseBatchAnalysisResult(const std::string& jsonResult) {
+    LOG_DEBUG("解析Go批量分析结果");
+    
+    try {
+        auto json = nlohmann::json::parse(jsonResult);
+        
+        // 检查批量分析是否成功
+        if (json.find("success") == json.end() || !json["success"].get<bool>()) {
+            std::string error = json.find("error") != json.end() ? json["error"].get<std::string>() : "未知错误";
+            return ast_analyzer::makeError<bool>(
+                ast_analyzer::ASTAnalyzerError::ANALYSIS_ERROR,
+                "Go批量分析失败: " + error
+            );
+        }
+        
+        // 解析每个文件的结果
+        if (json.find("results") != json.end()) {
+            for (const auto& fileResult : json["results"]) {
+                if (fileResult.find("success") != fileResult.end() && fileResult["success"].get<bool>()) {
+                    // 解析单个文件的分析结果
+                    auto parseResult = parseGoAnalysisResult(fileResult.dump());
+                    if (parseResult.hasError()) {
+                        LOG_WARNING_FMT("解析文件结果失败: %s", parseResult.errorMessage().c_str());
+                        continue;
+                    }
+                    
+                    // 将结果添加到总结果中
+                    auto fileResults = std::move(parseResult.value());
+                    for (auto& result : fileResults) {
+                        results_.push_back(std::move(result));
+                    }
+                }
+            }
+        }
+        
+        // 更新统计信息
+        if (json.find("statistics") != json.end()) {
+            const auto& stats = json["statistics"];
+            statistics_.analyzedFiles += stats.value("processed_files", 0);
+            statistics_.totalFunctions += stats.value("total_functions", 0);
+            statistics_.totalLogCalls += stats.value("total_log_calls", 0);
+        }
+        
+        LOG_INFO_FMT("Go批量分析完成，处理了 %zu 个结果", results_.size());
+        
+    } catch (const nlohmann::json::exception& e) {
+        return ast_analyzer::makeError<bool>(
+            ast_analyzer::ASTAnalyzerError::PARSE_ERROR,
+            "批量分析结果JSON解析失败: " + std::string(e.what())
+        );
+    }
+    
+    return ast_analyzer::makeSuccess(true);
+}
+
+} // namespace analyzer
+} // namespace core
+} // namespace dlogcover 
