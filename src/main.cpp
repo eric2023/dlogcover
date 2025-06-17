@@ -466,9 +466,33 @@ int main(int argc, char* argv[]) {
                         // 暂时使用原有的ASTAnalyzer创建方式，后续版本将完全迁移到多语言架构
                         core::ast_analyzer::ASTAnalyzer legacyAnalyzer(config, sourceManager, configManager);
                         
-                        // 将多语言分析器的C++结果复制到传统分析器中
+                        // 将多语言分析器的结果合并到传统分析器中
                         // 这是一个过渡方案，确保现有的日志识别和覆盖率计算模块正常工作
                         LOG_DEBUG("将多语言分析结果适配到传统分析器接口");
+                        
+                        // 获取多语言分析器的所有结果
+                        auto multiLangResults = multiAnalyzer.getAllResults();
+                        LOG_INFO_FMT("从多语言分析器获取到 %zu 个分析结果", multiLangResults.size());
+                        
+                        // 将结果添加到传统分析器中
+                        for (auto& result : multiLangResults) {
+                            if (result) {
+                                // 使用文件路径作为键，将结果添加到传统分析器
+                                std::string filePath = result->location.filePath;
+                                if (filePath.empty()) {
+                                    // 如果结果没有文件路径，尝试从位置信息推导
+                                    filePath = result->location.fileName;
+                                }
+                                
+                                if (!filePath.empty()) {
+                                    legacyAnalyzer.addExternalResult(filePath, std::move(result));
+                                } else {
+                                    LOG_WARNING("发现没有文件路径的分析结果，跳过");
+                                }
+                            }
+                        }
+                        
+                        LOG_INFO("多语言分析结果合并完成");
                         
                         core::log_identifier::LogIdentifier logIdentifier(config, legacyAnalyzer);
                         core::coverage::CoverageCalculator coverageCalculator(config, legacyAnalyzer, logIdentifier);

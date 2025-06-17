@@ -123,6 +123,14 @@ public:
      */
     const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& getAllASTNodeInfo() const;
 
+    /**
+     * @brief 添加外部分析结果
+     * @param filePath 文件路径
+     * @param result 外部分析结果
+     * @note 用于将多语言分析器的结果合并到传统分析器中
+     */
+    void addExternalResult(const std::string& filePath, std::unique_ptr<ASTNodeInfo> result);
+
 private:
     const config::Config& config_;                  ///< 配置管理器
     const source_manager::SourceManager& sourceManager_;   ///< 源文件管理器

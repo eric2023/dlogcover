@@ -411,6 +411,11 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
     
     LOG_INFO_FMT("检测到 %zu 个C++文件，%zu 个Go文件", cppFiles.size(), goFiles.size());
     
+    // 更新统计信息 - 文件数量
+    statistics_.totalFiles = cppFiles.size() + goFiles.size();
+    statistics_.cppFiles = cppFiles.size();
+    statistics_.goFiles = goFiles.size();
+    
     bool hasErrors = false;
     
     // 分析C++文件
@@ -419,6 +424,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
         if (cppAnalyzer) {
             for (const auto& filePath : cppFiles) {
                 auto result = cppAnalyzer->analyze(filePath);
+                updateStatistics(language_detector::SourceLanguage::CPP, result.isSuccess());
                 if (result.hasError()) {
                     LOG_ERROR_FMT("C++文件分析失败: %s, 错误: %s", 
                                  filePath.c_str(), result.errorMessage().c_str());
@@ -434,6 +440,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
         if (goAnalyzer) {
             for (const auto& filePath : goFiles) {
                 auto result = goAnalyzer->analyze(filePath);
+                updateStatistics(language_detector::SourceLanguage::GO, result.isSuccess());
                 if (result.hasError()) {
                     LOG_ERROR_FMT("Go文件分析失败: %s, 错误: %s", 
                                  filePath.c_str(), result.errorMessage().c_str());

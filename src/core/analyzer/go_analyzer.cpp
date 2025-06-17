@@ -38,6 +38,9 @@ GoAnalyzer::GoAnalyzer(const config::Config& config)
     } else {
         LOG_DEBUG("Go语言支持未启用");
     }
+    
+    // 强制输出路径查找结果用于调试
+    LOG_INFO_FMT("Go分析器路径查找结果: '%s'", goAnalyzerPath_.c_str());
 }
 
 GoAnalyzer::~GoAnalyzer() {
@@ -88,18 +91,34 @@ ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
     
     // 添加分析结果
     auto astNodes = std::move(parseResult.value());
+    
+    // 更新统计信息（在移动节点之前）
+    statistics_.analyzedFiles++;
+    statistics_.totalFunctions += astNodes.size();
+    LOG_DEBUG_FMT("开始更新Go分析器统计，处理 %zu 个节点", astNodes.size());
+    for (const auto& node : astNodes) {
+        if (node) {
+            LOG_DEBUG_FMT("检查节点: %s, hasLogging=%s, children=%zu", 
+                        node->name.c_str(), 
+                        node->hasLogging ? "true" : "false",
+                        node->children.size());
+            if (node->hasLogging) {
+                // 计算这个函数中的日志调用数量（子节点）
+                size_t logCalls = node->children.size();
+                LOG_DEBUG_FMT("函数 %s 有 %zu 个日志调用子节点", node->name.c_str(), logCalls);
+                statistics_.totalLogCalls += logCalls;
+            }
+        } else {
+            LOG_DEBUG("发现空节点");
+        }
+    }
+    
+    // 将节点移动到结果集合中
     for (auto& node : astNodes) {
         results_.push_back(std::move(node));
     }
-    
-    // 更新统计信息
-    statistics_.analyzedFiles++;
-    statistics_.totalFunctions += astNodes.size();
-    for (const auto& node : astNodes) {
-        if (node && node->hasLogging) {
-            statistics_.totalLogCalls++;
-        }
-    }
+    LOG_DEBUG_FMT("Go分析器统计更新完成：文件=%d, 函数=%d, 日志调用=%d", 
+                statistics_.analyzedFiles, statistics_.totalFunctions, statistics_.totalLogCalls);
     
     LOG_INFO_FMT("Go文件分析完成: %s，找到 %zu 个函数", filePath.c_str(), astNodes.size());
     return ast_analyzer::makeSuccess(true);
@@ -134,16 +153,35 @@ std::string GoAnalyzer::getStatistics() const {
 }
 
 std::string GoAnalyzer::findGoAnalyzerTool() {
-    std::vector<std::string> searchPaths = {
-        "./tools/go-analyzer/dlogcover-go-analyzer",
-        "./dlogcover-go-analyzer",
-        "dlogcover-go-analyzer"  // 系统PATH中查找
-    };
+    std::vector<std::string> searchPaths;
+    
+    // 获取当前程序执行文件所在目录
+    std::string executableDir;
+    try {
+        auto executablePath = std::filesystem::canonical("/proc/self/exe");
+        executableDir = executablePath.parent_path().string();
+    } catch (const std::exception& e) {
+        LOG_DEBUG_FMT("无法获取程序路径: %s", e.what());
+        executableDir = ".";  // 回退到当前目录
+    }
+    
+    // 基于程序目录的相对路径
+    searchPaths.push_back(executableDir + "/dlogcover-go-analyzer");  // 同目录
+    
+    // 基于当前工作目录的相对路径
+    searchPaths.push_back("../build/bin/dlogcover-go-analyzer");      // 相对于test_project等子目录
+    searchPaths.push_back("./build/bin/dlogcover-go-analyzer");       // 相对于项目根目录
+    searchPaths.push_back("./tools/go-analyzer/dlogcover-go-analyzer");
+    searchPaths.push_back("./dlogcover-go-analyzer");
+    searchPaths.push_back("dlogcover-go-analyzer");                   // PATH中查找
     
     for (const auto& path : searchPaths) {
+        LOG_DEBUG_FMT("检查Go分析器路径: %s", path.c_str());
         if (std::filesystem::exists(path)) {
             LOG_DEBUG_FMT("找到Go分析器工具: %s", path.c_str());
             return path;
+        } else {
+            LOG_DEBUG_FMT("路径不存在: %s", path.c_str());
         }
     }
     
@@ -234,11 +272,35 @@ ast_analyzer::Result<std::string> GoAnalyzer::executeGoAnalyzer(const std::strin
     requestFile << "}\n";
     requestFile.close();
     
+    // 检查Go分析器路径
+    if (goAnalyzerPath_.empty()) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+            "Go分析器工具未找到，请检查环境配置"
+        );
+    }
+    
     // 构建命令
     std::string command = goAnalyzerPath_ + " " + requestPath;
     
+    // DEBUG: 输出请求内容
+    LOG_DEBUG("Go分析器请求文件内容:");
+    std::ifstream requestDebug(requestPath);
+    std::string line;
+    while (std::getline(requestDebug, line)) {
+        LOG_DEBUG_FMT("  %s", line.c_str());
+    }
+    requestDebug.close();
+    
     // 执行命令
     auto result = executeCommand(command);
+    
+    // DEBUG: 输出结果
+    if (result.isSuccess()) {
+        LOG_DEBUG_FMT("Go分析器输出结果: %s", result.value().c_str());
+    } else {
+        LOG_DEBUG_FMT("Go分析器执行失败: %s", result.errorMessage().c_str());
+    }
     
     // 清理临时文件
     std::filesystem::remove(requestPath);
@@ -317,6 +379,10 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                 nodeInfo->endLocation.column = funcJson.value("end_column", 0);
                 nodeInfo->hasLogging = funcJson.value("has_logging", false);
                 
+                LOG_DEBUG_FMT("解析Go函数: %s, has_logging=%s", 
+                            nodeInfo->name.c_str(), 
+                            nodeInfo->hasLogging ? "true" : "false");
+                
                 // 设置文件路径
                 if (json.find("file_path") != json.end()) {
                     nodeInfo->location.filePath = json["file_path"].get<std::string>();
@@ -325,6 +391,9 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                 
                 // 解析日志调用（作为子节点）
                 if (funcJson.find("log_calls") != funcJson.end()) {
+                    size_t logCallCount = funcJson["log_calls"].size();
+                    LOG_DEBUG_FMT("函数 %s 有 %zu 个日志调用", nodeInfo->name.c_str(), logCallCount);
+                    
                     for (const auto& logCallJson : funcJson["log_calls"]) {
                         auto logNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
                         logNode->type = ast_analyzer::NodeType::LOG_CALL;
@@ -340,8 +409,14 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                         std::string level = logCallJson.value("level", "info");
                         logNode->text = library + " " + level + " log call";
                         
+                        LOG_DEBUG_FMT("添加日志调用子节点: %s (line %d)", 
+                                    logNode->name.c_str(), logNode->location.line);
+                        
                         nodeInfo->children.push_back(std::move(logNode));
                     }
+                    
+                    LOG_DEBUG_FMT("函数 %s 最终有 %zu 个子节点", 
+                                nodeInfo->name.c_str(), nodeInfo->children.size());
                 }
                 
                 results.push_back(std::move(nodeInfo));

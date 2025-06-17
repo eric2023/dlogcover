@@ -216,7 +216,7 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     config.output.show_uncovered_paths_details = false;
 
     // 分析配置
-    config.analysis.mode = "default";
+    config.analysis.mode = "cpp_only";
     config.analysis.auto_detection.sample_size = 100;
     config.analysis.auto_detection.confidence_threshold = 0.9;
     config.analysis.function_coverage = true;
