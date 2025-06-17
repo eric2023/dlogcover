@@ -44,7 +44,26 @@ ast_analyzer::Result<bool> CppAnalyzerAdapter::analyze(const std::string& filePa
 }
 
 const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& CppAnalyzerAdapter::getResults() const {
-    return astAnalyzer_->getResults();
+    // 注意：在多语言架构下，C++分析结果存储在AST节点映射中，而不是results_向量中
+    // 这里我们需要从AST节点映射中构建results_向量
+    static std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> cachedResults;
+    
+    // 清空之前的缓存结果
+    cachedResults.clear();
+    
+    // 从AST节点映射中提取所有结果
+    const auto& allASTNodes = astAnalyzer_->getAllASTNodeInfo();
+    for (const auto& [filePath, nodeInfo] : allASTNodes) {
+        if (nodeInfo) {
+            // 创建节点信息的副本
+            auto resultCopy = std::make_unique<ast_analyzer::ASTNodeInfo>(*nodeInfo);
+            cachedResults.push_back(std::move(resultCopy));
+        }
+    }
+    
+    LOG_DEBUG_FMT("C++分析器适配器从AST节点映射中提取了 %zu 个结果", cachedResults.size());
+    
+    return cachedResults;
 }
 
 void CppAnalyzerAdapter::clear() {
@@ -66,20 +85,39 @@ std::vector<std::string> CppAnalyzerAdapter::getSupportedExtensions() const {
 }
 
 std::string CppAnalyzerAdapter::getStatistics() const {
-    const auto& results = getResults();
+    // 获取所有AST节点信息（包括外部添加的结果）
+    const auto& allASTNodes = astAnalyzer_->getAllASTNodeInfo();
+    size_t totalFiles = allASTNodes.size();
     size_t totalNodes = 0;
     size_t totalLogNodes = 0;
     
-    for (const auto& nodeInfo : results) {
+    // 统计所有AST节点的信息
+    for (const auto& [filePath, nodeInfo] : allASTNodes) {
         if (nodeInfo) {
             totalNodes++;
             if (nodeInfo->hasLogging) {
                 totalLogNodes++;
             }
+            
+            // 递归统计子节点
+            std::function<void(const ast_analyzer::ASTNodeInfo*)> countNodes = 
+                [&](const ast_analyzer::ASTNodeInfo* node) {
+                    if (!node) return;
+                    for (const auto& child : node->children) {
+                        if (child) {
+                            totalNodes++;
+                            if (child->hasLogging) {
+                                totalLogNodes++;
+                            }
+                            countNodes(child.get());
+                        }
+                    }
+                };
+            countNodes(nodeInfo.get());
         }
     }
     
-    return "C++分析统计: " + std::to_string(results.size()) + " 个文件, " +
+    return "C++分析统计: " + std::to_string(totalFiles) + " 个文件, " +
            std::to_string(totalNodes) + " 个节点, " +
            std::to_string(totalLogNodes) + " 个包含日志的节点";
 }

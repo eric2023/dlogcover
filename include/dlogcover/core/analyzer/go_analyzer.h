@@ -12,6 +12,8 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <ctime>
 
 namespace dlogcover {
 namespace core {
@@ -86,6 +88,25 @@ public:
     void setParallelMode(bool enabled, size_t maxThreads = 0);
 
     /**
+     * @brief 启用或禁用缓存
+     * @param enabled 是否启用缓存
+     * @param maxCacheSize 最大缓存条目数
+     * @param maxMemoryMB 最大内存限制(MB)
+     */
+    void enableCache(bool enabled, size_t maxCacheSize, size_t maxMemoryMB);
+
+    /**
+     * @brief 获取缓存统计信息
+     * @return 缓存统计信息字符串
+     */
+    std::string getCacheStatistics() const;
+
+    /**
+     * @brief 清空缓存
+     */
+    void clearCache();
+
+    /**
      * @brief 批量分析多个Go文件
      * @param filePaths 要分析的文件路径列表
      * @return 分析结果，成功返回true，失败返回错误信息
@@ -112,6 +133,24 @@ private:
         size_t totalFunctions = 0;
         size_t totalLogCalls = 0;
     } statistics_;
+
+    /// 缓存条目结构
+    struct CacheEntry {
+        std::string fileHash;           // 文件内容哈希值
+        std::time_t lastModified;       // 文件最后修改时间
+        std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> results;  // 缓存的分析结果
+        std::time_t accessTime;         // 最后访问时间（用于LRU）
+        size_t memorySize;              // 估算的内存占用大小
+    };
+    
+    /// 缓存配置和状态
+    mutable std::unordered_map<std::string, CacheEntry> cache_;
+    bool cacheEnabled_ = false;
+    size_t maxCacheSize_ = 100;
+    size_t maxMemoryMB_ = 256;
+    mutable size_t cacheHits_ = 0;
+    mutable size_t cacheMisses_ = 0;
+    mutable size_t currentMemoryUsage_ = 0;
 
     /**
      * @brief 查找Go分析器工具
@@ -175,6 +214,54 @@ private:
      * @return 解析结果，成功返回true，失败返回错误信息
      */
     ast_analyzer::Result<bool> parseBatchAnalysisResult(const std::string& jsonResult);
+
+    /**
+     * @brief 计算文件哈希值
+     * @param filePath 文件路径
+     * @return 文件哈希值字符串
+     */
+    std::string calculateFileHash(const std::string& filePath) const;
+
+    /**
+     * @brief 获取文件修改时间
+     * @param filePath 文件路径
+     * @return 文件修改时间
+     */
+    std::time_t getFileModifiedTime(const std::string& filePath) const;
+
+    /**
+     * @brief 检查缓存中是否有有效条目
+     * @param filePath 文件路径
+     * @return 如果有有效缓存返回true
+     */
+    bool isCacheValid(const std::string& filePath) const;
+
+    /**
+     * @brief 从缓存中获取分析结果
+     * @param filePath 文件路径
+     * @return 缓存的分析结果，如果不存在返回空向量
+     */
+    std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> getCacheResult(const std::string& filePath) const;
+
+    /**
+     * @brief 将分析结果添加到缓存
+     * @param filePath 文件路径
+     * @param results 分析结果
+     */
+    void addToCache(const std::string& filePath, 
+                   const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const;
+
+    /**
+     * @brief 清理LRU缓存（当缓存满时）
+     */
+    void evictLRUCache() const;
+
+    /**
+     * @brief 估算分析结果的内存占用
+     * @param results 分析结果
+     * @return 估算的内存大小（字节）
+     */
+    size_t estimateMemoryUsage(const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const;
 };
 
 } // namespace analyzer

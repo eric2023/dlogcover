@@ -16,6 +16,7 @@
 #include <ctime>
 #include <thread>
 #include <algorithm>
+#include <iomanip>
 
 namespace dlogcover {
 namespace core {
@@ -72,6 +73,38 @@ ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
         );
     }
     
+    // 缓存检查：如果启用缓存且缓存中有有效结果，直接使用缓存
+    if (cacheEnabled_ && isCacheValid(filePath)) {
+        LOG_DEBUG_FMT("使用缓存结果: %s", filePath.c_str());
+        cacheHits_++;
+        
+        auto cachedResults = getCacheResult(filePath);
+        // 将缓存结果复制到当前结果集合中
+        for (const auto& result : cachedResults) {
+            if (result) {
+                auto resultCopy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+                results_.push_back(std::move(resultCopy));
+            }
+        }
+        
+        // 更新统计信息
+        statistics_.analyzedFiles++;
+        statistics_.totalFunctions += cachedResults.size();
+        for (const auto& node : cachedResults) {
+            if (node && node->hasLogging) {
+                statistics_.totalLogCalls += node->children.size();
+            }
+        }
+        
+        LOG_INFO_FMT("Go文件缓存分析完成: %s，找到 %zu 个函数", filePath.c_str(), cachedResults.size());
+        return ast_analyzer::makeSuccess(true);
+    }
+    
+    // 缓存未命中，执行实际分析
+    if (cacheEnabled_) {
+        cacheMisses_++;
+    }
+    
     // 阶段2完整实现：执行Go分析器
     LOG_INFO_FMT("开始分析Go文件: %s", filePath.c_str());
     
@@ -91,6 +124,11 @@ ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
     
     // 添加分析结果
     auto astNodes = std::move(parseResult.value());
+    
+    // 如果启用缓存，将结果添加到缓存
+    if (cacheEnabled_) {
+        addToCache(filePath, astNodes);
+    }
     
     // 更新统计信息（在移动节点之前）
     statistics_.analyzedFiles++;
@@ -656,6 +694,216 @@ ast_analyzer::Result<bool> GoAnalyzer::parseBatchAnalysisResult(const std::strin
     }
     
     return ast_analyzer::makeSuccess(true);
+}
+
+// ===== 缓存功能实现 =====
+
+void GoAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_t maxMemoryMB) {
+    LOG_DEBUG_FMT("设置Go分析器缓存: enabled=%s, maxCacheSize=%zu, maxMemoryMB=%zu", 
+                  enabled ? "true" : "false", maxCacheSize, maxMemoryMB);
+    
+    cacheEnabled_ = enabled;
+    maxCacheSize_ = maxCacheSize;
+    maxMemoryMB_ = maxMemoryMB;
+    
+    if (!enabled) {
+        clearCache();
+    }
+}
+
+std::string GoAnalyzer::getCacheStatistics() const {
+    if (!cacheEnabled_) {
+        return "Go分析器缓存未启用";
+    }
+    
+    double hitRate = (cacheHits_ + cacheMisses_ > 0) ? 
+                     (static_cast<double>(cacheHits_) / (cacheHits_ + cacheMisses_) * 100.0) : 0.0;
+    
+    std::stringstream ss;
+    ss << "Go分析器缓存统计信息:\n";
+    ss << "  缓存条目数: " << cache_.size() << "/" << maxCacheSize_ << "\n";
+    ss << "  缓存命中: " << cacheHits_ << "\n";
+    ss << "  缓存未命中: " << cacheMisses_ << "\n";
+    ss << "  总访问次数: " << (cacheHits_ + cacheMisses_) << "\n";
+    ss << "  命中率: " << std::fixed << std::setprecision(2) << hitRate << "%\n";
+    ss << "  内存使用: " << std::fixed << std::setprecision(2) 
+       << (currentMemoryUsage_ / 1024.0 / 1024.0) << " MB / " << maxMemoryMB_ << " MB";
+    
+    return ss.str();
+}
+
+void GoAnalyzer::clearCache() {
+    LOG_DEBUG("清空Go分析器缓存");
+    cache_.clear();
+    cacheHits_ = 0;
+    cacheMisses_ = 0;
+    currentMemoryUsage_ = 0;
+}
+
+std::string GoAnalyzer::calculateFileHash(const std::string& filePath) const {
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        return "";
+    }
+    
+    // 简单的哈希计算（实际项目中可以使用MD5或SHA256）
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::hash<std::string> hasher;
+    size_t hashValue = hasher(content);
+    
+    std::stringstream ss;
+    ss << std::hex << hashValue;
+    return ss.str();
+}
+
+std::time_t GoAnalyzer::getFileModifiedTime(const std::string& filePath) const {
+    try {
+        auto ftime = std::filesystem::last_write_time(filePath);
+        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+        );
+        return std::chrono::system_clock::to_time_t(sctp);
+    } catch (const std::exception& e) {
+        LOG_DEBUG_FMT("获取文件修改时间失败: %s, 错误: %s", filePath.c_str(), e.what());
+        return 0;
+    }
+}
+
+bool GoAnalyzer::isCacheValid(const std::string& filePath) const {
+    auto it = cache_.find(filePath);
+    if (it == cache_.end()) {
+        return false;
+    }
+    
+    // 检查文件修改时间
+    std::time_t currentModTime = getFileModifiedTime(filePath);
+    if (currentModTime != it->second.lastModified) {
+        LOG_DEBUG_FMT("文件已修改，缓存失效: %s", filePath.c_str());
+        return false;
+    }
+    
+    // 检查文件哈希值（更严格的验证）
+    std::string currentHash = calculateFileHash(filePath);
+    if (currentHash != it->second.fileHash) {
+        LOG_DEBUG_FMT("文件内容已变更，缓存失效: %s", filePath.c_str());
+        return false;
+    }
+    
+    // 更新访问时间（用于LRU）
+    it->second.accessTime = std::time(nullptr);
+    
+    return true;
+}
+
+std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> GoAnalyzer::getCacheResult(const std::string& filePath) const {
+    std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> results;
+    
+    auto it = cache_.find(filePath);
+    if (it != cache_.end()) {
+        // 创建缓存结果的深拷贝
+        for (const auto& result : it->second.results) {
+            if (result) {
+                auto copy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+                results.push_back(std::move(copy));
+            }
+        }
+        
+        // 更新访问时间
+        it->second.accessTime = std::time(nullptr);
+    }
+    
+    return results;
+}
+
+void GoAnalyzer::addToCache(const std::string& filePath, 
+                           const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const {
+    
+    // 检查缓存是否已满，需要清理
+    if (cache_.size() >= maxCacheSize_) {
+        evictLRUCache();
+    }
+    
+    // 创建缓存条目
+    CacheEntry entry;
+    entry.fileHash = calculateFileHash(filePath);
+    entry.lastModified = getFileModifiedTime(filePath);
+    entry.accessTime = std::time(nullptr);
+    
+    // 创建结果的深拷贝
+    for (const auto& result : results) {
+        if (result) {
+            auto copy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+            entry.results.push_back(std::move(copy));
+        }
+    }
+    
+    // 估算内存使用
+    entry.memorySize = estimateMemoryUsage(results);
+    
+    // 检查内存限制
+    if (currentMemoryUsage_ + entry.memorySize > maxMemoryMB_ * 1024 * 1024) {
+        // 内存不足，清理缓存
+        while (!cache_.empty() && currentMemoryUsage_ + entry.memorySize > maxMemoryMB_ * 1024 * 1024) {
+            evictLRUCache();
+        }
+    }
+    
+    // 如果条目已存在，先移除旧的
+    auto it = cache_.find(filePath);
+    if (it != cache_.end()) {
+        currentMemoryUsage_ -= it->second.memorySize;
+        cache_.erase(it);
+    }
+    
+    // 添加新条目
+    currentMemoryUsage_ += entry.memorySize;
+    cache_[filePath] = std::move(entry);
+    
+    LOG_DEBUG_FMT("添加到Go分析器缓存: %s, 内存占用: %zu 字节", filePath.c_str(), entry.memorySize);
+}
+
+void GoAnalyzer::evictLRUCache() const {
+    if (cache_.empty()) {
+        return;
+    }
+    
+    // 找到最久未访问的条目
+    auto lruIt = cache_.begin();
+    std::time_t oldestTime = lruIt->second.accessTime;
+    
+    for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+        if (it->second.accessTime < oldestTime) {
+            oldestTime = it->second.accessTime;
+            lruIt = it;
+        }
+    }
+    
+    // 移除最久未访问的条目
+    LOG_DEBUG_FMT("从Go分析器缓存中移除LRU条目: %s", lruIt->first.c_str());
+    currentMemoryUsage_ -= lruIt->second.memorySize;
+    cache_.erase(lruIt);
+}
+
+size_t GoAnalyzer::estimateMemoryUsage(const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const {
+    size_t totalSize = 0;
+    
+    for (const auto& result : results) {
+        if (result) {
+            // 基本结构大小
+            totalSize += sizeof(ast_analyzer::ASTNodeInfo);
+            
+            // 字符串成员大小
+            totalSize += result->name.size();
+            totalSize += result->text.size();
+            totalSize += result->location.filePath.size();
+            totalSize += result->location.fileName.size();
+            
+            // 子节点大小（递归计算）
+            totalSize += estimateMemoryUsage(result->children);
+        }
+    }
+    
+    return totalSize;
 }
 
 } // namespace analyzer

@@ -12,6 +12,7 @@
 
 #include <thread>
 #include <algorithm>
+#include <sstream>
 
 namespace dlogcover {
 namespace core {
@@ -259,7 +260,12 @@ void MultiLanguageAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_
         cppAnalyzer->enableCache(enabled, maxCacheSize, maxMemoryMB);
     }
     
-    // Go分析器的缓存将在后续实现
+    // 设置Go分析器的缓存
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        goAnalyzer->enableCache(enabled, maxCacheSize, maxMemoryMB);
+        LOG_DEBUG("Go分析器缓存设置完成");
+    }
 }
 
 bool MultiLanguageAnalyzer::isLanguageEnabled(language_detector::SourceLanguage language) const {
@@ -584,6 +590,78 @@ void MultiLanguageAnalyzer::updateStatistics(language_detector::SourceLanguage l
 
 std::string MultiLanguageAnalyzer::getLanguageString(language_detector::SourceLanguage language) const {
     return language_detector::LanguageDetector::getLanguageName(language);
+}
+
+std::string MultiLanguageAnalyzer::getAllCacheStatistics() const {
+    std::stringstream ss;
+    ss << "=== 多语言分析器缓存统计信息 ===\n";
+    
+    bool hasCacheEnabled = false;
+    
+    // C++分析器缓存统计
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        std::string cppStats = cppAnalyzer->getCacheStatistics();
+        ss << "C++分析器:\n" << cppStats << "\n\n";
+        hasCacheEnabled = true;
+    }
+    
+    // Go分析器缓存统计
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        std::string goStats = goAnalyzer->getCacheStatistics();
+        ss << "Go分析器:\n" << goStats << "\n\n";
+        hasCacheEnabled = true;
+    }
+    
+    if (!hasCacheEnabled) {
+        ss << "没有启用的分析器缓存\n";
+    } else {
+        // 添加总体统计
+        size_t totalCacheSize = getTotalCacheSize();
+        ss << "总缓存条目数: " << totalCacheSize;
+    }
+    
+    return ss.str();
+}
+
+void MultiLanguageAnalyzer::clearAllCache() {
+    LOG_DEBUG("清空所有分析器缓存");
+    
+    // 清空C++分析器缓存
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        // 使用clear方法代替clearCache（暂时处理，后续需要添加clearCache接口）
+        cppAnalyzer->getUnderlyingAnalyzer()->clear();
+        LOG_DEBUG("C++分析器缓存已清空");
+    }
+    
+    // 清空Go分析器缓存
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        goAnalyzer->clearCache();
+        LOG_DEBUG("Go分析器缓存已清空");
+    }
+}
+
+size_t MultiLanguageAnalyzer::getTotalCacheSize() const {
+    size_t totalSize = 0;
+    
+    // C++分析器缓存大小（需要实现相应接口）
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        // 注意：这里需要确认CppAnalyzerAdapter是否有getCacheSize方法
+        // totalSize += cppAnalyzer->getCacheSize();
+    }
+    
+    // Go分析器缓存大小
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        // Go分析器暂时无法直接获取缓存大小，可以从统计信息中解析
+        // 这里简化处理，实际可以添加getCacheSize方法到GoAnalyzer
+    }
+    
+    return totalSize;
 }
 
 } // namespace analyzer

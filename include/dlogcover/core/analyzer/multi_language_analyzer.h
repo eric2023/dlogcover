@@ -135,6 +135,23 @@ public:
     void enableCache(bool enabled, size_t maxCacheSize = 100, size_t maxMemoryMB = 512);
 
     /**
+     * @brief 获取所有语言分析器的缓存统计信息
+     * @return 详细的缓存统计信息字符串
+     */
+    std::string getAllCacheStatistics() const;
+
+    /**
+     * @brief 清空所有分析器的缓存
+     */
+    void clearAllCache();
+
+    /**
+     * @brief 获取总缓存大小（所有分析器）
+     * @return 总缓存条目数
+     */
+    size_t getTotalCacheSize() const;
+
+    /**
      * @brief 检查指定语言是否已启用
      * @param language 语言类型
      * @return 如果启用返回true，否则返回false

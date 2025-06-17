@@ -514,6 +514,20 @@ int main(int argc, char* argv[]) {
                             // 输出多语言分析统计信息
                             LOG_INFO("多语言分析统计:");
                             LOG_INFO(multiAnalyzer.getStatistics().c_str());
+                            
+                            // 输出缓存统计信息
+                            if (config.performance.enable_ast_cache && !parsedOptions.disableCache) {
+                                LOG_INFO("AST缓存统计信息:");
+                                
+                                // 使用多语言分析器的统一缓存统计接口
+                                std::string allCacheStats = multiAnalyzer.getAllCacheStatistics();
+                                LOG_INFO(allCacheStats.c_str());
+                                
+                                // 还需要输出传统分析器的缓存统计
+                                std::string legacyCacheStats = legacyAnalyzer.getCacheStatistics();
+                                LOG_INFO("传统分析器缓存统计:");
+                                LOG_INFO(legacyCacheStats.c_str());
+                            }
                         }
                     }
                 }
