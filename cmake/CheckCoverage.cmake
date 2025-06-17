@@ -1,19 +1,26 @@
 # 检查覆盖率是否达到要求的CMake脚本
 
 # 运行lcov命令获取摘要信息
+# lcov的--summary输出到stderr，所以我们需要合并输出
 execute_process(
     COMMAND lcov --summary "${CMAKE_BINARY_DIR}/coverage.filtered.info"
-    OUTPUT_VARIABLE COVERAGE_SUMMARY
+    OUTPUT_VARIABLE COVERAGE_OUTPUT
     ERROR_VARIABLE COVERAGE_ERROR
     RESULT_VARIABLE COVERAGE_RESULT
 )
+
+# lcov将摘要输出到错误流，所以我们从ERROR_VARIABLE获取数据
+set(COVERAGE_SUMMARY "${COVERAGE_ERROR}")
 
 if(NOT COVERAGE_RESULT EQUAL 0)
     message(FATAL_ERROR "无法获取覆盖率摘要: ${COVERAGE_ERROR}")
 endif()
 
+
+
 # 解析覆盖率数据 - 修正正则表达式以匹配lcov摘要格式
-string(REGEX MATCH "lines[.]*: ([0-9]+[.][0-9]+)%" LINES_COVERAGE_MATCH "${COVERAGE_SUMMARY}")
+# lcov输出格式为: "lines......: 70.6% (4278 of 6060 lines)"
+string(REGEX MATCH "lines\\.*: ([0-9]+\\.[0-9]+)%" LINES_COVERAGE_MATCH "${COVERAGE_SUMMARY}")
 if(LINES_COVERAGE_MATCH)
     set(TOTAL_COVERAGE ${CMAKE_MATCH_1})
 else()
@@ -21,7 +28,8 @@ else()
 endif()
 
 # 解析函数覆盖率
-string(REGEX MATCH "functions[.]*: ([0-9]+[.][0-9]+)%" FUNCTIONS_COVERAGE_MATCH "${COVERAGE_SUMMARY}")
+# lcov输出格式为: "functions..: 83.8% (464 of 554 functions)"
+string(REGEX MATCH "functions\\.*: ([0-9]+\\.[0-9]+)%" FUNCTIONS_COVERAGE_MATCH "${COVERAGE_SUMMARY}")
 if(FUNCTIONS_COVERAGE_MATCH)
     set(FUNCTION_COVERAGE ${CMAKE_MATCH_1})
 else()
@@ -44,6 +52,7 @@ if(TOTAL_COVERAGE LESS MINIMUM_COVERAGE)
     message(STATUS "  - 目标: 从 ${TOTAL_COVERAGE}% 提升到 ${MINIMUM_COVERAGE}%")
     
     # 计算需要增加的覆盖行数
+    # lcov输出格式为: "lines......: 70.6% (4278 of 6060 lines)"
     string(REGEX MATCH "\\(([0-9]+) of ([0-9]+) lines\\)" LINES_DETAIL_MATCH "${COVERAGE_SUMMARY}")
     if(LINES_DETAIL_MATCH)
         set(COVERED_LINES ${CMAKE_MATCH_1})
