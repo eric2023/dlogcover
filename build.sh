@@ -16,6 +16,133 @@ show_help() {
     echo "  -i, --install              安装到系统"
     echo "  -f, --full-process         执行完整流程：编译 -> 测试 -> 覆盖率统计"
     echo "  --prefix=<path>            安装路径前缀"
+    echo ""
+    echo "环境要求:"
+    echo "  - Go 1.15+ (用于Go语言分析器)"
+    echo "  - CMake 3.10+"
+    echo "  - Clang/LLVM开发库"
+    echo "  - nlohmann_json库"
+    echo "  - GoogleTest库"
+}
+
+# 检查Go环境
+check_go_environment() {
+    echo "检查Go环境..."
+    
+    # 检查Go是否安装
+    if ! command -v go &> /dev/null; then
+        echo "错误: Go未安装"
+        echo "请安装Go 1.19或更高版本："
+        echo "  Ubuntu/Debian: sudo apt install golang-go"
+        echo "  CentOS/RHEL: sudo yum install golang"
+        echo "  或从官网下载: https://golang.org/dl/"
+        exit 1
+    fi
+    
+    # 检查Go版本
+    go_version=$(go version | awk '{print $3}' | sed 's/go//')
+    required_version="1.15"
+    
+    if ! printf '%s\n%s\n' "$required_version" "$go_version" | sort -V -C; then
+        echo "错误: Go版本过低"
+        echo "当前版本: $go_version"
+        echo "要求版本: $required_version 或更高"
+        echo "请升级Go版本"
+        exit 1
+    fi
+    
+    echo "✅ Go环境检查通过 (版本: $go_version)"
+}
+
+# 编译Go分析器
+build_go_analyzer() {
+    echo "编译Go分析器..."
+    
+    # 检查Go源文件是否存在
+    GO_SOURCE_DIR="tools/go-analyzer"
+    GO_SOURCE_FILE="$GO_SOURCE_DIR/main.go"
+    GO_MOD_FILE="$GO_SOURCE_DIR/go.mod"
+    
+    if [ ! -f "$GO_SOURCE_FILE" ]; then
+        echo "错误: Go源文件不存在: $GO_SOURCE_FILE"
+        exit 1
+    fi
+    
+    if [ ! -f "$GO_MOD_FILE" ]; then
+        echo "错误: Go模块文件不存在: $GO_MOD_FILE"
+        exit 1
+    fi
+    
+    # 确保输出目录存在
+    mkdir -p "build/bin"
+    
+    # 进入Go源码目录
+    cd "$GO_SOURCE_DIR"
+    
+    # 确保Go模块依赖
+    echo "检查Go模块依赖..."
+    if ! go mod tidy; then
+        echo "错误: Go模块依赖处理失败"
+        cd - > /dev/null
+        exit 1
+    fi
+    
+    # 编译Go程序到build/bin目录
+    OUTPUT_BINARY="../../build/bin/dlogcover-go-analyzer"
+    echo "编译Go分析器到: build/bin/dlogcover-go-analyzer"
+    
+    if ! go build -o "$OUTPUT_BINARY" main.go; then
+        echo "错误: Go程序编译失败"
+        cd - > /dev/null
+        exit 1
+    fi
+    
+    # 检查编译结果
+    if [ ! -f "$OUTPUT_BINARY" ]; then
+        echo "错误: Go编译完成但未找到输出文件"
+        cd - > /dev/null
+        exit 1
+    fi
+    
+    # 使二进制文件可执行
+    chmod +x "$OUTPUT_BINARY"
+    
+    # 返回原目录
+    cd - > /dev/null
+    
+    echo "✅ Go分析器编译完成: build/bin/dlogcover-go-analyzer"
+}
+
+# 清理Go编译产物
+clean_go_artifacts() {
+    echo "清理Go编译产物..."
+    
+    # 清理build/bin目录的Go二进制文件
+    GO_BINARY="build/bin/dlogcover-go-analyzer"
+    if [ -f "$GO_BINARY" ]; then
+        rm -f "$GO_BINARY"
+        echo "已删除: $GO_BINARY"
+    fi
+    
+    # 清理旧位置的二进制文件（向后兼容）
+    OLD_GO_BINARY="tools/go-analyzer/dlogcover-go-analyzer"
+    if [ -f "$OLD_GO_BINARY" ]; then
+        rm -f "$OLD_GO_BINARY"
+        echo "已删除: $OLD_GO_BINARY"
+    fi
+    
+    # 清理bin目录的二进制文件（向后兼容）
+    OLD_BIN_BINARY="bin/dlogcover-go-analyzer"
+    if [ -f "$OLD_BIN_BINARY" ]; then
+        rm -f "$OLD_BIN_BINARY"
+        echo "已删除: $OLD_BIN_BINARY"
+    fi
+    
+    # 清理可能的其他位置的二进制文件
+    if [ -f "dlogcover-go-analyzer" ]; then
+        rm -f "dlogcover-go-analyzer"
+        echo "已删除: dlogcover-go-analyzer"
+    fi
 }
 
 # 默认值
@@ -26,6 +153,9 @@ INSTALL=0
 FULL_PROCESS=0
 INSTALL_PREFIX="/usr/local"
 
+# 保存原始参数用于后续判断
+ORIGINAL_ARGS=("$@")
+
 # 解析参数
 for arg in "$@"; do
     case $arg in
@@ -35,33 +165,26 @@ for arg in "$@"; do
             ;;
         -c|--clean)
             CLEAN=1
-            shift
             ;;
         -d|--debug)
             BUILD_TYPE="Debug"
-            shift
             ;;
         -r|--release)
             BUILD_TYPE="Release"
-            shift
             ;;
         -t|--test)
             BUILD_TESTS=1
-            shift
             ;;
         -i|--install)
             INSTALL=1
-            shift
             ;;
         -f|--full-process)
             FULL_PROCESS=1
             BUILD_TESTS=1  # 完整流程包含测试
             CLEAN=1        # 完整流程强制清理，确保覆盖率数据一致性
-            shift
             ;;
         --prefix=*)
             INSTALL_PREFIX="${arg#*=}"
-            shift
             ;;
         *)
             echo "未知选项: $arg"
@@ -79,6 +202,8 @@ mkdir -p "$BUILD_DIR"
 if [ $CLEAN -eq 1 ]; then
     echo "清理构建目录..."
     rm -rf "$BUILD_DIR"/*
+    # 清理Go编译产物
+    clean_go_artifacts
     # 对于完整流程，额外清理可能的覆盖率文件
     if [ $FULL_PROCESS -eq 1 ]; then
         echo "清理覆盖率数据文件..."
@@ -87,6 +212,28 @@ if [ $CLEAN -eq 1 ]; then
         rm -f coverage.info coverage.filtered.info 2>/dev/null || true
         rm -rf coverage_report 2>/dev/null || true
     fi
+fi
+
+# 判断是否需要检查和编译Go环境
+# 纯清理模式（只有-c选项且没有其他构建选项）时不需要Go环境
+need_go_build=1
+only_clean=0
+
+# 检查是否只有清理选项
+if [ ${#ORIGINAL_ARGS[@]} -eq 1 ] && [[ "${ORIGINAL_ARGS[0]}" == "-c" || "${ORIGINAL_ARGS[0]}" == "--clean" ]]; then
+    only_clean=1
+    need_go_build=0
+fi
+
+if [ $need_go_build -eq 1 ]; then
+    check_go_environment
+    build_go_analyzer
+fi
+
+# 如果只是清理模式，跳过后续构建步骤
+if [ $only_clean -eq 1 ]; then
+    echo "清理完成!"
+    exit 0
 fi
 
 # 进入构建目录

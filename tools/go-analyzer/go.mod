@@ -1,6 +1,3 @@
 module dlogcover-go-analyzer
 
-go 1.19
-
-require (
-) 
+go 1.15
