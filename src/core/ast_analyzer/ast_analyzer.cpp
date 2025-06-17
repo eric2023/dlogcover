@@ -1137,6 +1137,20 @@ bool ASTAnalyzer::isLogFunctionCall(clang::CallExpr* expr) const {
     return false;
 }
 
+const std::vector<std::unique_ptr<ASTNodeInfo>>& ASTAnalyzer::getResults() const {
+    return results_;
+}
+
+void ASTAnalyzer::clear() {
+    LOG_DEBUG("清空AST分析器结果");
+    results_.clear();
+    astNodes_.clear();
+    currentASTUnit_.reset();
+    if (astCache_) {
+        astCache_->clearCache();
+    }
+}
+
 std::vector<std::string> ASTAnalyzer::getCompilerArgs() const {
     LOG_DEBUG("获取编译参数");
     

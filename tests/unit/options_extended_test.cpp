@@ -65,7 +65,7 @@ TEST_F(OptionsExtendedTest, ValidateExistingDirectory) {
 }
 
 TEST_F(OptionsExtendedTest, ValidateNonexistentDirectory) {
-    options_->directory = "/nonexistent/directory/path";
+    options_->directory = testDir_ + "/nonexistent_subdir";
     
     auto result = options_->validate();
     EXPECT_TRUE(result.hasError());
@@ -97,7 +97,7 @@ TEST_F(OptionsExtendedTest, ValidateExistingConfigFile) {
 }
 
 TEST_F(OptionsExtendedTest, ValidateNonexistentConfigFile) {
-    options_->configPath = "/nonexistent/config.json";
+    options_->configPath = testDir_ + "/nonexistent_config.json";
     
     auto result = options_->validate();
     EXPECT_TRUE(result.hasError());
@@ -112,7 +112,7 @@ TEST_F(OptionsExtendedTest, ValidateOutputFileWithValidParentDir) {
 }
 
 TEST_F(OptionsExtendedTest, ValidateOutputFileWithInvalidParentDir) {
-    options_->output_file = "/nonexistent/directory/output.txt";
+    options_->output_file = testDir_ + "/nonexistent_subdir/output.txt";
     
     auto result = options_->validate();
     EXPECT_TRUE(result.hasError());
@@ -154,7 +154,7 @@ TEST_F(OptionsExtendedTest, JsonSerializationBasic) {
     EXPECT_EQ(parsed["exclude"].size(), 2);
     EXPECT_EQ(parsed["log_level"], "info");
     EXPECT_EQ(parsed["report_format"], "json");
-    EXPECT_TRUE(parsed.contains("version"));
+    EXPECT_TRUE(parsed.count("version") > 0);
 }
 
 TEST_F(OptionsExtendedTest, JsonSerializationEmptyExcludePatterns) {
@@ -283,7 +283,7 @@ TEST_F(OptionsExtendedTest, IsValidFunction) {
     EXPECT_TRUE(options_->isValid());
     
     // 测试无效选项
-    options_->directory = "/nonexistent/path";
+    options_->directory = testDir_ + "/nonexistent_path";
     EXPECT_FALSE(options_->isValid());
 }
 

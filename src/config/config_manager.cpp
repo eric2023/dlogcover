@@ -160,6 +160,9 @@ bool ConfigManager::generateDefaultConfig(const std::string& config_path,
         json_config["log_functions"]["custom"]["functions"] = default_config.log_functions.custom.functions;
 
         // 分析配置
+        json_config["analysis"]["mode"] = default_config.analysis.mode;
+        json_config["analysis"]["auto_detection"]["sample_size"] = default_config.analysis.auto_detection.sample_size;
+        json_config["analysis"]["auto_detection"]["confidence_threshold"] = default_config.analysis.auto_detection.confidence_threshold;
         json_config["analysis"]["function_coverage"] = default_config.analysis.function_coverage;
         json_config["analysis"]["branch_coverage"] = default_config.analysis.branch_coverage;
         json_config["analysis"]["exception_coverage"] = default_config.analysis.exception_coverage;
@@ -213,6 +216,9 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     config.output.show_uncovered_paths_details = false;
 
     // 分析配置
+    config.analysis.mode = "default";
+    config.analysis.auto_detection.sample_size = 100;
+    config.analysis.auto_detection.confidence_threshold = 0.9;
     config.analysis.function_coverage = true;
     config.analysis.branch_coverage = true;
     config.analysis.exception_coverage = true;
@@ -367,6 +373,24 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         // 解析分析配置
         if (json_config.find("analysis") != json_config.end()) {
             const auto& analysis = json_config["analysis"];
+            
+            // 解析分析模式
+            if (analysis.find("mode") != analysis.end() && analysis["mode"].is_string()) {
+                config_.analysis.mode = analysis["mode"].get<std::string>();
+            }
+            
+            // 解析自动检测配置
+            if (analysis.find("auto_detection") != analysis.end()) {
+                const auto& auto_detect = analysis["auto_detection"];
+                if (auto_detect.find("sample_size") != auto_detect.end() && auto_detect["sample_size"].is_number_unsigned()) {
+                    config_.analysis.auto_detection.sample_size = auto_detect["sample_size"].get<size_t>();
+                }
+                if (auto_detect.find("confidence_threshold") != auto_detect.end() && auto_detect["confidence_threshold"].is_number()) {
+                    config_.analysis.auto_detection.confidence_threshold = auto_detect["confidence_threshold"].get<double>();
+                }
+            }
+            
+            // 解析覆盖率配置
             if (analysis.find("function_coverage") != analysis.end() && analysis["function_coverage"].is_boolean()) {
                 config_.analysis.function_coverage = analysis["function_coverage"].get<bool>();
             }
@@ -378,6 +402,120 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
             }
             if (analysis.find("key_path_coverage") != analysis.end() && analysis["key_path_coverage"].is_boolean()) {
                 config_.analysis.key_path_coverage = analysis["key_path_coverage"].get<bool>();
+            }
+        }
+
+        // 解析Go语言配置
+        if (json_config.find("go") != json_config.end()) {
+            const auto& go = json_config["go"];
+            
+            // 基本配置
+            if (go.find("enabled") != go.end() && go["enabled"].is_boolean()) {
+                config_.go.enabled = go["enabled"].get<bool>();
+            }
+            if (go.find("file_extensions") != go.end() && go["file_extensions"].is_array()) {
+                config_.go.file_extensions.clear();
+                for (const auto& ext : go["file_extensions"]) {
+                    if (ext.is_string()) {
+                        config_.go.file_extensions.push_back(ext.get<std::string>());
+                    }
+                }
+            }
+            
+            // 标准库log配置
+            if (go.find("standard_log") != go.end()) {
+                const auto& std_log = go["standard_log"];
+                if (std_log.find("enabled") != std_log.end() && std_log["enabled"].is_boolean()) {
+                    config_.go.standard_log.enabled = std_log["enabled"].get<bool>();
+                }
+                if (std_log.find("functions") != std_log.end() && std_log["functions"].is_array()) {
+                    config_.go.standard_log.functions.clear();
+                    for (const auto& func : std_log["functions"]) {
+                        if (func.is_string()) {
+                            config_.go.standard_log.functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+            }
+            
+            // Logrus配置
+            if (go.find("logrus") != go.end()) {
+                const auto& logrus = go["logrus"];
+                if (logrus.find("enabled") != logrus.end() && logrus["enabled"].is_boolean()) {
+                    config_.go.logrus.enabled = logrus["enabled"].get<bool>();
+                }
+                if (logrus.find("functions") != logrus.end() && logrus["functions"].is_array()) {
+                    config_.go.logrus.functions.clear();
+                    for (const auto& func : logrus["functions"]) {
+                        if (func.is_string()) {
+                            config_.go.logrus.functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+                if (logrus.find("formatted_functions") != logrus.end() && logrus["formatted_functions"].is_array()) {
+                    config_.go.logrus.formatted_functions.clear();
+                    for (const auto& func : logrus["formatted_functions"]) {
+                        if (func.is_string()) {
+                            config_.go.logrus.formatted_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+                if (logrus.find("line_functions") != logrus.end() && logrus["line_functions"].is_array()) {
+                    config_.go.logrus.line_functions.clear();
+                    for (const auto& func : logrus["line_functions"]) {
+                        if (func.is_string()) {
+                            config_.go.logrus.line_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+            }
+            
+            // Zap配置
+            if (go.find("zap") != go.end()) {
+                const auto& zap = go["zap"];
+                if (zap.find("enabled") != zap.end() && zap["enabled"].is_boolean()) {
+                    config_.go.zap.enabled = zap["enabled"].get<bool>();
+                }
+                if (zap.find("logger_functions") != zap.end() && zap["logger_functions"].is_array()) {
+                    config_.go.zap.logger_functions.clear();
+                    for (const auto& func : zap["logger_functions"]) {
+                        if (func.is_string()) {
+                            config_.go.zap.logger_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+                if (zap.find("sugared_functions") != zap.end() && zap["sugared_functions"].is_array()) {
+                    config_.go.zap.sugared_functions.clear();
+                    for (const auto& func : zap["sugared_functions"]) {
+                        if (func.is_string()) {
+                            config_.go.zap.sugared_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+            }
+            
+            // golib配置
+            if (go.find("golib") != go.end()) {
+                const auto& golib = go["golib"];
+                if (golib.find("enabled") != golib.end() && golib["enabled"].is_boolean()) {
+                    config_.go.golib.enabled = golib["enabled"].get<bool>();
+                }
+                if (golib.find("functions") != golib.end() && golib["functions"].is_array()) {
+                    config_.go.golib.functions.clear();
+                    for (const auto& func : golib["functions"]) {
+                        if (func.is_string()) {
+                            config_.go.golib.functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
+                if (golib.find("formatted_functions") != golib.end() && golib["formatted_functions"].is_array()) {
+                    config_.go.golib.formatted_functions.clear();
+                    for (const auto& func : golib["formatted_functions"]) {
+                        if (func.is_string()) {
+                            config_.go.golib.formatted_functions.push_back(func.get<std::string>());
+                        }
+                    }
+                }
             }
         }
 

@@ -111,7 +111,7 @@ TEST_F(CompileCommandsManagerTest, DetectMissingCMakeListsFile) {
 
 TEST_F(CompileCommandsManagerTest, DetectInvalidProjectDirectory) {
     // 测试无效路径
-    std::string invalidDir = "/nonexistent/directory/path";
+    std::string invalidDir = testDir_ + "/nonexistent_project_dir";
     bool result = manager_->generateCompileCommands(invalidDir, buildDir_, {});
     
     EXPECT_FALSE(result);
@@ -186,7 +186,7 @@ TEST_F(CompileCommandsManagerTest, ParseMissingRequiredFields) {
 }
 
 TEST_F(CompileCommandsManagerTest, ParseNonexistentFile) {
-    bool result = manager_->parseCompileCommands("/nonexistent/file.json");
+    bool result = manager_->parseCompileCommands(testDir_ + "/nonexistent_file.json");
     EXPECT_FALSE(result);
     EXPECT_FALSE(manager_->getError().empty());
     EXPECT_TRUE(manager_->getError().find("不存在") != std::string::npos);
@@ -294,7 +294,7 @@ TEST_F(CompileCommandsManagerTest, IsCompileCommandsValid) {
     EXPECT_FALSE(manager_->isCompileCommandsValid(buildDir_ + "/compile_commands.json"));
     
     // 测试不存在的文件
-    EXPECT_FALSE(manager_->isCompileCommandsValid("/nonexistent/file.json"));
+    EXPECT_FALSE(manager_->isCompileCommandsValid(testDir_ + "/nonexistent_file.json"));
 }
 
 // 测试清理功能

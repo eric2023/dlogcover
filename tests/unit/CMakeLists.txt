@@ -30,6 +30,11 @@ set(TEST_SOURCES
     log_types_test.cpp
     config_validator_extended_test.cpp
     command_line_parser_extended_test.cpp
+    # 多语言支持测试文件
+    language_detector_test.cpp
+    multi_language_analyzer_test.cpp
+    go_analyzer_test.cpp
+    cpp_analyzer_adapter_test.cpp
 )
 
 # 添加根目录下的测试文件
