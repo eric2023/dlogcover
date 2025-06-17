@@ -164,9 +164,10 @@ private:
     /**
      * @brief 生成批量分析配置文件
      * @param filePaths 要分析的文件路径列表
+     * @param numThreads 使用的线程数量
      * @return 配置文件路径
      */
-    std::string generateBatchAnalysisConfig(const std::vector<std::string>& filePaths);
+    std::string generateBatchAnalysisConfig(const std::vector<std::string>& filePaths, size_t numThreads);
 
     /**
      * @brief 解析批量分析结果

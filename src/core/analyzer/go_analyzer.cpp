@@ -14,6 +14,8 @@
 #include <cstdio>
 #include <sstream>
 #include <ctime>
+#include <thread>
+#include <algorithm>
 
 namespace dlogcover {
 namespace core {
@@ -388,11 +390,11 @@ ast_analyzer::Result<std::string> GoAnalyzer::executeCommand(const std::string& 
 }
 
 void GoAnalyzer::setParallelMode(bool enabled, size_t maxThreads) {
-    LOG_DEBUG_FMT("设置Go分析器并行模式: enabled=%s, maxThreads=%zu", 
-                  enabled ? "true" : "false", maxThreads);
-    
     parallelEnabled_ = enabled;
-    maxThreads_ = maxThreads > 0 ? maxThreads : 1;
+    maxThreads_ = maxThreads;
+    
+    LOG_INFO_FMT("Go分析器并行模式设置: %s, 最大线程数: %zu", 
+                enabled ? "启用" : "禁用", maxThreads);
 }
 
 ast_analyzer::Result<bool> GoAnalyzer::analyzeFiles(const std::vector<std::string>& filePaths) {
@@ -403,8 +405,8 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFiles(const std::vector<std::strin
         return ast_analyzer::makeSuccess(true);
     }
     
-    // 如果启用并行模式且文件数量足够，使用批量分析
-    if (parallelEnabled_ && filePaths.size() > 1) {
+    // 如果启用并行模式，使用并行分析
+    if (parallelEnabled_) {
         return analyzeFilesParallel(filePaths);
     } else {
         return analyzeFilesSerial(filePaths);
@@ -435,21 +437,43 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesSerial(const std::vector<std:
 }
 
 ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesParallel(const std::vector<std::string>& filePaths) {
-    LOG_INFO_FMT("Go分析器并行分析 %zu 个文件，使用 %zu 个线程", filePaths.size(), maxThreads_);
+    LOG_INFO_FMT("Go分析器开始并行分析 %zu 个文件", filePaths.size());
+    
+    // 确定线程数 - 参照AST分析器的逻辑
+    size_t numThreads = maxThreads_;
+    if (numThreads == 0) {
+        numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) {
+            numThreads = 4; // 默认4个线程
+        }
+    }
+    
+    // 限制线程数不超过文件数
+    numThreads = std::min(numThreads, filePaths.size());
+    
+    LOG_INFO_FMT("使用 %zu 个线程并行分析 %zu 个Go文件", numThreads, filePaths.size());
+    
+    // 如果只有一个文件或一个线程，回退到串行处理
+    if (numThreads <= 1 || filePaths.size() <= 1) {
+        LOG_INFO("文件数量较少，使用串行处理");
+        return analyzeFilesSerial(filePaths);
+    }
     
     // 生成批量分析配置
-    std::string batchConfigFile = generateBatchAnalysisConfig(filePaths);
+    std::string batchConfigFile = generateBatchAnalysisConfig(filePaths, numThreads);
     if (batchConfigFile.empty()) {
         LOG_ERROR("生成批量分析配置失败，回退到串行分析");
         return analyzeFilesSerial(filePaths);
     }
     
-    // 调用Go工具的并行分析功能
+    // 调用Go工具的并行分析功能，使用计算出的线程数
     std::string cmd = goAnalyzerPath_ + 
                      " --mode=batch" +
                      " --config=" + batchConfigFile +
-                     " --parallel=" + std::to_string(maxThreads_) +
+                     " --parallel=" + std::to_string(numThreads) +
                      " --output=json";
+    
+    LOG_DEBUG_FMT("执行Go批量分析命令: %s", cmd.c_str());
     
     auto result = executeCommand(cmd);
     
@@ -461,12 +485,14 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesParallel(const std::vector<st
         return analyzeFilesSerial(filePaths);
     }
     
+    LOG_INFO_FMT("Go并行分析完成，使用了 %zu 个线程", numThreads);
+    
     // 解析批量分析结果
     return parseBatchAnalysisResult(result.value());
 }
 
-std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::string>& filePaths) {
-    LOG_DEBUG("生成Go批量分析配置");
+std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::string>& filePaths, size_t numThreads) {
+    LOG_DEBUG_FMT("生成Go批量分析配置，使用 %zu 个线程", numThreads);
     
     std::string configPath = "/tmp/dlogcover_go_batch_" + 
                             std::to_string(std::time(nullptr)) + ".json";
@@ -479,7 +505,7 @@ std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::strin
     // 生成批量配置JSON
     nlohmann::json batchConfig;
     batchConfig["files"] = filePaths;
-    batchConfig["parallel"] = maxThreads_;
+    batchConfig["parallel"] = numThreads;
     
     // 添加Go分析配置
     nlohmann::json goConfig;
