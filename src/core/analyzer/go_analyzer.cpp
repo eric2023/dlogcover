@@ -29,15 +29,11 @@ GoAnalyzer::GoAnalyzer(const config::Config& config)
     // 查找Go分析器工具
     goAnalyzerPath_ = findGoAnalyzerTool();
     
-    if (config_.go.enabled) {
-        LOG_INFO("Go语言支持已启用");
-        if (goAnalyzerPath_.empty()) {
-            LOG_WARNING("未找到Go分析器工具，Go语言分析功能将受限");
-        } else {
-            LOG_INFO_FMT("Go分析器工具路径: %s", goAnalyzerPath_.c_str());
-        }
+    LOG_INFO("Go语言支持已启用");
+    if (goAnalyzerPath_.empty()) {
+        LOG_WARNING("未找到Go分析器工具，Go语言分析功能将受限");
     } else {
-        LOG_DEBUG("Go语言支持未启用");
+        LOG_INFO_FMT("Go分析器工具路径: %s", goAnalyzerPath_.c_str());
     }
     
     // 强制输出路径查找结果用于调试
@@ -50,13 +46,7 @@ GoAnalyzer::~GoAnalyzer() {
 
 ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
     LOG_DEBUG_FMT("Go分析器分析文件: %s", filePath.c_str());
-    
-    // 检查Go语言支持是否启用
-    if (!config_.go.enabled) {
-        LOG_DEBUG("Go语言支持未启用，跳过分析");
-        return ast_analyzer::makeSuccess(true);
-    }
-    
+   
     // 检查文件是否为Go文件
     auto language = language_detector::LanguageDetector::detectLanguage(filePath);
     if (language != language_detector::SourceLanguage::GO) {
@@ -177,11 +167,11 @@ std::string GoAnalyzer::getLanguageName() const {
 }
 
 bool GoAnalyzer::isEnabled() const {
-    return config_.go.enabled;
+    return goAnalyzerPath_.empty();
 }
 
 std::vector<std::string> GoAnalyzer::getSupportedExtensions() const {
-    return config_.go.file_extensions;
+    return {".go"};
 }
 
 std::string GoAnalyzer::getStatistics() const {

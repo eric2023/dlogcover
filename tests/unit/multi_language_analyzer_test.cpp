@@ -49,10 +49,7 @@ protected:
         config_.scan.file_extensions = {".cpp", ".h", ".go"};
         config_.output.report_file = (testDir_ / "output.json").string();
         config_.output.log_file = (testDir_ / "test.log").string();
-        
-        // 设置Go配置
-        config_.go.enabled = true;
-        
+                
         // 设置分析配置
         config_.analysis.mode = "cpp_only";
         config_.analysis.auto_detection.sample_size = 10;
@@ -351,7 +348,6 @@ TEST_F(MultiLanguageAnalyzerTest, Statistics) {
  */
 TEST_F(MultiLanguageAnalyzerTest, GoToolUnavailable) {
     // 设置Go配置为禁用状态来模拟工具不可用
-    config_.go.enabled = false;
     config_.analysis.mode = "go_only";
     
     createGoTestFile();

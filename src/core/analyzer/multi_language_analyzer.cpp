@@ -328,6 +328,11 @@ void MultiLanguageAnalyzer::initializeRequiredAnalyzers() {
             break;
             
         case AnalysisMode::AUTO_DETECT:
+            // 混合项目或未知，初始化所有分析器
+            LOG_INFO("采用混合项目机制，初始化所有分析器");
+            initializeAnalyzers();
+            break;
+
             // 先进行语言检测，再初始化对应分析器
             detectProjectLanguage();
             if (detectedLanguage_ == language_detector::SourceLanguage::CPP) {
@@ -549,16 +554,12 @@ void MultiLanguageAnalyzer::initializeAnalyzers() {
     }
     
     // 创建Go分析器（仅在启用时创建）
-    if (config_.go.enabled) {
-        auto goAnalyzer = createGoAnalyzer();
-        if (goAnalyzer) {
-            analyzers_[language_detector::SourceLanguage::GO] = std::move(goAnalyzer);
-            LOG_INFO("Go分析器初始化成功");
-        } else {
-            LOG_WARNING("Go分析器初始化失败");
-        }
+    auto goAnalyzer = createGoAnalyzer();
+    if (goAnalyzer) {
+        analyzers_[language_detector::SourceLanguage::GO] = std::move(goAnalyzer);
+        LOG_INFO("Go分析器初始化成功");
     } else {
-        LOG_DEBUG("Go语言支持未启用，跳过Go分析器初始化");
+        LOG_WARNING("Go分析器初始化失败");
     }
 }
 

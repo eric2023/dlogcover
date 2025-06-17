@@ -40,10 +40,7 @@ protected:
         }
     }
     
-    void setupBasicConfig() {
-        // 设置Go配置
-        config_.go.enabled = true;
-        
+    void setupBasicConfig() {        
         // 设置性能配置
         config_.performance.max_threads = 4;
         config_.performance.enable_parallel_analysis = true;
@@ -439,10 +436,7 @@ TEST_F(GoAnalyzerTest, Statistics) {
 /**
  * @brief 测试Go工具不可用的情况
  */
-TEST_F(GoAnalyzerTest, GoToolUnavailable) {
-    // 设置Go配置为禁用状态来模拟工具不可用
-    config_.go.enabled = false;
-    
+TEST_F(GoAnalyzerTest, GoToolUnavailable) {  
     createStandardLogTestFile();
     
     GoAnalyzer analyzer(config_);
@@ -458,10 +452,7 @@ TEST_F(GoAnalyzerTest, GoToolUnavailable) {
 /**
  * @brief 测试超时设置
  */
-TEST_F(GoAnalyzerTest, TimeoutSetting) {
-    // 设置Go配置为禁用状态来模拟超时
-    config_.go.enabled = false;
-    
+TEST_F(GoAnalyzerTest, TimeoutSetting) {    
     createMixedLogTestFile();
     
     GoAnalyzer analyzer(config_);

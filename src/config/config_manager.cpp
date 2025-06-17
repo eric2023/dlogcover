@@ -409,19 +409,6 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         if (json_config.find("go") != json_config.end()) {
             const auto& go = json_config["go"];
             
-            // 基本配置
-            if (go.find("enabled") != go.end() && go["enabled"].is_boolean()) {
-                config_.go.enabled = go["enabled"].get<bool>();
-            }
-            if (go.find("file_extensions") != go.end() && go["file_extensions"].is_array()) {
-                config_.go.file_extensions.clear();
-                for (const auto& ext : go["file_extensions"]) {
-                    if (ext.is_string()) {
-                        config_.go.file_extensions.push_back(ext.get<std::string>());
-                    }
-                }
-            }
-            
             // 标准库log配置
             if (go.find("standard_log") != go.end()) {
                 const auto& std_log = go["standard_log"];
