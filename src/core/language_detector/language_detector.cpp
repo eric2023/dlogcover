@@ -16,7 +16,7 @@ namespace language_detector {
 
 // 静态成员变量定义
 const std::vector<std::string> LanguageDetector::CPP_EXTENSIONS = {
-    ".cpp", ".cxx", ".cc", ".c++", ".C",  // C++源文件
+    ".cpp", ".cxx", ".cc", ".c++", ".c",  // C++源文件 (注意：已转换为小写)
     ".h", ".hpp", ".hxx", ".h++", ".hh"   // C++头文件
 };
 
