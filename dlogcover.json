@@ -60,10 +60,6 @@
         "enable_file_preloading": true
     },
     "go": {
-        "parallel": {
-            "enabled": true,
-            "max_threads": 8
-        },
         "standard_log": {
             "enabled": true,
             "functions": ["Print", "Printf", "Println", "Fatal", "Fatalf", "Fatalln", "Panic", "Panicf", "Panicln"]

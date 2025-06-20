@@ -120,6 +120,32 @@ void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& o
         }
         LOG_DEBUG_FMT("设置日志级别: %s", config_.output.log_level.c_str());
     }
+
+    // 合并性能配置
+    if (options.disableParallel) {
+        config_.performance.enable_parallel_analysis = false;
+        LOG_DEBUG("禁用并行分析");
+    }
+    
+    if (options.maxThreads > 0) {
+        config_.performance.max_threads = options.maxThreads;
+        LOG_DEBUG_FMT("设置最大线程数: %zu", config_.performance.max_threads);
+    }
+    
+    if (options.disableCache) {
+        config_.performance.enable_ast_cache = false;
+        LOG_DEBUG("禁用AST缓存");
+    }
+    
+    if (options.maxCacheSize > 0) {
+        config_.performance.max_cache_size = options.maxCacheSize;
+        LOG_DEBUG_FMT("设置最大缓存大小: %zu", config_.performance.max_cache_size);
+    }
+    
+    if (options.disableIOOptimization) {
+        config_.performance.enable_io_optimization = false;
+        LOG_DEBUG("禁用I/O优化");
+    }
 }
 
 bool ConfigManager::generateDefaultConfig(const std::string& config_path, 
@@ -167,6 +193,15 @@ bool ConfigManager::generateDefaultConfig(const std::string& config_path,
         json_config["analysis"]["branch_coverage"] = default_config.analysis.branch_coverage;
         json_config["analysis"]["exception_coverage"] = default_config.analysis.exception_coverage;
         json_config["analysis"]["key_path_coverage"] = default_config.analysis.key_path_coverage;
+
+        // 性能配置
+        json_config["performance"]["enable_parallel_analysis"] = default_config.performance.enable_parallel_analysis;
+        json_config["performance"]["max_threads"] = default_config.performance.max_threads;
+        json_config["performance"]["enable_ast_cache"] = default_config.performance.enable_ast_cache;
+        json_config["performance"]["max_cache_size"] = default_config.performance.max_cache_size;
+        json_config["performance"]["enable_io_optimization"] = default_config.performance.enable_io_optimization;
+        json_config["performance"]["file_buffer_size"] = default_config.performance.file_buffer_size;
+        json_config["performance"]["enable_file_preloading"] = default_config.performance.enable_file_preloading;
 
         // 写入文件
         std::ofstream file(config_path);
@@ -223,6 +258,15 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     config.analysis.branch_coverage = true;
     config.analysis.exception_coverage = true;
     config.analysis.key_path_coverage = true;
+
+    // 性能配置
+    config.performance.enable_parallel_analysis = true;
+    config.performance.max_threads = 0; // 0表示自动检测硬件线程数
+    config.performance.enable_ast_cache = true;
+    config.performance.max_cache_size = 100;
+    config.performance.enable_io_optimization = true;
+    config.performance.file_buffer_size = 64 * 1024;
+    config.performance.enable_file_preloading = true;
 
     // 日志函数配置 (保持原样)
     
@@ -402,6 +446,33 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
             }
             if (analysis.find("key_path_coverage") != analysis.end() && analysis["key_path_coverage"].is_boolean()) {
                 config_.analysis.key_path_coverage = analysis["key_path_coverage"].get<bool>();
+            }
+        }
+
+        // 解析性能配置
+        if (json_config.find("performance") != json_config.end()) {
+            const auto& performance = json_config["performance"];
+            
+            if (performance.find("enable_parallel_analysis") != performance.end() && performance["enable_parallel_analysis"].is_boolean()) {
+                config_.performance.enable_parallel_analysis = performance["enable_parallel_analysis"].get<bool>();
+            }
+            if (performance.find("max_threads") != performance.end() && performance["max_threads"].is_number_unsigned()) {
+                config_.performance.max_threads = performance["max_threads"].get<size_t>();
+            }
+            if (performance.find("enable_ast_cache") != performance.end() && performance["enable_ast_cache"].is_boolean()) {
+                config_.performance.enable_ast_cache = performance["enable_ast_cache"].get<bool>();
+            }
+            if (performance.find("max_cache_size") != performance.end() && performance["max_cache_size"].is_number_unsigned()) {
+                config_.performance.max_cache_size = performance["max_cache_size"].get<size_t>();
+            }
+            if (performance.find("enable_io_optimization") != performance.end() && performance["enable_io_optimization"].is_boolean()) {
+                config_.performance.enable_io_optimization = performance["enable_io_optimization"].get<bool>();
+            }
+            if (performance.find("file_buffer_size") != performance.end() && performance["file_buffer_size"].is_number_unsigned()) {
+                config_.performance.file_buffer_size = performance["file_buffer_size"].get<size_t>();
+            }
+            if (performance.find("enable_file_preloading") != performance.end() && performance["enable_file_preloading"].is_boolean()) {
+                config_.performance.enable_file_preloading = performance["enable_file_preloading"].get<bool>();
             }
         }
 

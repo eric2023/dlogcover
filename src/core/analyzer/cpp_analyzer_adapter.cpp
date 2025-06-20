@@ -127,11 +127,6 @@ ast_analyzer::Result<bool> CppAnalyzerAdapter::analyzeAll() {
     return astAnalyzer_->analyzeAll();
 }
 
-ast_analyzer::Result<bool> CppAnalyzerAdapter::analyzeAllParallel() {
-    LOG_INFO("C++分析器适配器开始并行分析所有文件");
-    return astAnalyzer_->analyzeAllParallel();
-}
-
 void CppAnalyzerAdapter::setParallelMode(bool enabled, size_t maxThreads) {
     LOG_DEBUG_FMT("设置C++分析器并行模式: enabled=%s, maxThreads=%zu", 
                   enabled ? "true" : "false", maxThreads);
