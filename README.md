@@ -8,7 +8,7 @@
 ![Tests](https://img.shields.io/badge/tests-34/34_passing-brightgreen.svg)
 ![Coverage](https://img.shields.io/badge/coverage-73.5%25-green.svg)
 ![Qt](https://img.shields.io/badge/Qt-5.x/6.x-41CD52.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 
 **🎯 基于Clang/LLVM的深度静态分析，智能识别代码中的日志覆盖盲区**
 
@@ -538,7 +538,18 @@ graph TB
 
 ## 📄 许可证
 
-本项目采用 [MIT License](LICENSE) 开源协议。
+本项目采用 [GNU通用公共许可证第3版(GPL v3)](LICENSE) 开源协议。
+
+### GPL v3 许可证要点
+
+- **自由使用**：您可以自由地运行、学习、修改和分发本软件
+- **开源要求**：如果您分发本软件的修改版本，必须以相同的GPL v3许可证开源
+- **源码获取**：有权获得完整的源代码
+- **无担保声明**：本软件按"原样"提供，不提供任何形式的担保
+- **专利保护**：防止专利被用来限制GPL软件的自由
+- **兼容性**：与其他GPL v3兼容的许可证项目可以组合使用
+
+更多详情请参阅：https://www.gnu.org/licenses/gpl-3.0.html
 
 ## 🙏 致谢
 
