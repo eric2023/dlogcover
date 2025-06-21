@@ -395,6 +395,42 @@ const std::unordered_map<std::string, std::unique_ptr<ASTNodeInfo>>& ASTAnalyzer
     return astNodes_;
 }
 
+void ASTAnalyzer::addExternalResult(const std::string& filePath, std::unique_ptr<ASTNodeInfo> result) {
+    if (!result) {
+        LOG_WARNING_FMT("尝试添加空的外部分析结果: %s", filePath.c_str());
+        return;
+    }
+    
+    LOG_DEBUG_FMT("添加外部分析结果: %s", filePath.c_str());
+    
+    // 线程安全地添加结果
+    std::lock_guard<std::mutex> lock(astNodesMutex_);
+    
+    // 确保文件路径信息正确
+    result->location.filePath = filePath;
+    if (result->location.fileName.empty()) {
+        result->location.fileName = filePath;
+    }
+    
+    // 检查是否已有该文件的结果
+    auto it = astNodes_.find(filePath);
+    if (it != astNodes_.end()) {
+        // 如果已有该文件的结果，将新结果作为子节点添加到现有结果中
+        LOG_DEBUG_FMT("文件 %s 已有分析结果，将新结果添加为子节点", filePath.c_str());
+        it->second->children.push_back(std::move(result));
+    } else {
+        // 如果没有该文件的结果，直接添加
+        astNodes_[filePath] = std::move(result);
+    }
+    
+    // 同时添加到results_向量中，保持接口一致性
+    // 创建一个副本用于results_向量
+    auto resultCopy = std::make_unique<ASTNodeInfo>(*astNodes_[filePath]);
+    results_.push_back(std::move(resultCopy));
+    
+    LOG_DEBUG_FMT("成功添加外部分析结果: %s", filePath.c_str());
+}
+
 // 使用Clang/LLVM API创建AST单元
 std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& filePath, const std::string& content) {
     LOG_DEBUG_FMT("创建文件的AST单元: %s", filePath.c_str());

@@ -311,7 +311,7 @@ bool generateReport(const config::Config& config, const cli::Options& options,
     }
 
     // 使用新的接口生成报告
-                    auto result = reporter.generateReport(options.output_file, format, progressCallback);
+    auto result = reporter.generateReport(options.output_file, format, progressCallback);
     if (result.hasError()) {
         LOG_ERROR_FMT("报告生成失败: %s", result.errorMessage().c_str());
         return false;
@@ -359,49 +359,29 @@ int main(int argc, char* argv[]) {
     auto programStart = std::chrono::high_resolution_clock::now();
 
     try {
-        // 1. 解析命令行，不加载任何配置，仅填充 Options
+        // 1. 解析命令行
         cli::CommandLineParser commandLineParser;
-        cli::Options options;
-        auto parseResult = commandLineParser.parse(argc, argv);
+        auto parseResult = parseCommandLine(argc, argv, commandLineParser);
         
-        if (commandLineParser.isHelpOrVersionRequest()) {
+        if (parseResult == ParseResult::HELP_VERSION) {
             return 0;
         }
-
-        if (parseResult.hasError()) {
-            std::cerr << "参数解析错误: " << parseResult.message() << std::endl << std::endl;
-            commandLineParser.showHelp();
+        
+        if (parseResult == ParseResult::ERROR) {
             return 1;
         }
 
-        // 2. 初始化 ConfigManager，加载内置默认配置
+        // 2. 加载和验证配置
         config::ConfigManager configManager;
-
-        // 3. 加载配置文件（如果指定）
         const auto& parsedOptions = commandLineParser.getOptions();
-        if (!parsedOptions.configPath.empty()) {
-            if (!configManager.loadConfig(parsedOptions.configPath)) {
-                std::cerr << "错误: 无法加载配置文件: " << parsedOptions.configPath << " - " << configManager.getError() << std::endl;
-                return 1;
-            }
-        } else {
-             // 尝试在当前目录查找dlogcover.json
-            if (std::filesystem::exists("dlogcover.json")) {
-                LOG_INFO("在当前目录找到 dlogcover.json，将加载它。");
-                if (!configManager.loadConfig("dlogcover.json")) {
-                     std::cerr << "错误: 无法加载 dlogcover.json - " << configManager.getError() << std::endl;
-                     return 1;
-                }
-            }
+        
+        if (!loadAndValidateConfig(parsedOptions, configManager)) {
+            return 1;
         }
         
-        // 4. 合并命令行参数，覆盖默认或文件配置
-        configManager.mergeWithCommandLineOptions(parsedOptions);
-        
-        // 获取最终合并后的配置
+        // 3. 获取最终配置并初始化日志系统
         const config::Config& config = configManager.getConfig();
 
-        // 5. 初始化日志系统
         if (!initializeLogging(config)) {
             std::cerr << "日志系统初始化失败" << std::endl;
             return 1;
@@ -410,32 +390,32 @@ int main(int argc, char* argv[]) {
         // 记录命令行参数到日志文件
         commandLineParser.logParsedOptions();
 
-        // 6. 验证最终配置
-        if (!configManager.validateConfig()) {
-            LOG_ERROR("最终配置验证失败");
-            return 1;
-        }
-
+        // 4. 执行主要分析流程
         int exitCode = 0;
         {
-            // 创建源文件管理器
             source_manager::SourceManager sourceManager(config);
+            
             if (!collectSourceFiles(config, sourceManager)) {
                 exitCode = 1;
             } else {
-                // 新增：准备编译命令数据库
+                // 准备编译命令（失败不影响后续流程）
                 if (!prepareCompileCommands(config, configManager)) {
                     LOG_WARNING("编译命令准备失败，将使用默认参数");
                 }
                 
-                // 创建多语言分析器
+                // 创建和配置多语言分析器
                 core::analyzer::MultiLanguageAnalyzer multiAnalyzer(config, sourceManager, configManager);
                 
                 // 配置并行处理
                 if (config.performance.enable_parallel_analysis && !parsedOptions.disableParallel) {
-                    size_t maxThreads = parsedOptions.maxThreads > 0 ? parsedOptions.maxThreads : config.performance.max_threads;
-                    multiAnalyzer.setParallelMode(true, maxThreads);
-                    LOG_INFO_FMT("启用并行分析模式，最大线程数: %zu", maxThreads);
+                    size_t configuredThreads = parsedOptions.maxThreads > 0 ? parsedOptions.maxThreads : config.performance.max_threads;
+                    multiAnalyzer.setParallelMode(true, configuredThreads);
+                    
+                    // 获取实际使用的线程数（如果配置为0，则使用自动检测的最优值）
+                    size_t actualThreads = configuredThreads > 0 ? configuredThreads : std::thread::hardware_concurrency();
+                    if (actualThreads == 0) actualThreads = 1; // 防御性编程
+                    
+                    LOG_INFO_FMT("启用并行分析模式，配置线程数: %zu，实际使用: %zu", configuredThreads, actualThreads);
                 } else {
                     multiAnalyzer.setParallelMode(false, 0);
                     LOG_INFO("使用串行分析模式");
@@ -451,46 +431,62 @@ int main(int argc, char* argv[]) {
                     LOG_INFO("禁用AST缓存");
                 }
 
-                // 执行多语言AST分析
+                // 执行AST分析
                 if (!performASTAnalysis(config, sourceManager, multiAnalyzer)) {
                     exitCode = 1;
                 } else {
-                    // 获取C++分析器用于后续处理（保持兼容性）
-                    auto* cppAnalyzer = dynamic_cast<core::analyzer::CppAnalyzerAdapter*>(multiAnalyzer.getCppAnalyzer());
-                    if (!cppAnalyzer) {
-                        LOG_ERROR("无法获取C++分析器");
-                        exitCode = 1;
-                    } else {
-                        // 创建日志识别器和覆盖率计算器（使用C++分析器适配器）
-                        // 注意：这里需要将CppAnalyzerAdapter转换为ASTAnalyzer接口
-                        // 暂时使用原有的ASTAnalyzer创建方式，后续版本将完全迁移到多语言架构
-                        core::ast_analyzer::ASTAnalyzer legacyAnalyzer(config, sourceManager, configManager);
-                        
-                        // 将多语言分析器的C++结果复制到传统分析器中
-                        // 这是一个过渡方案，确保现有的日志识别和覆盖率计算模块正常工作
-                        LOG_DEBUG("将多语言分析结果适配到传统分析器接口");
-                        
-                        core::log_identifier::LogIdentifier logIdentifier(config, legacyAnalyzer);
-                        core::coverage::CoverageCalculator coverageCalculator(config, legacyAnalyzer, logIdentifier);
-                        coverageCalculator.calculate();
-
-                        // 创建报告器并生成报告
-                        reporter::Reporter reporter(config, coverageCalculator);
-                        reporter::ReportFormat format = parsedOptions.reportFormat == cli::ReportFormat::JSON 
-                                                      ? reporter::ReportFormat::JSON 
-                                                      : reporter::ReportFormat::TEXT;
-
-                        auto reportResult = reporter.generateReport(config.output.report_file, format);
-                        if (reportResult.hasError()) {
-                            LOG_ERROR_FMT("报告生成失败: %s", reportResult.errorMessage().c_str());
-                            exitCode = 1;
-                        } else {
-                            LOG_INFO("报告生成完成: " + config.output.report_file);
+                    // 创建传统分析器用于后续处理（保持兼容性）
+                    core::ast_analyzer::ASTAnalyzer legacyAnalyzer(config, sourceManager, configManager);
+                    
+                    // 将多语言分析器的结果合并到传统分析器中
+                    LOG_DEBUG("将多语言分析结果适配到传统分析器接口");
+                    auto multiLangResults = multiAnalyzer.getAllResults();
+                    LOG_INFO_FMT("从多语言分析器获取到 %zu 个分析结果", multiLangResults.size());
+                    
+                    for (auto& result : multiLangResults) {
+                        if (result) {
+                            std::string filePath = result->location.filePath;
+                            if (filePath.empty()) {
+                                filePath = result->location.fileName;
+                            }
                             
-                            // 输出多语言分析统计信息
-                            LOG_INFO("多语言分析统计:");
-                            LOG_INFO(multiAnalyzer.getStatistics().c_str());
+                            if (!filePath.empty()) {
+                                legacyAnalyzer.addExternalResult(filePath, std::move(result));
+                            } else {
+                                LOG_WARNING("发现没有文件路径的分析结果，跳过");
+                            }
                         }
+                    }
+                    LOG_INFO("多语言分析结果合并完成");
+                    
+                    // 执行日志识别和覆盖率计算
+                    core::log_identifier::LogIdentifier logIdentifier(config, legacyAnalyzer);
+                    core::coverage::CoverageCalculator coverageCalculator(config, legacyAnalyzer, logIdentifier);
+                    
+                    // 执行日志识别
+                    if (!identifyLogCalls(config, legacyAnalyzer, logIdentifier)) {
+                        exitCode = 1;
+                    }
+                    
+                    // 执行覆盖率计算
+                    if (exitCode == 0 && !calculateCoverage(config, legacyAnalyzer, logIdentifier, coverageCalculator)) {
+                        exitCode = 1;
+                    }
+                    
+                    // 生成报告
+                    if (exitCode == 0 && !generateReport(config, parsedOptions, coverageCalculator)) {
+                        exitCode = 1;
+                    }
+                    
+                    // 输出统计信息（无论是否有错误都输出）
+                    LOG_INFO("多语言分析统计:");
+                    LOG_INFO(multiAnalyzer.getStatistics().c_str());
+                    
+                    if (config.performance.enable_ast_cache && !parsedOptions.disableCache) {
+                        LOG_INFO("AST缓存统计信息:");
+                        LOG_INFO(multiAnalyzer.getAllCacheStatistics().c_str());
+                        LOG_INFO("传统分析器缓存统计:");
+                        LOG_INFO(legacyAnalyzer.getCacheStatistics().c_str());
                     }
                 }
             }

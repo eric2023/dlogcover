@@ -79,10 +79,6 @@ const char* const OPTION_INCLUDE_PATH_LONG = "--include-path";
 const char* const OPTION_QUIET_SHORT = "-q";
 const char* const OPTION_QUIET_LONG = "--quiet";
 const char* const OPTION_VERBOSE_LONG = "--verbose";
-const char* const OPTION_COMPILER_ARG_LONG = "--compiler-arg";
-const char* const OPTION_INCLUDE_SYSTEM_HEADERS_LONG = "--include-system-headers";
-const char* const OPTION_THRESHOLD_LONG = "--threshold";
-const char* const OPTION_PARALLEL_LONG = "--parallel";
 /** @} */
 
 /**
@@ -114,11 +110,12 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   -q, --quiet                静默模式，减少输出信息
       --verbose              详细输出模式，显示更多调试信息
 
-高级选项:
-      --compiler-arg <arg>   传递给编译器的参数 (可多次使用)
-      --include-system-headers  包含系统头文件分析
-      --threshold <value>    覆盖率阈值设置 (0.0-1.0)
-      --parallel <num>       并行分析线程数 (默认: 1)
+性能选项:
+      --max-threads <num>    设置最大线程数 (默认: 0=自动检测)
+      --disable-parallel     禁用并行分析，强制使用单线程模式
+      --disable-cache        禁用AST缓存，每次都重新解析
+      --max-cache-size <num> 设置最大缓存条目数 (默认: 100)
+      --disable-io-opt       禁用I/O优化，使用标准文件读取
 
 环境变量:
   DLOGCOVER_DIRECTORY       等同于 -d 选项
@@ -179,8 +176,8 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
 示例:
   dlogcover -d /path/to/source -o report.txt
   dlogcover -c config.json -e "build/*" -e "test/*"
-  dlogcover -I ./include --compiler-arg "-std=c++17" --parallel 4
-  dlogcover --quiet -f json -o report.json
+  dlogcover -I ./include -q
+  dlogcover --verbose -f json -o report.json
   DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
 )";
 
@@ -420,52 +417,40 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 options_.quiet = true;
             } else if (arg == config::cli::OPTION_VERBOSE_LONG) {
                 options_.verbose = true;
-            } else if (arg == config::cli::OPTION_COMPILER_ARG_LONG) {
-                auto result = handleOption(args, i, arg, [this](std::string_view compilerArg) -> ErrorResult {
-                    options_.compilerArgs.emplace_back(compilerArg);
-                    return ErrorResult();
-                });
-                if (result.hasError()) {
-                    return result;
-                }
-            } else if (arg == config::cli::OPTION_INCLUDE_SYSTEM_HEADERS_LONG) {
-                options_.includeSystemHeaders = true;
-            } else if (arg == config::cli::OPTION_THRESHOLD_LONG) {
-                auto result = handleOption(args, i, arg, [this](std::string_view thresholdStr) -> ErrorResult {
+            } else if (arg == config::cli::OPTION_MAX_THREADS_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view threadsStr) -> ErrorResult {
                     try {
-                        double value = std::stod(std::string(thresholdStr));
-                        if (value < 0.0 || value > 1.0) {
-                            return ErrorResult(ConfigError::InvalidArgument,
-                                               "覆盖率阈值必须在0.0到1.0之间: " + std::string(thresholdStr));
-                        }
-                        options_.threshold = value;
+                        size_t threads = std::stoull(std::string(threadsStr));
+                        options_.maxThreads = threads;
                         return ErrorResult();
                     } catch (const std::exception& e) {
                         return ErrorResult(ConfigError::InvalidArgument,
-                                           "无效的阈值: " + std::string(thresholdStr));
+                                           "无效的线程数: " + std::string(threadsStr));
                     }
                 });
                 if (result.hasError()) {
                     return result;
                 }
-            } else if (arg == config::cli::OPTION_PARALLEL_LONG) {
-                auto result = handleOption(args, i, arg, [this](std::string_view numStr) -> ErrorResult {
+            } else if (arg == config::cli::OPTION_DISABLE_PARALLEL_LONG) {
+                options_.disableParallel = true;
+            } else if (arg == config::cli::OPTION_DISABLE_CACHE_LONG) {
+                options_.disableCache = true;
+            } else if (arg == config::cli::OPTION_MAX_CACHE_SIZE_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view sizeStr) -> ErrorResult {
                     try {
-                        int value = std::stoi(std::string(numStr));
-                        if (value < 1) {
-                            return ErrorResult(ConfigError::InvalidArgument,
-                                               "并行线程数必须大于0: " + std::string(numStr));
-                        }
-                        options_.parallel = value;
+                        size_t size = std::stoull(std::string(sizeStr));
+                        options_.maxCacheSize = size;
                         return ErrorResult();
                     } catch (const std::exception& e) {
                         return ErrorResult(ConfigError::InvalidArgument,
-                                           "无效的线程数: " + std::string(numStr));
+                                           "无效的缓存大小: " + std::string(sizeStr));
                     }
                 });
                 if (result.hasError()) {
                     return result;
                 }
+            } else if (arg == config::cli::OPTION_DISABLE_IO_OPT_LONG) {
+                options_.disableIOOptimization = true;
             } else if (arg[0] == '-') {
                 return ErrorResult(ConfigError::UnknownOption,
                                    std::string(config::error::UNKNOWN_OPTION) + std::string(arg));
@@ -593,26 +578,9 @@ void CommandLineParser::logParsedOptions() const {
         }
     }
     
-    // 记录编译器参数
-    if (!options_.compilerArgs.empty()) {
-        LOG_INFO("编译器参数:");
-        for (const auto& arg : options_.compilerArgs) {
-            LOG_INFO_FMT("  - %s", arg.c_str());
-        }
-    }
-    
     // 记录其他选项
     LOG_INFO_FMT("静默模式: %s", options_.quiet ? "是" : "否");
     LOG_INFO_FMT("详细模式: %s", options_.verbose ? "是" : "否");
-    LOG_INFO_FMT("包含系统头文件: %s", options_.includeSystemHeaders ? "是" : "否");
-    
-    if (options_.threshold >= 0.0) {
-        LOG_INFO_FMT("覆盖率阈值: %.2f", options_.threshold);
-    }
-    
-    if (options_.parallel > 0) {
-        LOG_INFO_FMT("并行线程数: %d", options_.parallel);
-    }
     
     LOG_INFO("=== 命令行参数记录完成 ===");
 }

@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <sstream>
 #include <ctime>
+#include <thread>
+#include <algorithm>
+#include <iomanip>
 
 namespace dlogcover {
 namespace core {
@@ -26,16 +29,15 @@ GoAnalyzer::GoAnalyzer(const config::Config& config)
     // 查找Go分析器工具
     goAnalyzerPath_ = findGoAnalyzerTool();
     
-    if (config_.go.enabled) {
-        LOG_INFO("Go语言支持已启用");
-        if (goAnalyzerPath_.empty()) {
-            LOG_WARNING("未找到Go分析器工具，Go语言分析功能将受限");
-        } else {
-            LOG_INFO_FMT("Go分析器工具路径: %s", goAnalyzerPath_.c_str());
-        }
+    LOG_INFO("Go语言支持已启用");
+    if (goAnalyzerPath_.empty()) {
+        LOG_WARNING("未找到Go分析器工具，Go语言分析功能将受限");
     } else {
-        LOG_DEBUG("Go语言支持未启用");
+        LOG_INFO_FMT("Go分析器工具路径: %s", goAnalyzerPath_.c_str());
     }
+    
+    // 强制输出路径查找结果用于调试
+    LOG_INFO_FMT("Go分析器路径查找结果: '%s'", goAnalyzerPath_.c_str());
 }
 
 GoAnalyzer::~GoAnalyzer() {
@@ -44,13 +46,7 @@ GoAnalyzer::~GoAnalyzer() {
 
 ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
     LOG_DEBUG_FMT("Go分析器分析文件: %s", filePath.c_str());
-    
-    // 检查Go语言支持是否启用
-    if (!config_.go.enabled) {
-        LOG_DEBUG("Go语言支持未启用，跳过分析");
-        return ast_analyzer::makeSuccess(true);
-    }
-    
+   
     // 检查文件是否为Go文件
     auto language = language_detector::LanguageDetector::detectLanguage(filePath);
     if (language != language_detector::SourceLanguage::GO) {
@@ -65,6 +61,38 @@ ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
             ast_analyzer::ASTAnalyzerError::FILE_NOT_FOUND,
             "Go文件不存在: " + filePath
         );
+    }
+    
+    // 缓存检查：如果启用缓存且缓存中有有效结果，直接使用缓存
+    if (cacheEnabled_ && isCacheValid(filePath)) {
+        LOG_DEBUG_FMT("使用缓存结果: %s", filePath.c_str());
+        cacheHits_++;
+        
+        auto cachedResults = getCacheResult(filePath);
+        // 将缓存结果复制到当前结果集合中
+        for (const auto& result : cachedResults) {
+            if (result) {
+                auto resultCopy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+                results_.push_back(std::move(resultCopy));
+            }
+        }
+        
+        // 更新统计信息
+        statistics_.analyzedFiles++;
+        statistics_.totalFunctions += cachedResults.size();
+        for (const auto& node : cachedResults) {
+            if (node && node->hasLogging) {
+                statistics_.totalLogCalls += node->children.size();
+            }
+        }
+        
+        LOG_INFO_FMT("Go文件缓存分析完成: %s，找到 %zu 个函数", filePath.c_str(), cachedResults.size());
+        return ast_analyzer::makeSuccess(true);
+    }
+    
+    // 缓存未命中，执行实际分析
+    if (cacheEnabled_) {
+        cacheMisses_++;
     }
     
     // 阶段2完整实现：执行Go分析器
@@ -86,18 +114,39 @@ ast_analyzer::Result<bool> GoAnalyzer::analyze(const std::string& filePath) {
     
     // 添加分析结果
     auto astNodes = std::move(parseResult.value());
+    
+    // 如果启用缓存，将结果添加到缓存
+    if (cacheEnabled_) {
+        addToCache(filePath, astNodes);
+    }
+    
+    // 更新统计信息（在移动节点之前）
+    statistics_.analyzedFiles++;
+    statistics_.totalFunctions += astNodes.size();
+    LOG_DEBUG_FMT("开始更新Go分析器统计，处理 %zu 个节点", astNodes.size());
+    for (const auto& node : astNodes) {
+        if (node) {
+            LOG_DEBUG_FMT("检查节点: %s, hasLogging=%s, children=%zu", 
+                        node->name.c_str(), 
+                        node->hasLogging ? "true" : "false",
+                        node->children.size());
+            if (node->hasLogging) {
+                // 计算这个函数中的日志调用数量（子节点）
+                size_t logCalls = node->children.size();
+                LOG_DEBUG_FMT("函数 %s 有 %zu 个日志调用子节点", node->name.c_str(), logCalls);
+                statistics_.totalLogCalls += logCalls;
+            }
+        } else {
+            LOG_DEBUG("发现空节点");
+        }
+    }
+    
+    // 将节点移动到结果集合中
     for (auto& node : astNodes) {
         results_.push_back(std::move(node));
     }
-    
-    // 更新统计信息
-    statistics_.analyzedFiles++;
-    statistics_.totalFunctions += astNodes.size();
-    for (const auto& node : astNodes) {
-        if (node && node->hasLogging) {
-            statistics_.totalLogCalls++;
-        }
-    }
+    LOG_DEBUG_FMT("Go分析器统计更新完成：文件=%d, 函数=%d, 日志调用=%d", 
+                statistics_.analyzedFiles, statistics_.totalFunctions, statistics_.totalLogCalls);
     
     LOG_INFO_FMT("Go文件分析完成: %s，找到 %zu 个函数", filePath.c_str(), astNodes.size());
     return ast_analyzer::makeSuccess(true);
@@ -118,11 +167,11 @@ std::string GoAnalyzer::getLanguageName() const {
 }
 
 bool GoAnalyzer::isEnabled() const {
-    return config_.go.enabled;
+    return !goAnalyzerPath_.empty();
 }
 
 std::vector<std::string> GoAnalyzer::getSupportedExtensions() const {
-    return config_.go.file_extensions;
+    return {".go"};
 }
 
 std::string GoAnalyzer::getStatistics() const {
@@ -132,16 +181,35 @@ std::string GoAnalyzer::getStatistics() const {
 }
 
 std::string GoAnalyzer::findGoAnalyzerTool() {
-    std::vector<std::string> searchPaths = {
-        "./tools/go-analyzer/dlogcover-go-analyzer",
-        "./dlogcover-go-analyzer",
-        "dlogcover-go-analyzer"  // 系统PATH中查找
-    };
+    std::vector<std::string> searchPaths;
+    
+    // 获取当前程序执行文件所在目录
+    std::string executableDir;
+    try {
+        auto executablePath = std::filesystem::canonical("/proc/self/exe");
+        executableDir = executablePath.parent_path().string();
+    } catch (const std::exception& e) {
+        LOG_DEBUG_FMT("无法获取程序路径: %s", e.what());
+        executableDir = ".";  // 回退到当前目录
+    }
+    
+    // 基于程序目录的相对路径
+    searchPaths.push_back(executableDir + "/dlogcover-go-analyzer");  // 同目录
+    
+    // 基于当前工作目录的相对路径
+    searchPaths.push_back("../build/bin/dlogcover-go-analyzer");      // 相对于test_project等子目录
+    searchPaths.push_back("./build/bin/dlogcover-go-analyzer");       // 相对于项目根目录
+    searchPaths.push_back("./tools/go-analyzer/dlogcover-go-analyzer");
+    searchPaths.push_back("./dlogcover-go-analyzer");
+    searchPaths.push_back("dlogcover-go-analyzer");                   // PATH中查找
     
     for (const auto& path : searchPaths) {
+        LOG_DEBUG_FMT("检查Go分析器路径: %s", path.c_str());
         if (std::filesystem::exists(path)) {
             LOG_DEBUG_FMT("找到Go分析器工具: %s", path.c_str());
             return path;
+        } else {
+            LOG_DEBUG_FMT("路径不存在: %s", path.c_str());
         }
     }
     
@@ -232,11 +300,35 @@ ast_analyzer::Result<std::string> GoAnalyzer::executeGoAnalyzer(const std::strin
     requestFile << "}\n";
     requestFile.close();
     
+    // 检查Go分析器路径
+    if (goAnalyzerPath_.empty()) {
+        return ast_analyzer::makeError<std::string>(
+            ast_analyzer::ASTAnalyzerError::INTERNAL_ERROR,
+            "Go分析器工具未找到，请检查环境配置"
+        );
+    }
+    
     // 构建命令
     std::string command = goAnalyzerPath_ + " " + requestPath;
     
+    // DEBUG: 输出请求内容
+    LOG_DEBUG("Go分析器请求文件内容:");
+    std::ifstream requestDebug(requestPath);
+    std::string line;
+    while (std::getline(requestDebug, line)) {
+        LOG_DEBUG_FMT("  %s", line.c_str());
+    }
+    requestDebug.close();
+    
     // 执行命令
     auto result = executeCommand(command);
+    
+    // DEBUG: 输出结果
+    if (result.isSuccess()) {
+        LOG_DEBUG_FMT("Go分析器输出结果: %s", result.value().c_str());
+    } else {
+        LOG_DEBUG_FMT("Go分析器执行失败: %s", result.errorMessage().c_str());
+    }
     
     // 清理临时文件
     std::filesystem::remove(requestPath);
@@ -315,6 +407,10 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                 nodeInfo->endLocation.column = funcJson.value("end_column", 0);
                 nodeInfo->hasLogging = funcJson.value("has_logging", false);
                 
+                LOG_DEBUG_FMT("解析Go函数: %s, has_logging=%s", 
+                            nodeInfo->name.c_str(), 
+                            nodeInfo->hasLogging ? "true" : "false");
+                
                 // 设置文件路径
                 if (json.find("file_path") != json.end()) {
                     nodeInfo->location.filePath = json["file_path"].get<std::string>();
@@ -323,6 +419,9 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                 
                 // 解析日志调用（作为子节点）
                 if (funcJson.find("log_calls") != funcJson.end()) {
+                    size_t logCallCount = funcJson["log_calls"].size();
+                    LOG_DEBUG_FMT("函数 %s 有 %zu 个日志调用", nodeInfo->name.c_str(), logCallCount);
+                    
                     for (const auto& logCallJson : funcJson["log_calls"]) {
                         auto logNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
                         logNode->type = ast_analyzer::NodeType::LOG_CALL;
@@ -338,8 +437,14 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
                         std::string level = logCallJson.value("level", "info");
                         logNode->text = library + " " + level + " log call";
                         
+                        LOG_DEBUG_FMT("添加日志调用子节点: %s (line %d)", 
+                                    logNode->name.c_str(), logNode->location.line);
+                        
                         nodeInfo->children.push_back(std::move(logNode));
                     }
+                    
+                    LOG_DEBUG_FMT("函数 %s 最终有 %zu 个子节点", 
+                                nodeInfo->name.c_str(), nodeInfo->children.size());
                 }
                 
                 results.push_back(std::move(nodeInfo));
@@ -388,11 +493,11 @@ ast_analyzer::Result<std::string> GoAnalyzer::executeCommand(const std::string& 
 }
 
 void GoAnalyzer::setParallelMode(bool enabled, size_t maxThreads) {
-    LOG_DEBUG_FMT("设置Go分析器并行模式: enabled=%s, maxThreads=%zu", 
-                  enabled ? "true" : "false", maxThreads);
-    
     parallelEnabled_ = enabled;
-    maxThreads_ = maxThreads > 0 ? maxThreads : 1;
+    maxThreads_ = maxThreads;
+    
+    LOG_INFO_FMT("Go分析器并行模式设置: %s, 最大线程数: %zu", 
+                enabled ? "启用" : "禁用", maxThreads);
 }
 
 ast_analyzer::Result<bool> GoAnalyzer::analyzeFiles(const std::vector<std::string>& filePaths) {
@@ -403,8 +508,8 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFiles(const std::vector<std::strin
         return ast_analyzer::makeSuccess(true);
     }
     
-    // 如果启用并行模式且文件数量足够，使用批量分析
-    if (parallelEnabled_ && filePaths.size() > 1) {
+    // 如果启用并行模式，使用并行分析
+    if (parallelEnabled_) {
         return analyzeFilesParallel(filePaths);
     } else {
         return analyzeFilesSerial(filePaths);
@@ -435,21 +540,43 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesSerial(const std::vector<std:
 }
 
 ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesParallel(const std::vector<std::string>& filePaths) {
-    LOG_INFO_FMT("Go分析器并行分析 %zu 个文件，使用 %zu 个线程", filePaths.size(), maxThreads_);
+    LOG_INFO_FMT("Go分析器开始并行分析 %zu 个文件", filePaths.size());
+    
+    // 确定线程数 - 参照AST分析器的逻辑
+    size_t numThreads = maxThreads_;
+    if (numThreads == 0) {
+        numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) {
+            numThreads = 4; // 默认4个线程
+        }
+    }
+    
+    // 限制线程数不超过文件数
+    numThreads = std::min(numThreads, filePaths.size());
+    
+    LOG_INFO_FMT("使用 %zu 个线程并行分析 %zu 个Go文件", numThreads, filePaths.size());
+    
+    // 如果只有一个文件或一个线程，回退到串行处理
+    if (numThreads <= 1 || filePaths.size() <= 1) {
+        LOG_INFO("文件数量较少，使用串行处理");
+        return analyzeFilesSerial(filePaths);
+    }
     
     // 生成批量分析配置
-    std::string batchConfigFile = generateBatchAnalysisConfig(filePaths);
+    std::string batchConfigFile = generateBatchAnalysisConfig(filePaths, numThreads);
     if (batchConfigFile.empty()) {
         LOG_ERROR("生成批量分析配置失败，回退到串行分析");
         return analyzeFilesSerial(filePaths);
     }
     
-    // 调用Go工具的并行分析功能
+    // 调用Go工具的并行分析功能，使用计算出的线程数
     std::string cmd = goAnalyzerPath_ + 
                      " --mode=batch" +
                      " --config=" + batchConfigFile +
-                     " --parallel=" + std::to_string(maxThreads_) +
+                     " --parallel=" + std::to_string(numThreads) +
                      " --output=json";
+    
+    LOG_DEBUG_FMT("执行Go批量分析命令: %s", cmd.c_str());
     
     auto result = executeCommand(cmd);
     
@@ -461,12 +588,14 @@ ast_analyzer::Result<bool> GoAnalyzer::analyzeFilesParallel(const std::vector<st
         return analyzeFilesSerial(filePaths);
     }
     
+    LOG_INFO_FMT("Go并行分析完成，使用了 %zu 个线程", numThreads);
+    
     // 解析批量分析结果
     return parseBatchAnalysisResult(result.value());
 }
 
-std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::string>& filePaths) {
-    LOG_DEBUG("生成Go批量分析配置");
+std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::string>& filePaths, size_t numThreads) {
+    LOG_DEBUG_FMT("生成Go批量分析配置，使用 %zu 个线程", numThreads);
     
     std::string configPath = "/tmp/dlogcover_go_batch_" + 
                             std::to_string(std::time(nullptr)) + ".json";
@@ -479,7 +608,7 @@ std::string GoAnalyzer::generateBatchAnalysisConfig(const std::vector<std::strin
     // 生成批量配置JSON
     nlohmann::json batchConfig;
     batchConfig["files"] = filePaths;
-    batchConfig["parallel"] = maxThreads_;
+    batchConfig["parallel"] = numThreads;
     
     // 添加Go分析配置
     nlohmann::json goConfig;
@@ -555,6 +684,216 @@ ast_analyzer::Result<bool> GoAnalyzer::parseBatchAnalysisResult(const std::strin
     }
     
     return ast_analyzer::makeSuccess(true);
+}
+
+// ===== 缓存功能实现 =====
+
+void GoAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_t maxMemoryMB) {
+    LOG_DEBUG_FMT("设置Go分析器缓存: enabled=%s, maxCacheSize=%zu, maxMemoryMB=%zu", 
+                  enabled ? "true" : "false", maxCacheSize, maxMemoryMB);
+    
+    cacheEnabled_ = enabled;
+    maxCacheSize_ = maxCacheSize;
+    maxMemoryMB_ = maxMemoryMB;
+    
+    if (!enabled) {
+        clearCache();
+    }
+}
+
+std::string GoAnalyzer::getCacheStatistics() const {
+    if (!cacheEnabled_) {
+        return "Go分析器缓存未启用";
+    }
+    
+    double hitRate = (cacheHits_ + cacheMisses_ > 0) ? 
+                     (static_cast<double>(cacheHits_) / (cacheHits_ + cacheMisses_) * 100.0) : 0.0;
+    
+    std::stringstream ss;
+    ss << "Go分析器缓存统计信息:\n";
+    ss << "  缓存条目数: " << cache_.size() << "/" << maxCacheSize_ << "\n";
+    ss << "  缓存命中: " << cacheHits_ << "\n";
+    ss << "  缓存未命中: " << cacheMisses_ << "\n";
+    ss << "  总访问次数: " << (cacheHits_ + cacheMisses_) << "\n";
+    ss << "  命中率: " << std::fixed << std::setprecision(2) << hitRate << "%\n";
+    ss << "  内存使用: " << std::fixed << std::setprecision(2) 
+       << (currentMemoryUsage_ / 1024.0 / 1024.0) << " MB / " << maxMemoryMB_ << " MB";
+    
+    return ss.str();
+}
+
+void GoAnalyzer::clearCache() {
+    LOG_DEBUG("清空Go分析器缓存");
+    cache_.clear();
+    cacheHits_ = 0;
+    cacheMisses_ = 0;
+    currentMemoryUsage_ = 0;
+}
+
+std::string GoAnalyzer::calculateFileHash(const std::string& filePath) const {
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        return "";
+    }
+    
+    // 简单的哈希计算（实际项目中可以使用MD5或SHA256）
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::hash<std::string> hasher;
+    size_t hashValue = hasher(content);
+    
+    std::stringstream ss;
+    ss << std::hex << hashValue;
+    return ss.str();
+}
+
+std::time_t GoAnalyzer::getFileModifiedTime(const std::string& filePath) const {
+    try {
+        auto ftime = std::filesystem::last_write_time(filePath);
+        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+        );
+        return std::chrono::system_clock::to_time_t(sctp);
+    } catch (const std::exception& e) {
+        LOG_DEBUG_FMT("获取文件修改时间失败: %s, 错误: %s", filePath.c_str(), e.what());
+        return 0;
+    }
+}
+
+bool GoAnalyzer::isCacheValid(const std::string& filePath) const {
+    auto it = cache_.find(filePath);
+    if (it == cache_.end()) {
+        return false;
+    }
+    
+    // 检查文件修改时间
+    std::time_t currentModTime = getFileModifiedTime(filePath);
+    if (currentModTime != it->second.lastModified) {
+        LOG_DEBUG_FMT("文件已修改，缓存失效: %s", filePath.c_str());
+        return false;
+    }
+    
+    // 检查文件哈希值（更严格的验证）
+    std::string currentHash = calculateFileHash(filePath);
+    if (currentHash != it->second.fileHash) {
+        LOG_DEBUG_FMT("文件内容已变更，缓存失效: %s", filePath.c_str());
+        return false;
+    }
+    
+    // 更新访问时间（用于LRU）
+    it->second.accessTime = std::time(nullptr);
+    
+    return true;
+}
+
+std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> GoAnalyzer::getCacheResult(const std::string& filePath) const {
+    std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> results;
+    
+    auto it = cache_.find(filePath);
+    if (it != cache_.end()) {
+        // 创建缓存结果的深拷贝
+        for (const auto& result : it->second.results) {
+            if (result) {
+                auto copy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+                results.push_back(std::move(copy));
+            }
+        }
+        
+        // 更新访问时间
+        it->second.accessTime = std::time(nullptr);
+    }
+    
+    return results;
+}
+
+void GoAnalyzer::addToCache(const std::string& filePath, 
+                           const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const {
+    
+    // 检查缓存是否已满，需要清理
+    if (cache_.size() >= maxCacheSize_) {
+        evictLRUCache();
+    }
+    
+    // 创建缓存条目
+    CacheEntry entry;
+    entry.fileHash = calculateFileHash(filePath);
+    entry.lastModified = getFileModifiedTime(filePath);
+    entry.accessTime = std::time(nullptr);
+    
+    // 创建结果的深拷贝
+    for (const auto& result : results) {
+        if (result) {
+            auto copy = std::make_unique<ast_analyzer::ASTNodeInfo>(*result);
+            entry.results.push_back(std::move(copy));
+        }
+    }
+    
+    // 估算内存使用
+    entry.memorySize = estimateMemoryUsage(results);
+    
+    // 检查内存限制
+    if (currentMemoryUsage_ + entry.memorySize > maxMemoryMB_ * 1024 * 1024) {
+        // 内存不足，清理缓存
+        while (!cache_.empty() && currentMemoryUsage_ + entry.memorySize > maxMemoryMB_ * 1024 * 1024) {
+            evictLRUCache();
+        }
+    }
+    
+    // 如果条目已存在，先移除旧的
+    auto it = cache_.find(filePath);
+    if (it != cache_.end()) {
+        currentMemoryUsage_ -= it->second.memorySize;
+        cache_.erase(it);
+    }
+    
+    // 添加新条目
+    currentMemoryUsage_ += entry.memorySize;
+    cache_[filePath] = std::move(entry);
+    
+    LOG_DEBUG_FMT("添加到Go分析器缓存: %s, 内存占用: %zu 字节", filePath.c_str(), entry.memorySize);
+}
+
+void GoAnalyzer::evictLRUCache() const {
+    if (cache_.empty()) {
+        return;
+    }
+    
+    // 找到最久未访问的条目
+    auto lruIt = cache_.begin();
+    std::time_t oldestTime = lruIt->second.accessTime;
+    
+    for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+        if (it->second.accessTime < oldestTime) {
+            oldestTime = it->second.accessTime;
+            lruIt = it;
+        }
+    }
+    
+    // 移除最久未访问的条目
+    LOG_DEBUG_FMT("从Go分析器缓存中移除LRU条目: %s", lruIt->first.c_str());
+    currentMemoryUsage_ -= lruIt->second.memorySize;
+    cache_.erase(lruIt);
+}
+
+size_t GoAnalyzer::estimateMemoryUsage(const std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>& results) const {
+    size_t totalSize = 0;
+    
+    for (const auto& result : results) {
+        if (result) {
+            // 基本结构大小
+            totalSize += sizeof(ast_analyzer::ASTNodeInfo);
+            
+            // 字符串成员大小
+            totalSize += result->name.size();
+            totalSize += result->text.size();
+            totalSize += result->location.filePath.size();
+            totalSize += result->location.fileName.size();
+            
+            // 子节点大小（递归计算）
+            totalSize += estimateMemoryUsage(result->children);
+        }
+    }
+    
+    return totalSize;
 }
 
 } // namespace analyzer

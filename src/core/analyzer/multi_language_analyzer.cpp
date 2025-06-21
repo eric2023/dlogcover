@@ -12,6 +12,7 @@
 
 #include <thread>
 #include <algorithm>
+#include <sstream>
 
 namespace dlogcover {
 namespace core {
@@ -108,7 +109,14 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAll() {
             return analyzeGoOnlyMode();
             
         case AnalysisMode::AUTO_DETECT:
-            return analyzeAutoDetectMode();
+            // 自动检测模式根据并行配置选择串行或并行版本
+            if (config_.performance.enable_parallel_analysis) {
+                LOG_INFO("自动检测模式使用并行分析");
+                return analyzeAutoDetectModeParallel();
+            } else {
+                LOG_INFO("自动检测模式使用串行分析");
+                return analyzeAutoDetectMode();
+            }
             
         default:
             return ast_analyzer::makeError<bool>(
@@ -118,37 +126,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAll() {
     }
 }
 
-ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAllParallel() {
-    LOG_INFO("多语言分析器开始并行分析所有文件");
-    
-    // 根据分析模式选择并行策略
-    switch (analysisMode_) {
-        case AnalysisMode::CPP_ONLY: {
-            // C++模式使用原有的并行分析
-            auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
-            if (cppAnalyzer) {
-                return cppAnalyzer->getUnderlyingAnalyzer()->analyzeAllParallel();
-            }
-            return analyzeCppOnlyMode();
-        }
-        
-        case AnalysisMode::GO_ONLY: {
-            // Go模式使用Go分析器的并行功能
-            auto goAnalyzer = getGoAnalyzer();
-            if (goAnalyzer) {
-                goAnalyzer->setParallelMode(true, getOptimalThreadCount());
-                return analyzeGoOnlyMode();
-            }
-            return analyzeGoOnlyMode();
-        }
-        
-        case AnalysisMode::AUTO_DETECT:
-        default:
-            // 自动检测模式暂时使用串行分析
-            LOG_DEBUG("自动检测模式使用串行分析");
-            return analyzeAll();
-    }
-}
+
 
 std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> MultiLanguageAnalyzer::getAllResults() const {
     LOG_DEBUG("合并所有语言的分析结果");
@@ -259,7 +237,12 @@ void MultiLanguageAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_
         cppAnalyzer->enableCache(enabled, maxCacheSize, maxMemoryMB);
     }
     
-    // Go分析器的缓存将在后续实现
+    // 设置Go分析器的缓存
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        goAnalyzer->enableCache(enabled, maxCacheSize, maxMemoryMB);
+        LOG_DEBUG("Go分析器缓存设置完成");
+    }
 }
 
 bool MultiLanguageAnalyzer::isLanguageEnabled(language_detector::SourceLanguage language) const {
@@ -322,23 +305,9 @@ void MultiLanguageAnalyzer::initializeRequiredAnalyzers() {
             break;
             
         case AnalysisMode::AUTO_DETECT:
-            // 先进行语言检测，再初始化对应分析器
-            detectProjectLanguage();
-            if (detectedLanguage_ == language_detector::SourceLanguage::CPP) {
-                if (auto cppAnalyzer = createCppAnalyzer()) {
-                    analyzers_[language_detector::SourceLanguage::CPP] = std::move(cppAnalyzer);
-                    LOG_INFO("检测到C++项目，初始化C++分析器");
-                }
-            } else if (detectedLanguage_ == language_detector::SourceLanguage::GO) {
-                if (auto goAnalyzer = createGoAnalyzer()) {
-                    analyzers_[language_detector::SourceLanguage::GO] = std::move(goAnalyzer);
-                    LOG_INFO("检测到Go项目，初始化Go分析器");
-                }
-            } else {
-                // 混合项目或未知，初始化所有分析器
-                LOG_INFO("检测到混合项目，初始化所有分析器");
-                initializeAnalyzers();
-            }
+            // 混合项目模式，初始化所有分析器以支持多语言
+            LOG_INFO("自动检测模式，初始化所有分析器以支持混合项目");
+            initializeAnalyzers();
             break;
     }
 }
@@ -378,10 +347,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeGoOnlyMode() {
     
     LOG_INFO_FMT("找到 %zu 个Go文件，开始批量分析", goFiles.size());
     
-    // 启用Go分析器的多线程模式
-    goAnalyzer->setParallelMode(true, getOptimalThreadCount());
-    
-    // 批量分析Go文件
+    // 批量分析Go文件（并行模式已在setParallelMode中设置）
     bool hasErrors = false;
     for (const auto& filePath : goFiles) {
         auto result = goAnalyzer->analyze(filePath);
@@ -411,6 +377,11 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
     
     LOG_INFO_FMT("检测到 %zu 个C++文件，%zu 个Go文件", cppFiles.size(), goFiles.size());
     
+    // 更新统计信息 - 文件数量
+    statistics_.totalFiles = cppFiles.size() + goFiles.size();
+    statistics_.cppFiles = cppFiles.size();
+    statistics_.goFiles = goFiles.size();
+    
     bool hasErrors = false;
     
     // 分析C++文件
@@ -419,6 +390,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
         if (cppAnalyzer) {
             for (const auto& filePath : cppFiles) {
                 auto result = cppAnalyzer->analyze(filePath);
+                updateStatistics(language_detector::SourceLanguage::CPP, result.isSuccess());
                 if (result.hasError()) {
                     LOG_ERROR_FMT("C++文件分析失败: %s, 错误: %s", 
                                  filePath.c_str(), result.errorMessage().c_str());
@@ -434,6 +406,7 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
         if (goAnalyzer) {
             for (const auto& filePath : goFiles) {
                 auto result = goAnalyzer->analyze(filePath);
+                updateStatistics(language_detector::SourceLanguage::GO, result.isSuccess());
                 if (result.hasError()) {
                     LOG_ERROR_FMT("Go文件分析失败: %s, 错误: %s", 
                                  filePath.c_str(), result.errorMessage().c_str());
@@ -450,6 +423,65 @@ ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectMode() {
         );
     }
     
+    return ast_analyzer::makeSuccess(true);
+}
+
+ast_analyzer::Result<bool> MultiLanguageAnalyzer::analyzeAutoDetectModeParallel() {
+    LOG_INFO("开始自动检测并行分析模式 - 支持混合项目多线程分析");
+    
+    // 按语言分组文件
+    std::vector<std::string> cppFiles = collectFilesByLanguage(language_detector::SourceLanguage::CPP);
+    std::vector<std::string> goFiles = collectFilesByLanguage(language_detector::SourceLanguage::GO);
+    
+    LOG_INFO_FMT("检测到 %zu 个C++文件，%zu 个Go文件，将进行并行分析", cppFiles.size(), goFiles.size());
+    
+    // 更新统计信息 - 文件数量
+    statistics_.totalFiles = cppFiles.size() + goFiles.size();
+    statistics_.cppFiles = cppFiles.size();
+    statistics_.goFiles = goFiles.size();
+    
+    bool hasErrors = false;
+    
+    // 并行分析C++文件
+    if (!cppFiles.empty()) {
+        auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+        if (cppAnalyzer) {
+            LOG_INFO_FMT("开始并行分析 %zu 个C++文件", cppFiles.size());
+            // 并行模式已在setParallelMode中设置
+            auto result = cppAnalyzer->analyzeAll();
+            if (result.hasError()) {
+                LOG_ERROR_FMT("C++文件并行分析失败: %s", result.errorMessage().c_str());
+                hasErrors = true;
+            }
+            // 更新统计信息
+            statistics_.successfulAnalyses += cppFiles.size();
+        }
+    }
+    
+    // 并行分析Go文件
+    if (!goFiles.empty()) {
+        auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+        if (goAnalyzer) {
+            LOG_INFO_FMT("开始并行分析 %zu 个Go文件", goFiles.size());
+            // 并行模式已在setParallelMode中设置
+            auto result = goAnalyzer->analyzeFiles(goFiles);
+            if (result.hasError()) {
+                LOG_ERROR_FMT("Go文件并行分析失败: %s", result.errorMessage().c_str());
+                hasErrors = true;
+            }
+            // 更新统计信息
+            statistics_.successfulAnalyses += goFiles.size();
+        }
+    }
+    
+    if (hasErrors) {
+        return ast_analyzer::makeError<bool>(
+            ast_analyzer::ASTAnalyzerError::ANALYSIS_ERROR,
+            "部分文件并行分析失败"
+        );
+    }
+    
+    LOG_INFO("自动检测并行分析完成");
     return ast_analyzer::makeSuccess(true);
 }
 
@@ -511,17 +543,7 @@ std::vector<std::string> MultiLanguageAnalyzer::collectFilesByLanguage(language_
     return files;
 }
 
-size_t MultiLanguageAnalyzer::getOptimalThreadCount() {
-    // 根据文件数量和系统资源确定最优线程数
-    size_t hwThreads = std::thread::hardware_concurrency();
-    size_t fileCount = sourceManager_.getSourceFiles().size();
-    
-    // 避免线程过多导致的上下文切换开销
-    size_t optimalThreads = std::min({hwThreads, fileCount / 10 + 1, static_cast<size_t>(8)});
-    
-    // 至少使用1个线程
-    return std::max(optimalThreads, static_cast<size_t>(1));
-}
+
 
 void MultiLanguageAnalyzer::initializeAnalyzers() {
     LOG_DEBUG("初始化所有语言分析器");
@@ -536,16 +558,12 @@ void MultiLanguageAnalyzer::initializeAnalyzers() {
     }
     
     // 创建Go分析器（仅在启用时创建）
-    if (config_.go.enabled) {
-        auto goAnalyzer = createGoAnalyzer();
-        if (goAnalyzer) {
-            analyzers_[language_detector::SourceLanguage::GO] = std::move(goAnalyzer);
-            LOG_INFO("Go分析器初始化成功");
-        } else {
-            LOG_WARNING("Go分析器初始化失败");
-        }
+    auto goAnalyzer = createGoAnalyzer();
+    if (goAnalyzer) {
+        analyzers_[language_detector::SourceLanguage::GO] = std::move(goAnalyzer);
+        LOG_INFO("Go分析器初始化成功");
     } else {
-        LOG_DEBUG("Go语言支持未启用，跳过Go分析器初始化");
+        LOG_WARNING("Go分析器初始化失败");
     }
 }
 
@@ -577,6 +595,78 @@ void MultiLanguageAnalyzer::updateStatistics(language_detector::SourceLanguage l
 
 std::string MultiLanguageAnalyzer::getLanguageString(language_detector::SourceLanguage language) const {
     return language_detector::LanguageDetector::getLanguageName(language);
+}
+
+std::string MultiLanguageAnalyzer::getAllCacheStatistics() const {
+    std::stringstream ss;
+    ss << "=== 多语言分析器缓存统计信息 ===\n";
+    
+    bool hasCacheEnabled = false;
+    
+    // C++分析器缓存统计
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        std::string cppStats = cppAnalyzer->getCacheStatistics();
+        ss << "C++分析器:\n" << cppStats << "\n\n";
+        hasCacheEnabled = true;
+    }
+    
+    // Go分析器缓存统计
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        std::string goStats = goAnalyzer->getCacheStatistics();
+        ss << "Go分析器:\n" << goStats << "\n\n";
+        hasCacheEnabled = true;
+    }
+    
+    if (!hasCacheEnabled) {
+        ss << "没有启用的分析器缓存\n";
+    } else {
+        // 添加总体统计
+        size_t totalCacheSize = getTotalCacheSize();
+        ss << "总缓存条目数: " << totalCacheSize;
+    }
+    
+    return ss.str();
+}
+
+void MultiLanguageAnalyzer::clearAllCache() {
+    LOG_DEBUG("清空所有分析器缓存");
+    
+    // 清空C++分析器缓存
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        // 使用clear方法代替clearCache（暂时处理，后续需要添加clearCache接口）
+        cppAnalyzer->getUnderlyingAnalyzer()->clear();
+        LOG_DEBUG("C++分析器缓存已清空");
+    }
+    
+    // 清空Go分析器缓存
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        goAnalyzer->clearCache();
+        LOG_DEBUG("Go分析器缓存已清空");
+    }
+}
+
+size_t MultiLanguageAnalyzer::getTotalCacheSize() const {
+    size_t totalSize = 0;
+    
+    // C++分析器缓存大小（需要实现相应接口）
+    auto cppAnalyzer = dynamic_cast<CppAnalyzerAdapter*>(getCppAnalyzer());
+    if (cppAnalyzer) {
+        // 注意：这里需要确认CppAnalyzerAdapter是否有getCacheSize方法
+        // totalSize += cppAnalyzer->getCacheSize();
+    }
+    
+    // Go分析器缓存大小
+    auto goAnalyzer = dynamic_cast<GoAnalyzer*>(getGoAnalyzer());
+    if (goAnalyzer) {
+        // Go分析器暂时无法直接获取缓存大小，可以从统计信息中解析
+        // 这里简化处理，实际可以添加getCacheSize方法到GoAnalyzer
+    }
+    
+    return totalSize;
 }
 
 } // namespace analyzer

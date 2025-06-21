@@ -48,11 +48,222 @@ DLogCover提供三种分析模式，根据项目类型自动优化性能：
   "analysis": {
     "mode": "cpp_only",  // 可选: "cpp_only", "go_only", "auto_detect"
     "auto_detection": {
-      "sample_size": 10,
-      "confidence_threshold": 0.8
+      "sample_size": 100,
+      "confidence_threshold": 0.9
     }
   }
 }
+```
+
+## 📋 配置文件详解
+
+DLogCover 支持通过JSON配置文件进行详细配置。配置文件通常命名为 `dlogcover.json`，可以放在项目根目录。
+
+### 配置文件结构
+
+#### 1. 项目配置 (project)
+```json
+{
+  "project": {
+    "name": "your-project-name",        // 项目名称
+    "directory": "./",                  // 项目根目录
+    "build_directory": "./build"        // 构建目录
+  }
+}
+```
+
+#### 2. 扫描配置 (scan)
+```json
+{
+  "scan": {
+    "directories": ["include", "src", "tests"],    // 要扫描的目录
+    "file_extensions": [".cpp", ".h", ".cxx", ".hpp"], // 文件扩展名
+    "exclude_patterns": ["*build*", "*/build/*"]       // 排除模式
+  }
+}
+```
+
+#### 3. 编译命令配置 (compile_commands)
+```json
+{
+  "compile_commands": {
+    "path": "./build/compile_commands.json",   // compile_commands.json路径
+    "auto_generate": true,                     // 是否自动生成
+    "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"] // CMake参数
+  }
+}
+```
+
+#### 4. 输出配置 (output)
+```json
+{
+  "output": {
+    "report_file": "dlogcover_report.txt",     // 报告文件路径
+    "log_file": "dlogcover.log",               // 日志文件路径
+    "log_level": "INFO",                       // 日志级别: DEBUG, INFO, WARNING, CRITICAL, FATAL
+    "show_uncovered_paths_details": false     // 是否显示未覆盖路径详情
+  }
+}
+```
+
+#### 5. 分析配置 (analysis)
+```json
+{
+  "analysis": {
+    "mode": "cpp_only",                        // 分析模式
+    "auto_detection": {
+      "sample_size": 100,                      // 自动检测采样大小
+      "confidence_threshold": 0.9              // 置信度阈值
+    },
+    "function_coverage": true,                 // 启用函数覆盖率
+    "branch_coverage": true,                   // 启用分支覆盖率
+    "exception_coverage": true,                // 启用异常覆盖率
+    "key_path_coverage": true                  // 启用关键路径覆盖率
+  }
+}
+```
+
+#### 6. 性能配置 (performance)
+```json
+{
+  "performance": {
+    "enable_parallel_analysis": true,          // 启用并行分析
+    "max_threads": 0,                          // 最大线程数 (0=自动检测)
+    "enable_ast_cache": true,                  // 启用AST缓存
+    "max_cache_size": 100,                     // 最大缓存条目数
+    "enable_io_optimization": true,            // 启用I/O优化
+    "file_buffer_size": 65536,                 // 文件缓冲区大小
+    "enable_file_preloading": true             // 启用文件预加载
+  }
+}
+```
+
+#### 7. C++日志函数配置 (log_functions)
+```json
+{
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+      "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+    },
+    "custom": {
+      "enabled": false,
+      "functions": {
+        "debug": ["LOG_DEBUG", "DLOG_DEBUG"],
+        "info": ["LOG_INFO", "DLOG_INFO"],
+        "warning": ["LOG_WARNING", "DLOG_WARNING"],
+        "error": ["LOG_ERROR", "DLOG_ERROR"],
+        "fatal": ["LOG_FATAL", "DLOG_FATAL"]
+      }
+    }
+  }
+}
+```
+
+#### 8. Go语言日志配置 (go)
+```json
+{
+  "go": {
+    "standard_log": {
+      "enabled": true,
+      "functions": ["log.Print", "log.Printf", "log.Println", 
+                   "log.Fatal", "log.Fatalf", "log.Fatalln",
+                   "log.Panic", "log.Panicf", "log.Panicln"]
+    },
+    "logrus": {
+      "enabled": true,
+      "functions": ["Debug", "Info", "Warn", "Warning", "Error", "Fatal", "Panic"],
+      "formatted_functions": ["Debugf", "Infof", "Warnf", "Warningf", "Errorf", "Fatalf", "Panicf"],
+      "line_functions": ["Debugln", "Infoln", "Warnln", "Warningln", "Errorln", "Fatalln", "Panicln"]
+    },
+    "zap": {
+      "enabled": true,
+      "logger_functions": ["Debug", "Info", "Warn", "Error", "DPanic", "Panic", "Fatal"],
+      "sugared_functions": ["Debugf", "Infof", "Warnf", "Errorf", "DPanicf", "Panicf", "Fatalf",
+                           "Debugw", "Infow", "Warnw", "Errorw", "DPanicw", "Panicw", "Fatalw"]
+    }
+  }
+}
+```
+
+## 🚀 命令行参数详解
+
+### 基本用法
+```bash
+dlogcover [选项]
+```
+
+### 主要选项
+
+#### 基础选项
+- `-h, --help` - 显示帮助信息
+- `-v, --version` - 显示版本信息
+- `-d, --directory <path>` - 指定扫描目录 (默认: ./)
+- `-o, --output <path>` - 指定输出报告路径
+- `-c, --config <path>` - 指定配置文件路径
+
+#### 输出控制
+- `-f, --format <format>` - 报告格式: text(默认), json
+- `-l, --log-level <level>` - 日志级别: DEBUG, INFO, WARNING, CRITICAL, FATAL
+- `--log-file <path>` - 指定日志文件路径
+
+#### 性能选项
+- `--max-threads <num>` - 设置最大线程数
+- `--disable-parallel` - 禁用并行分析
+- `--disable-cache` - 禁用AST缓存
+- `--max-cache-size <num>` - 设置最大缓存大小
+- `--disable-io-opt` - 禁用I/O优化
+
+#### 扫描控制
+- `--exclude <pattern>` - 添加排除模式
+- `--include-ext <ext>` - 添加包含的文件扩展名
+
+### 使用示例
+
+#### 基本分析
+```bash
+# 分析当前目录
+dlogcover
+
+# 分析指定目录
+dlogcover -d /path/to/project
+
+# 指定输出文件
+dlogcover -d src -o my_report.txt
+```
+
+#### 性能优化
+```bash
+# 使用4个线程并行分析
+dlogcover --max-threads 4 -d src
+
+# 禁用并行分析（串行模式）
+dlogcover --disable-parallel -d src
+
+# 启用大缓存
+dlogcover --max-cache-size 500 -d src
+```
+
+#### 输出控制
+```bash
+# 生成JSON格式报告
+dlogcover -f json -o report.json -d src
+
+# 启用详细日志
+dlogcover -l DEBUG --log-file debug.log -d src
+
+# 指定配置文件
+dlogcover -c my_config.json -d src
+```
+
+#### 高级用法
+```bash
+# 排除特定目录和文件
+dlogcover -d src --exclude "*/test/*" --exclude "*_test.cpp"
+
+# 多线程 + JSON输出 + 详细日志
+dlogcover --max-threads 8 -f json -l DEBUG -d src -o detailed_report.json
 ```
 
 ## 📋 项目完成情况总览
@@ -579,7 +790,7 @@ DLogCover 提供丰富的命令行选项，支持灵活的配置和控制：
     --build-dir <path>     # 指定构建目录，用于查找compile_commands.json
     --no-auto-generate     # 禁用自动生成compile_commands.json
     --cmake-args <args>    # 传递给CMake的额外参数
-    --parallel <num>       # 并行分析线程数 (默认: 自动检测)
+
 --disable-parallel     # 禁用并行分析，强制使用单线程模式
 --max-threads <num>    # 设置最大线程数 (默认: 0=自动检测)
 --disable-cache        # 禁用AST缓存，每次都重新解析
@@ -614,12 +825,12 @@ dlogcover -e "build/*" -e "test/*" --quiet
 dlogcover --config ci-config.json --format json --output ci-report.json --log-level warning
 
 # 高级配置：自定义构建目录和并行度
-dlogcover --build-dir ./custom-build --parallel 4 --timeout 600
+dlogcover --build-dir ./custom-build --max-threads 4 --timeout 600
 
 # 性能优化示例
-dlogcover --parallel 8 --max-cache-size 200 --max-threads 8  # 高性能配置
+dlogcover --max-threads 8 --max-cache-size 200               # 高性能配置
 dlogcover --disable-parallel --disable-cache                  # 保守配置，确保稳定性
-dlogcover --parallel 4 --disable-io-opt                      # 中等并行，禁用I/O优化
+dlogcover --max-threads 4 --disable-io-opt                   # 中等并行，禁用I/O优化
 ```
 
 ### 环境变量支持
@@ -948,7 +1159,7 @@ dlogcover -f json -o analysis_report.json
 
 ```bash
 # 分析Qt项目，包含Qt日志函数
-dlogcover -d ./src -I /usr/include/qt5 --compiler-arg "-DQT_CORE_LIB"
+dlogcover -d ./src -I /usr/include/qt5
 ```
 
 ### CI/CD集成
@@ -964,7 +1175,7 @@ dlogcover --quiet -o ci_report.json
 
 ```bash
 # 使用并行分析和详细日志
-dlogcover -d ./large_project --parallel 8 --log-level debug -p detailed.log
+dlogcover -d ./large_project --max-threads 8 --log-level debug -p detailed.log
 ```
 
 ## 📈 性能基准
@@ -987,7 +1198,7 @@ dlogcover -d ./large_project --parallel 8 --log-level debug -p detailed.log
 - **大型项目** (> 100K LOC): 2-10分钟（使用并行分析）
   - 典型场景：操作系统、大型框架
   - 内存占用：300-500MB
-  - 推荐使用 `--parallel 4-8` 选项
+  - 推荐使用 `--max-threads 4-8` 选项
 
 ### 内存使用优化
 - **基础内存占用**: ~50MB（工具本身）

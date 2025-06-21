@@ -109,10 +109,7 @@ struct PerformanceConfig {
 /**
  * @brief Go语言配置
  */
-struct GoConfig {
-    bool enabled = false;                    ///< 是否启用Go语言支持，默认关闭
-    std::vector<std::string> file_extensions = {".go"}; ///< Go文件扩展名列表
-    
+struct GoConfig {    
     /// 标准库log包配置
     struct StandardLogConfig {
         bool enabled = true;                 ///< 是否启用标准库log函数识别

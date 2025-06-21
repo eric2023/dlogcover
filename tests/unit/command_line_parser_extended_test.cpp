@@ -274,90 +274,7 @@ TEST_F(CommandLineParserExtendedTest, VerbosityOptions) {
     EXPECT_TRUE(parser_->getOptions().verbose);
 }
 
-// 测试编译器参数选项
-TEST_F(CommandLineParserExtendedTest, CompilerArgOption) {
-    // 测试单个编译器参数
-    auto parser1 = std::make_unique<CommandLineParser>();
-    const char* args1[] = {"dlogcover", "--compiler-arg", "-std=c++17"};
-    auto result1 = parser1->parse(3, const_cast<char**>(args1));
-    EXPECT_FALSE(result1.hasError()) << result1.errorMessage();
-    EXPECT_EQ(parser1->getOptions().compilerArgs.size(), 1);
-    EXPECT_EQ(parser1->getOptions().compilerArgs[0], "-std=c++17");
-    
-    // 测试多个编译器参数
-    auto parser2 = std::make_unique<CommandLineParser>();
-    const char* args2[] = {"dlogcover", "--compiler-arg", "-std=c++17", "--compiler-arg", "-O2"};
-    auto result2 = parser2->parse(5, const_cast<char**>(args2));
-    EXPECT_FALSE(result2.hasError()) << result2.errorMessage();
-    EXPECT_EQ(parser2->getOptions().compilerArgs.size(), 2);
-    EXPECT_EQ(parser2->getOptions().compilerArgs[0], "-std=c++17");
-    EXPECT_EQ(parser2->getOptions().compilerArgs[1], "-O2");
-}
 
-// 测试系统头文件包含选项
-TEST_F(CommandLineParserExtendedTest, IncludeSystemHeadersOption) {
-    const char* args[] = {"dlogcover", "--include-system-headers"};
-    auto result = parser_->parse(2, const_cast<char**>(args));
-    EXPECT_FALSE(result.hasError()) << result.errorMessage();
-    EXPECT_TRUE(parser_->getOptions().includeSystemHeaders);
-}
-
-// 测试阈值选项
-TEST_F(CommandLineParserExtendedTest, ThresholdOption) {
-    // 测试有效阈值
-    const char* args1[] = {"dlogcover", "--threshold", "0.8"};
-    auto result1 = parser_->parse(3, const_cast<char**>(args1));
-    EXPECT_FALSE(result1.hasError()) << result1.errorMessage();
-    EXPECT_DOUBLE_EQ(parser_->getOptions().threshold, 0.8);
-    
-    // 测试边界值
-    const char* args2[] = {"dlogcover", "--threshold", "0.0"};
-    auto result2 = parser_->parse(3, const_cast<char**>(args2));
-    EXPECT_FALSE(result2.hasError()) << result2.errorMessage();
-    EXPECT_DOUBLE_EQ(parser_->getOptions().threshold, 0.0);
-    
-    const char* args3[] = {"dlogcover", "--threshold", "1.0"};
-    auto result3 = parser_->parse(3, const_cast<char**>(args3));
-    EXPECT_FALSE(result3.hasError()) << result3.errorMessage();
-    EXPECT_DOUBLE_EQ(parser_->getOptions().threshold, 1.0);
-    
-    // 测试无效阈值
-    const char* args4[] = {"dlogcover", "--threshold", "1.5"};
-    auto result4 = parser_->parse(3, const_cast<char**>(args4));
-    EXPECT_TRUE(result4.hasError());
-    
-    const char* args5[] = {"dlogcover", "--threshold", "-0.1"};
-    auto result5 = parser_->parse(3, const_cast<char**>(args5));
-    EXPECT_TRUE(result5.hasError());
-    
-    const char* args6[] = {"dlogcover", "--threshold", "invalid"};
-    auto result6 = parser_->parse(3, const_cast<char**>(args6));
-    EXPECT_TRUE(result6.hasError());
-}
-
-// 测试并行选项
-TEST_F(CommandLineParserExtendedTest, ParallelOption) {
-    // 测试有效并行数
-    const char* args1[] = {"dlogcover", "--parallel", "4"};
-    auto result1 = parser_->parse(3, const_cast<char**>(args1));
-    EXPECT_FALSE(result1.hasError()) << result1.errorMessage();
-    EXPECT_EQ(parser_->getOptions().parallel, 4);
-    
-    // 测试边界值
-    const char* args2[] = {"dlogcover", "--parallel", "1"};
-    auto result2 = parser_->parse(3, const_cast<char**>(args2));
-    EXPECT_FALSE(result2.hasError()) << result2.errorMessage();
-    EXPECT_EQ(parser_->getOptions().parallel, 1);
-    
-    // 测试无效并行数
-    const char* args3[] = {"dlogcover", "--parallel", "0"};
-    auto result3 = parser_->parse(3, const_cast<char**>(args3));
-    EXPECT_TRUE(result3.hasError());
-    
-    const char* args4[] = {"dlogcover", "--parallel", "invalid"};
-    auto result4 = parser_->parse(3, const_cast<char**>(args4));
-    EXPECT_TRUE(result4.hasError());
-}
 
 // 测试未知选项处理
 TEST_F(CommandLineParserExtendedTest, UnknownOption) {
@@ -400,11 +317,7 @@ TEST_F(CommandLineParserExtendedTest, ComplexOptionCombination) {
         "-e", "*.tmp",
         "-e", "build/*",
         "-I", "/usr/include",
-        "--compiler-arg", "-std=c++17",
-        "--threshold", "0.75",
-        "--parallel", "2",
-        "--quiet",
-        "--include-system-headers"
+        "--quiet"
     };
     
     const int argc = sizeof(args) / sizeof(args[0]);
@@ -424,12 +337,7 @@ TEST_F(CommandLineParserExtendedTest, ComplexOptionCombination) {
     EXPECT_EQ(options.excludePatterns[1], "build/*");
     EXPECT_EQ(options.includePaths.size(), 1);
     EXPECT_EQ(options.includePaths[0], "/usr/include");
-    EXPECT_EQ(options.compilerArgs.size(), 1);
-    EXPECT_EQ(options.compilerArgs[0], "-std=c++17");
-    EXPECT_DOUBLE_EQ(options.threshold, 0.75);
-    EXPECT_EQ(options.parallel, 2);
     EXPECT_TRUE(options.quiet);
-    EXPECT_TRUE(options.includeSystemHeaders);
 }
 
 // 测试路径验证
@@ -466,12 +374,10 @@ TEST_F(CommandLineParserExtendedTest, DefaultValues) {
     // 因为CommandLineParser可能会设置自己的默认值
     EXPECT_FALSE(options.quiet);
     EXPECT_FALSE(options.verbose);
-    EXPECT_FALSE(options.includeSystemHeaders);
     
     // 验证基本功能：解析器能正常工作
     EXPECT_TRUE(options.excludePatterns.empty());
     EXPECT_TRUE(options.includePaths.empty());
-    EXPECT_TRUE(options.compilerArgs.empty());
 }
 
 }  // namespace test

@@ -5,8 +5,8 @@
         "build_directory": "./build"
     },
     "scan": {
-        "directories": ["include", "src", "tests"],
-        "file_extensions": [".cpp", ".h", ".cxx", ".hpp"],
+        "directories": ["include", "src", "tests", "tproject"],
+        "file_extensions": [".cpp", ".h", ".cxx", ".hpp",".go"],
         "exclude_patterns": ["*build*", "*/build/*"]
     },
     "compile_commands": {
@@ -15,7 +15,7 @@
         "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     },
     "analysis": {
-        "mode": "cpp_only",
+        "mode": "auto_detect",
         "auto_detection": {
             "enabled": true,
             "sample_size": 10,
@@ -60,12 +60,6 @@
         "enable_file_preloading": true
     },
     "go": {
-        "enabled": false,
-        "file_extensions": [".go"],
-        "parallel": {
-            "enabled": true,
-            "max_threads": 0
-        },
         "standard_log": {
             "enabled": true,
             "functions": ["Print", "Printf", "Println", "Fatal", "Fatalf", "Fatalln", "Panic", "Panicf", "Panicln"]

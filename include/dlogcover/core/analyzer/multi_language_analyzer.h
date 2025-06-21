@@ -66,16 +66,10 @@ public:
     ast_analyzer::Result<bool> analyzeFile(const std::string& filePath);
 
     /**
-     * @brief 分析所有文件 - 根据分析模式选择最优策略
+     * @brief 分析所有文件 - 根据分析模式和并行配置选择最优策略
      * @return 分析结果，成功返回true，失败返回错误信息
      */
     ast_analyzer::Result<bool> analyzeAll();
-
-    /**
-     * @brief 并行分析所有文件
-     * @return 分析结果，成功返回true，失败返回错误信息
-     */
-    ast_analyzer::Result<bool> analyzeAllParallel();
 
     /**
      * @brief 获取合并后的所有分析结果
@@ -133,6 +127,23 @@ public:
      * @param maxMemoryMB 最大内存使用量（MB）
      */
     void enableCache(bool enabled, size_t maxCacheSize = 100, size_t maxMemoryMB = 512);
+
+    /**
+     * @brief 获取所有语言分析器的缓存统计信息
+     * @return 详细的缓存统计信息字符串
+     */
+    std::string getAllCacheStatistics() const;
+
+    /**
+     * @brief 清空所有分析器的缓存
+     */
+    void clearAllCache();
+
+    /**
+     * @brief 获取总缓存大小（所有分析器）
+     * @return 总缓存条目数
+     */
+    size_t getTotalCacheSize() const;
 
     /**
      * @brief 检查指定语言是否已启用
@@ -212,6 +223,12 @@ private:
     ast_analyzer::Result<bool> analyzeAutoDetectMode();
 
     /**
+     * @brief 自动检测并行分析模式 - 支持混合项目多线程分析
+     * @return 分析结果
+     */
+    ast_analyzer::Result<bool> analyzeAutoDetectModeParallel();
+
+    /**
      * @brief 项目语言检测 - 抽样检测
      */
     void detectProjectLanguage();
@@ -222,12 +239,6 @@ private:
      * @return 文件路径列表
      */
     std::vector<std::string> collectFilesByLanguage(language_detector::SourceLanguage language);
-
-    /**
-     * @brief 获取最优线程数
-     * @return 推荐的线程数
-     */
-    size_t getOptimalThreadCount();
 
     /**
      * @brief 初始化所有分析器（原有方法，保持兼容）

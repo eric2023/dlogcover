@@ -88,16 +88,10 @@ public:
     std::string getStatistics() const override;
 
     /**
-     * @brief 分析所有文件
+     * @brief 分析所有文件 - 根据配置自动选择串行或并行模式
      * @return 分析结果，成功返回true，失败返回错误信息
      */
     ast_analyzer::Result<bool> analyzeAll();
-
-    /**
-     * @brief 并行分析所有文件
-     * @return 分析结果，成功返回true，失败返回错误信息
-     */
-    ast_analyzer::Result<bool> analyzeAllParallel();
 
     /**
      * @brief 设置并行模式

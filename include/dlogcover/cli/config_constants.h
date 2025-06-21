@@ -47,10 +47,11 @@ namespace cli {
     constexpr const char* OPTION_QUIET_SHORT = "-q";
     constexpr const char* OPTION_QUIET_LONG = "--quiet";
     constexpr const char* OPTION_VERBOSE_LONG = "--verbose";
-    constexpr const char* OPTION_COMPILER_ARG_LONG = "--compiler-arg";
-    constexpr const char* OPTION_PARALLEL_LONG = "--parallel";
-    constexpr const char* OPTION_THRESHOLD_LONG = "--threshold";
-    constexpr const char* OPTION_INCLUDE_SYSTEM_HEADERS_LONG = "--include-system-headers";
+    constexpr const char* OPTION_MAX_THREADS_LONG = "--max-threads";
+    constexpr const char* OPTION_DISABLE_PARALLEL_LONG = "--disable-parallel";
+    constexpr const char* OPTION_DISABLE_CACHE_LONG = "--disable-cache";
+    constexpr const char* OPTION_MAX_CACHE_SIZE_LONG = "--max-cache-size";
+    constexpr const char* OPTION_DISABLE_IO_OPT_LONG = "--disable-io-opt";
 } // namespace cli
 
 /**
