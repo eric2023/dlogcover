@@ -253,7 +253,7 @@ TEST_F(CompileCommandsManagerTest, GetCompilerArgsFallback) {
     // 验证包含基础的回退参数
     bool hasStdFlag = false, hasPicFlag = false, hasDebugFlag = false;
     for (const auto& arg : args) {
-        if (arg == "-std=c++14") hasStdFlag = true;
+        if (arg == "-std=c++17") hasStdFlag = true;  // 已升级到C++17
         if (arg == "-fPIC") hasPicFlag = true;
         if (arg == "-g") hasDebugFlag = true;
     }

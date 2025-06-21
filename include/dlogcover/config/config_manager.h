@@ -83,7 +83,7 @@ public:
      * @brief 与命令行选项合并
      * @param options 命令行选项
      */
-    void mergeWithCommandLineOptions(const dlogcover::cli::Options& options);
+    void mergeWithCommandLineOptions(dlogcover::cli::Options& options);
 
     /**
      * @brief 生成默认配置文件

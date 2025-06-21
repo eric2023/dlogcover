@@ -147,6 +147,19 @@ private:
      * @param message 错误信息
      */
     void setError(const std::string& message);
+
+    /**
+     * @brief 自动检测系统头文件包含路径
+     * @return 系统头文件路径列表
+     */
+    std::vector<std::string> detectSystemIncludes() const;
+    
+    /**
+     * @brief 检测项目相关的包含路径
+     * @param filePath 文件路径，用于推断项目根目录
+     * @return 项目包含路径列表
+     */
+    std::vector<std::string> detectProjectIncludes(const std::string& filePath) const;
 };
 
 } // namespace config

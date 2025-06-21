@@ -25,6 +25,21 @@ show_help() {
     echo "  - GoogleTest库"
 }
 
+# 检查许可证一致性
+check_license_consistency() {
+    echo "检查许可证一致性..."
+    
+    if [ -f "tools/check-license-consistency.sh" ]; then
+        if ! ./tools/check-license-consistency.sh; then
+            echo "错误: 许可证信息不一致"
+            echo "请修复许可证信息后重新构建"
+            exit 1
+        fi
+    else
+        echo "⚠️  许可证一致性检查脚本不存在，跳过检查"
+    fi
+}
+
 # 检查Go环境
 check_go_environment() {
     echo "检查Go环境..."
@@ -226,6 +241,7 @@ if [ ${#ORIGINAL_ARGS[@]} -eq 1 ] && [[ "${ORIGINAL_ARGS[0]}" == "-c" || "${ORIG
 fi
 
 if [ $need_go_build -eq 1 ]; then
+    check_license_consistency
     check_go_environment
     build_go_analyzer
 fi
