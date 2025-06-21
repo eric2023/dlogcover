@@ -167,7 +167,7 @@ std::string GoAnalyzer::getLanguageName() const {
 }
 
 bool GoAnalyzer::isEnabled() const {
-    return goAnalyzerPath_.empty();
+    return !goAnalyzerPath_.empty();
 }
 
 std::vector<std::string> GoAnalyzer::getSupportedExtensions() const {
