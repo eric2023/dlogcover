@@ -340,28 +340,26 @@ std::vector<std::string> CompileCommandsManager::getCompilerArgs(const std::stri
         }
     }
     
-    // 如果都找不到，提供基础的回退编译参数
+    // 如果都找不到，提供增强的回退编译参数
     LOG_WARNING_FMT("文件 %s 及其同名文件都不在 compile_commands.json 中，使用基础编译参数", 
                     filePath.c_str());
     
     // 基础 C++ 编译参数
     args = {
-        "-std=c++14",
+        "-std=c++17",  // 升级到C++17
         "-fPIC",
         "-g"
     };
     
-    // 添加基础系统包含路径
-    std::vector<std::string> basicIncludes = {
-        "/usr/include",
-        "/usr/include/c++/12",
-        "/usr/include/x86_64-linux-gnu/qt5",
-        "/usr/include/x86_64-linux-gnu/qt5/QtCore",
-        "/usr/include/x86_64-linux-gnu/qt5/QtGui",
-        "/usr/include/x86_64-linux-gnu/qt5/QtWidgets"
-    };
+    // 自动检测并添加系统头文件路径
+    std::vector<std::string> systemIncludes = detectSystemIncludes();
+    for (const auto& include : systemIncludes) {
+        args.push_back("-I" + include);
+    }
     
-    for (const auto& include : basicIncludes) {
+    // 检测并添加项目相关的包含路径
+    std::vector<std::string> projectIncludes = detectProjectIncludes(filePath);
+    for (const auto& include : projectIncludes) {
         args.push_back("-I" + include);
     }
     
@@ -369,6 +367,21 @@ std::vector<std::string> CompileCommandsManager::getCompilerArgs(const std::stri
     args.push_back("-DQT_CORE_LIB");
     args.push_back("-DQT_GUI_LIB");
     args.push_back("-DQT_WIDGETS_LIB");
+    args.push_back("-D__GNUG__");
+    args.push_back("-D__linux__");
+    args.push_back("-D__x86_64__");
+    args.push_back("-D_GNU_SOURCE");
+    
+    // 添加编译器内置定义
+    args.push_back("-D__STDC_CONSTANT_MACROS");
+    args.push_back("-D__STDC_FORMAT_MACROS");
+    args.push_back("-D__STDC_LIMIT_MACROS");
+    
+    // 忽略警告以减少AST解析干扰
+    args.push_back("-Wno-everything");
+    args.push_back("-ferror-limit=0");
+    
+    LOG_DEBUG_FMT("生成回退编译参数，总数: %zu", args.size());
     
     return args;
 }
@@ -465,6 +478,133 @@ std::vector<std::string> CompileCommandsManager::parseCompilerCommand(const std:
     }
     
     return filtered_args;
+}
+
+std::vector<std::string> CompileCommandsManager::detectSystemIncludes() const {
+    std::vector<std::string> includes;
+    
+    // 基础系统包含路径
+    std::vector<std::string> candidatePaths = {
+        "/usr/include",
+        "/usr/local/include",
+        "/usr/include/c++/12",
+        "/usr/include/c++/11", 
+        "/usr/include/c++/10",
+        "/usr/include/c++/9",
+        "/usr/include/x86_64-linux-gnu",
+        "/usr/include/x86_64-linux-gnu/c++/12",
+        "/usr/include/x86_64-linux-gnu/c++/11",
+        "/usr/include/x86_64-linux-gnu/c++/10",
+        "/usr/include/x86_64-linux-gnu/c++/9"
+    };
+    
+    // 检查路径是否存在
+    for (const auto& path : candidatePaths) {
+        if (std::filesystem::exists(path)) {
+            includes.push_back(path);
+            LOG_DEBUG_FMT("找到系统包含路径: %s", path.c_str());
+        }
+    }
+    
+    // Qt相关路径
+    std::vector<std::string> qtPaths = {
+        "/usr/include/x86_64-linux-gnu/qt5",
+        "/usr/include/qt5",
+        "/usr/include/x86_64-linux-gnu/qt5/QtCore",
+        "/usr/include/x86_64-linux-gnu/qt5/QtGui", 
+        "/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+        "/usr/include/qt5/QtCore",
+        "/usr/include/qt5/QtGui",
+        "/usr/include/qt5/QtWidgets"
+        "/usr/include/x86_64-linux-gnu/qt6",
+        "/usr/include/qt6",
+        "/usr/include/x86_64-linux-gnu/qt6/QtCore",
+        "/usr/include/x86_64-linux-gnu/qt6/QtGui", 
+        "/usr/include/x86_64-linux-gnu/qt6/QtWidgets",
+        "/usr/include/qt6/QtCore",
+        "/usr/include/qt6/QtGui",
+        "/usr/include/qt6/QtWidgets"
+    };
+    
+    for (const auto& path : qtPaths) {
+        if (std::filesystem::exists(path)) {
+            includes.push_back(path);
+            LOG_DEBUG_FMT("找到Qt包含路径: %s", path.c_str());
+        }
+    }
+    
+    // GTest路径
+    std::vector<std::string> gtestPaths = {
+        "/usr/include/gtest",
+        "/usr/local/include/gtest",
+        "/usr/include/gmock",
+        "/usr/local/include/gmock"
+    };
+    
+    for (const auto& path : gtestPaths) {
+        if (std::filesystem::exists(path)) {
+            includes.push_back(path);
+            LOG_DEBUG_FMT("找到GTest包含路径: %s", path.c_str());
+        }
+    }
+    
+    return includes;
+}
+
+std::vector<std::string> CompileCommandsManager::detectProjectIncludes(const std::string& filePath) const {
+    std::vector<std::string> includes;
+    
+    // 从文件路径推断项目根目录
+    std::filesystem::path path(filePath);
+    std::filesystem::path current = path.parent_path();
+    std::filesystem::path projectRoot;
+    
+    // 向上查找包含 CMakeLists.txt 的目录作为项目根目录
+    while (!current.empty() && current != current.root_path()) {
+        if (std::filesystem::exists(current / "CMakeLists.txt")) {
+            projectRoot = current;
+            break;
+        }
+        current = current.parent_path();
+    }
+    
+    if (!projectRoot.empty()) {
+        // 添加项目的include目录
+        auto includeDir = projectRoot / "include";
+        if (std::filesystem::exists(includeDir)) {
+            includes.push_back(includeDir.string());
+            LOG_DEBUG_FMT("找到项目包含路径: %s", includeDir.string().c_str());
+        }
+        
+        // 添加项目的src目录
+        auto srcDir = projectRoot / "src";
+        if (std::filesystem::exists(srcDir)) {
+            includes.push_back(srcDir.string());
+            LOG_DEBUG_FMT("找到项目源码路径: %s", srcDir.string().c_str());
+        }
+        
+        // 添加build目录（可能包含生成的头文件）
+        auto buildDir = projectRoot / "build";
+        if (std::filesystem::exists(buildDir)) {
+            includes.push_back(buildDir.string());
+            LOG_DEBUG_FMT("找到项目构建路径: %s", buildDir.string().c_str());
+        }
+        
+        // 添加tests相关目录
+        auto testsDir = projectRoot / "tests";
+        if (std::filesystem::exists(testsDir)) {
+            includes.push_back(testsDir.string());
+            
+            // 添加tests的common目录
+            auto testsCommonDir = testsDir / "common";
+            if (std::filesystem::exists(testsCommonDir)) {
+                includes.push_back(testsCommonDir.string());
+                LOG_DEBUG_FMT("找到测试公共路径: %s", testsCommonDir.string().c_str());
+            }
+        }
+    }
+    
+    return includes;
 }
 
 } // namespace config
