@@ -91,7 +91,7 @@ ParseResult parseCommandLine(int argc, char* argv[], cli::CommandLineParser& par
 }
 
 // 加载和验证配置
-bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& configManager) {
+bool loadAndValidateConfig(cli::Options& options, config::ConfigManager& configManager) {
     Timer timer("配置加载");
 
     bool configLoaded = false;
@@ -115,7 +115,7 @@ bool loadAndValidateConfig(const cli::Options& options, config::ConfigManager& c
         }
     }
 
-    // 合并命令行选项
+    // 合并命令行选项 - 支持双向参数合并
     configManager.mergeWithCommandLineOptions(options);
 
     // 验证最终配置
@@ -373,7 +373,7 @@ int main(int argc, char* argv[]) {
 
         // 2. 加载和验证配置
         config::ConfigManager configManager;
-        const auto& parsedOptions = commandLineParser.getOptions();
+        auto parsedOptions = commandLineParser.getOptions();
         
         if (!loadAndValidateConfig(parsedOptions, configManager)) {
             return 1;

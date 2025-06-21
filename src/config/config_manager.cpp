@@ -78,13 +78,17 @@ bool ConfigManager::validateConfig() const {
            validateCompileCommandsConfig();
 }
 
-void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& options) {
-    LOG_DEBUG("合并命令行选项");
+void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options) {
+    LOG_DEBUG("开始合并命令行选项");
 
-    // 合并项目目录
+    // 合并目录配置
     if (!options.directory.empty()) {
         config_.project.directory = options.directory;
         LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
+    } else if (!config_.project.directory.empty()) {
+        // 命令行未指定目录，但配置文件有值，回填到命令行选项
+        options.directory = config_.project.directory;
+        LOG_DEBUG_FMT("使用配置文件项目目录: %s", options.directory.c_str());
     }
 
     // 合并排除模式
@@ -97,15 +101,25 @@ void ConfigManager::mergeWithCommandLineOptions(const dlogcover::cli::Options& o
         LOG_DEBUG_FMT("添加 %zu 个命令行排除模式", options.excludePatterns.size());
     }
 
-    // 合并输出配置
+    // 合并输出配置 - 支持双向合并
     if (!options.output_file.empty()) {
+        // 命令行指定了输出文件，使用命令行值
         config_.output.report_file = options.output_file;
-        LOG_DEBUG_FMT("设置输出文件: %s", config_.output.report_file.c_str());
+        LOG_DEBUG_FMT("使用命令行输出文件: %s", config_.output.report_file.c_str());
+    } else if (!config_.output.report_file.empty()) {
+        // 命令行未指定，但配置文件有值，回填到命令行选项
+        options.output_file = config_.output.report_file;
+        LOG_DEBUG_FMT("使用配置文件输出文件: %s", options.output_file.c_str());
     }
 
     if (!options.log_file.empty()) {
+        // 命令行指定了日志文件，使用命令行值
         config_.output.log_file = options.log_file;
-        LOG_DEBUG_FMT("设置日志文件: %s", config_.output.log_file.c_str());
+        LOG_DEBUG_FMT("使用命令行日志文件: %s", config_.output.log_file.c_str());
+    } else if (!config_.output.log_file.empty()) {
+        // 命令行未指定，但配置文件有值，回填到命令行选项
+        options.log_file = config_.output.log_file;
+        LOG_DEBUG_FMT("使用配置文件日志文件: %s", options.log_file.c_str());
     }
 
     // 合并日志级别

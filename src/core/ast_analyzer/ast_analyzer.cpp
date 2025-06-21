@@ -6,6 +6,7 @@
 
 #include <dlogcover/core/ast_analyzer/ast_analyzer.h>
 #include <dlogcover/core/ast_analyzer/file_ownership_validator.h>
+#include <dlogcover/core/language_detector/language_detector.h>
 #include <dlogcover/utils/log_utils.h>
 #include <dlogcover/utils/cmake_parser.h>
 #include <dlogcover/config/compile_commands_manager.h>
@@ -92,6 +93,11 @@ ASTAnalyzer::~ASTAnalyzer() {
 }
 
 Result<bool> ASTAnalyzer::analyze(const std::string& filePath) {
+    auto detectedLang = language_detector::LanguageDetector::detectLanguage(filePath);
+    if (detectedLang != language_detector::SourceLanguage::CPP) {
+        return makeSuccess(true);
+    }
+
     LOG_INFO_FMT("开始分析文件: %s", filePath.c_str());
 
     // 获取源文件信息
@@ -141,6 +147,11 @@ Result<bool> ASTAnalyzer::analyzeAll() {
 
     bool allSuccess = true;
     for (const auto& sourceFile : sourceManager_.getSourceFiles()) {
+        auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
+        if (detectedLang != language_detector::SourceLanguage::CPP) {
+            continue;
+        }
+
         auto result = analyze(sourceFile.path);
         if (result.hasError()) {
             LOG_ERROR_FMT("分析文件失败: %s, 错误: %s", sourceFile.path.c_str(), result.errorMessage().c_str());
@@ -180,6 +191,11 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
         // 直接进行串行分析，避免递归调用analyzeAll()
         bool allSuccess = true;
         for (const auto& sourceFile : sourceFiles) {
+            auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
+            if (detectedLang != language_detector::SourceLanguage::CPP) {
+                continue;
+            }
+
             auto result = analyze(sourceFile.path);
             if (result.hasError()) {
                 LOG_ERROR_FMT("串行分析文件失败: %s, 错误: %s", 
@@ -221,6 +237,11 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
     
     try {
         for (const auto& sourceFile : sourceFiles) {
+            auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
+            if (detectedLang != language_detector::SourceLanguage::CPP) {
+                continue;
+            }
+
             futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
                 auto result = this->analyzeSingleFile(sourceFile.path);
                 
@@ -437,14 +458,12 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
 
     // 首先尝试使用CompileCommandsManager获取准确的编译参数
     std::vector<std::string> args;
-    bool useCompileCommands = false;
     
     try {
         // 使用成员变量中的 compileManager_，避免重复创建和解析
         args = compileManager_->getCompilerArgs(filePath);
         
         if (!args.empty()) {
-            useCompileCommands = true;
             LOG_DEBUG_FMT("成功获取文件的编译参数，数量: %zu", args.size());
             
             // 输出编译命令详情
@@ -461,67 +480,6 @@ std::unique_ptr<clang::ASTUnit> ASTAnalyzer::createASTUnit(const std::string& fi
         LOG_DEBUG("将使用默认编译参数");
     }
     
-    // 如果无法获取compile_commands.json的参数，使用默认参数
-    if (!useCompileCommands) {
-        LOG_DEBUG("使用默认编译参数");
-        args = getCompilerArgs();
-        
-        std::string projectDir = config_.project.directory;
-        if (projectDir.empty()) {
-            projectDir = std::filesystem::current_path().string();
-        }
-        
-        // 系统头文件路径 - 更完整的路径列表
-        std::vector<std::string> systemIncludes = {
-            "/usr/include",
-            "/usr/local/include",
-            "/usr/include/c++/11",
-            "/usr/include/c++/10",
-            "/usr/include/c++/9",
-            "/usr/include/x86_64-linux-gnu/c++/11",
-            "/usr/include/x86_64-linux-gnu/c++/10", 
-            "/usr/include/x86_64-linux-gnu/c++/9",
-            "/usr/include/c++/11/backward",
-            "/usr/include/c++/10/backward",
-            "/usr/include/c++/9/backward",
-            "/usr/lib/gcc/x86_64-linux-gnu/11/include",
-            "/usr/lib/gcc/x86_64-linux-gnu/10/include",
-            "/usr/lib/gcc/x86_64-linux-gnu/9/include",
-            "/usr/lib/gcc/x86_64-linux-gnu/11/include-fixed",
-            "/usr/lib/gcc/x86_64-linux-gnu/10/include-fixed",
-            "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed",
-            "/usr/include/x86_64-linux-gnu",
-            "/usr/lib/llvm-17/include",
-            "/usr/lib/llvm-16/include",
-            "/usr/lib/llvm-15/include",
-            "/usr/lib/llvm-14/include",
-            "/usr/lib/llvm-13/include"
-        };
-
-        // 只添加存在的系统头文件路径
-        for (const auto& includePath : systemIncludes) {
-            if (std::filesystem::exists(includePath)) {
-                args.push_back("-I" + includePath);
-                LOG_DEBUG_FMT("添加系统头文件路径: %s", includePath.c_str());
-            }
-        }
-
-        // 项目特定的包含路径
-        std::vector<std::string> projectIncludes = {
-            projectDir,          // 当前目录
-            projectDir + "/include",  // 项目include目录
-            projectDir + "/src",      // 源码目录
-        };
-
-        // 添加项目特定的包含路径
-        for (const auto& includePath : projectIncludes) {
-            if (std::filesystem::exists(includePath)) {
-                args.push_back("-I" + includePath);
-                LOG_DEBUG_FMT("添加项目头文件路径: %s", includePath.c_str());
-            }
-        }
-    }
-
     // 编译参数现在通过 CompileCommandsManager 自动管理
 
     LOG_DEBUG_FMT("编译命令参数总数: %zu", args.size());

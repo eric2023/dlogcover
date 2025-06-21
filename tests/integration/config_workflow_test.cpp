@@ -216,7 +216,8 @@ TEST_F(ConfigWorkflowTest, CommandLineOverride) {
     EXPECT_FALSE(parse_result.hasError()) << "解析命令行参数失败: " << parse_result.message();
 
     // 应用命令行覆盖
-    config_manager.mergeWithCommandLineOptions(cmd_parser.getOptions());
+    auto options = cmd_parser.getOptions();
+    config_manager.mergeWithCommandLineOptions(const_cast<dlogcover::cli::Options&>(options));
 
     // 验证覆盖结果
     const config::Config& config = config_manager.getConfig();
