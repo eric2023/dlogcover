@@ -5,8 +5,8 @@
         "build_directory": "./build"
     },
     "scan": {
-        "directories": ["include", "src", "tests", "tools"],
-        "file_extensions": [".cpp", ".h", ".cxx", ".hpp",".go"],
+        "directories": ["."],
+        "file_extensions": [".go"],
         "exclude_patterns": ["*build*", "*/build/*"]
     },
     "compile_commands": {
@@ -15,7 +15,7 @@
         "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     },
     "analysis": {
-        "mode": "auto_detect",
+        "mode": "go_only",
         "auto_detection": {
             "enabled": true,
             "sample_size": 10,

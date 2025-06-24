@@ -45,6 +45,7 @@ struct Options {
     bool disableCache;                          ///< 禁用AST缓存
     size_t maxCacheSize;                        ///< 最大缓存大小
     bool disableIOOptimization;                 ///< 禁用I/O优化
+    std::string mode;                           ///< 分析模式 (cpp_only/go_only/auto_detect)
 
     /**
      * @brief 默认构造函数
@@ -61,6 +62,7 @@ struct Options {
         , disableCache(false)
         , maxCacheSize(100)
         , disableIOOptimization(false)
+        , mode("cpp_only")
     {
         // 字符串成员默认构造为空字符串 ""
     }

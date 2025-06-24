@@ -107,6 +107,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   -f, --format <format>      指定报告格式 (text, json)
   -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
   -I, --include-path <path>  头文件搜索路径 (可多次使用)
+  -m, --mode <mode>          分析模式 (cpp_only, go_only, auto_detect, 默认: cpp_only)
   -q, --quiet                静默模式，减少输出信息
       --verbose              详细输出模式，显示更多调试信息
 
@@ -146,6 +147,9 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
     "log_file": "./dlogcover.log",
     "log_level": "debug"
   },
+  "analysis": {
+    "mode": "cpp_only"
+  },
   "log_functions": {
     "qt": {
       "enabled": true,
@@ -178,6 +182,9 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   dlogcover -c config.json -e "build/*" -e "test/*"
   dlogcover -I ./include -q
   dlogcover --verbose -f json -o report.json
+  dlogcover -d ./src --mode cpp_only
+  dlogcover -d ./src --mode go_only
+  dlogcover -d ./src --mode auto_detect
   DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
 )";
 
@@ -451,6 +458,19 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 }
             } else if (arg == config::cli::OPTION_DISABLE_IO_OPT_LONG) {
                 options_.disableIOOptimization = true;
+            } else if (arg == config::cli::OPTION_MODE_SHORT || arg == config::cli::OPTION_MODE_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view modeStr) -> ErrorResult {
+                    std::string mode = std::string(modeStr);
+                    if (mode != "cpp_only" && mode != "go_only" && mode != "auto_detect") {
+                        return ErrorResult(ConfigError::InvalidArgument,
+                                           "无效的分析模式: " + mode + " (支持: cpp_only, go_only, auto_detect)");
+                    }
+                    options_.mode = mode;
+                    return ErrorResult();
+                });
+                if (result.hasError()) {
+                    return result;
+                }
             } else if (arg[0] == '-') {
                 return ErrorResult(ConfigError::UnknownOption,
                                    std::string(config::error::UNKNOWN_OPTION) + std::string(arg));

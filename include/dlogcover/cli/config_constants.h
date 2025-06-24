@@ -52,6 +52,8 @@ namespace cli {
     constexpr const char* OPTION_DISABLE_CACHE_LONG = "--disable-cache";
     constexpr const char* OPTION_MAX_CACHE_SIZE_LONG = "--max-cache-size";
     constexpr const char* OPTION_DISABLE_IO_OPT_LONG = "--disable-io-opt";
+    constexpr const char* OPTION_MODE_SHORT = "-m";
+    constexpr const char* OPTION_MODE_LONG = "--mode";
 } // namespace cli
 
 /**
