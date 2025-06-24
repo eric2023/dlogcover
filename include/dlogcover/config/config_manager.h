@@ -145,6 +145,21 @@ private:
      * @return 验证成功返回true，否则返回false
      */
     bool validateCompileCommandsConfig() const;
+
+    /**
+     * @brief 判断是否需要更新扫描目录
+     * @param oldProjectDir 旧的项目目录
+     * @param newProjectDir 新的项目目录
+     * @return 如果需要更新返回true，否则返回false
+     */
+    bool shouldUpdateScanDirectories(const std::string& oldProjectDir, const std::string& newProjectDir) const;
+
+    /**
+     * @brief 更新扫描目录为相对于新项目目录的路径
+     * @param oldProjectDir 旧的项目目录
+     * @param newProjectDir 新的项目目录
+     */
+    void updateScanDirectoriesForNewProject(const std::string& oldProjectDir, const std::string& newProjectDir);
 };
 
 } // namespace config

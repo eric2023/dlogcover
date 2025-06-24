@@ -83,8 +83,15 @@ void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options
 
     // 合并目录配置
     if (!options.directory.empty()) {
+        std::string oldProjectDir = config_.project.directory;
         config_.project.directory = options.directory;
         LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
+        
+        // 如果扫描目录是相对路径或默认值，需要相应调整
+        if (shouldUpdateScanDirectories(oldProjectDir, options.directory)) {
+            updateScanDirectoriesForNewProject(oldProjectDir, options.directory);
+            LOG_INFO_FMT("根据项目目录更新扫描目录，新项目目录: %s", options.directory.c_str());
+        }
     } else if (!config_.project.directory.empty()) {
         // 命令行未指定目录，但配置文件有值，回填到命令行选项
         options.directory = config_.project.directory;
@@ -659,6 +666,68 @@ bool ConfigManager::validateCompileCommandsConfig() const {
     }
 
     return true;
+}
+
+bool ConfigManager::shouldUpdateScanDirectories(const std::string& oldProjectDir, const std::string& newProjectDir) const {
+    // 如果新旧项目目录相同，不需要更新
+    if (oldProjectDir == newProjectDir) {
+        return false;
+    }
+    
+    // 检查扫描目录是否包含相对路径或特殊情况
+    for (const auto& dir : config_.scan.directories) {
+        // 如果是当前目录标记
+        if (dir == ".") {
+            return true;
+        }
+        
+        // 如果是相对路径（不以/开头）
+        if (!dir.empty() && dir[0] != '/') {
+            return true;
+        }
+        
+        // 如果是默认的C++项目目录
+        if (dir == "include" || dir == "src" || dir == "tests") {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void ConfigManager::updateScanDirectoriesForNewProject(const std::string& oldProjectDir, const std::string& newProjectDir) {
+    std::vector<std::string> updatedDirectories;
+    
+    LOG_DEBUG_FMT("更新扫描目录：从 %s 到 %s", oldProjectDir.c_str(), newProjectDir.c_str());
+    
+    for (const auto& dir : config_.scan.directories) {
+        std::string updatedDir;
+        
+        if (dir == ".") {
+            // 当前目录标记改为新的项目目录
+            updatedDir = newProjectDir;
+            LOG_DEBUG_FMT("扫描目录 '.' 更新为: %s", updatedDir.c_str());
+        } else if (!dir.empty() && dir[0] != '/') {
+            // 相对路径，转换为相对于新项目目录的路径
+            std::filesystem::path newPath = std::filesystem::path(newProjectDir) / dir;
+            updatedDir = newPath.string();
+            LOG_DEBUG_FMT("相对路径 '%s' 更新为: %s", dir.c_str(), updatedDir.c_str());
+        } else {
+            // 绝对路径保持不变
+            updatedDir = dir;
+            LOG_DEBUG_FMT("绝对路径 '%s' 保持不变", dir.c_str());
+        }
+        
+        updatedDirectories.push_back(updatedDir);
+    }
+    
+    config_.scan.directories = updatedDirectories;
+    
+    // 输出更新后的扫描目录列表
+    LOG_INFO("扫描目录已更新:");
+    for (const auto& dir : config_.scan.directories) {
+        LOG_INFO_FMT("  - %s", dir.c_str());
+    }
 }
 
 } // namespace config

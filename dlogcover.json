@@ -5,8 +5,8 @@
         "build_directory": "./build"
     },
     "scan": {
-        "directories": ["include", "src", "tests", "tools"],
-        "file_extensions": [".cpp", ".h", ".cxx", ".hpp",".go"],
+        "directories": ["."],
+        "file_extensions": [".go"],
         "exclude_patterns": ["*build*", "*/build/*"]
     },
     "compile_commands": {
