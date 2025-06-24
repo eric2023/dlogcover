@@ -238,6 +238,80 @@ TEST_F(CommandLineParserFileTest, ParameterCombination) {
     EXPECT_EQ(LogLevel::DEBUG, parser->getOptions().logLevel);
 }
 
+// 测试mode参数解析
+TEST_F(CommandLineParserTest, ModeParameterParsing) {
+    const char* argv[] = {"dlogcover", "--mode", "go_only"};
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_FALSE(result.hasError()) << "Mode参数解析失败: " << result.message();
+    EXPECT_EQ("go_only", parser->getOptions().mode);
+}
+
+// 测试mode参数短选项
+TEST_F(CommandLineParserTest, ModeParameterShortOption) {
+    const char* argv[] = {"dlogcover", "-m", "auto_detect"};
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_FALSE(result.hasError()) << "Mode短选项解析失败: " << result.message();
+    EXPECT_EQ("auto_detect", parser->getOptions().mode);
+}
+
+// 测试无效mode值
+TEST_F(CommandLineParserTest, InvalidModeValue) {
+    const char* argv[] = {"dlogcover", "--mode", "invalid_mode"};
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(ConfigError::InvalidArgument, result.error());
+    EXPECT_TRUE(result.message().find("无效的分析模式") != std::string::npos);
+}
+
+// 测试默认mode值
+TEST_F(CommandLineParserTest, DefaultModeValue) {
+    const char* argv[] = {"dlogcover"};
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_FALSE(result.hasError());
+    EXPECT_EQ("cpp_only", parser->getOptions().mode);
+}
+
+// 测试mode参数与其他参数组合
+TEST_F(CommandLineParserFileTest, ModeParameterCombination) {
+    const char* argv[] = {
+        "dlogcover",
+        "--directory", testDir.c_str(),
+        "--mode", "cpp_only",
+        "--log-level", "info"
+    };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_FALSE(result.hasError()) << "Mode参数组合解析失败: " << result.message();
+    EXPECT_EQ(testDir, parser->getOptions().directory);
+    EXPECT_EQ("cpp_only", parser->getOptions().mode);
+    EXPECT_EQ(LogLevel::INFO, parser->getOptions().logLevel);
+}
+
+// 测试mode参数缺少值
+TEST_F(CommandLineParserTest, MissingModeValue) {
+    const char* argv[] = {"dlogcover", "--mode"};
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    auto result = parser->parse(argc, const_cast<char**>(argv));
+
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(ConfigError::MISSING_VALUE, result.error());
+}
+
 }  // namespace test
 }  // namespace cli
 }  // namespace dlogcover

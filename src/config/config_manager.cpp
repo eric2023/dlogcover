@@ -160,6 +160,17 @@ void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options
         config_.performance.enable_io_optimization = false;
         LOG_DEBUG("禁用I/O优化");
     }
+    
+    // 合并分析模式配置
+    if (!options.mode.empty()) {
+        // 命令行指定了分析模式，使用命令行值
+        config_.analysis.mode = options.mode;
+        LOG_DEBUG_FMT("设置分析模式: %s", config_.analysis.mode.c_str());
+    } else if (!config_.analysis.mode.empty()) {
+        // 命令行未指定，但配置文件有值，回填到命令行选项
+        options.mode = config_.analysis.mode;
+        LOG_DEBUG_FMT("使用配置文件分析模式: %s", options.mode.c_str());
+    }
 }
 
 bool ConfigManager::generateDefaultConfig(const std::string& config_path, 

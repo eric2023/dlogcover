@@ -15,7 +15,7 @@
         "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     },
     "analysis": {
-        "mode": "auto_detect",
+        "mode": "go_only",
         "auto_detection": {
             "enabled": true,
             "sample_size": 10,
