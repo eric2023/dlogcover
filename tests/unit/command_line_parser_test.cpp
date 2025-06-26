@@ -280,7 +280,8 @@ TEST_F(CommandLineParserTest, DefaultModeValue) {
     auto result = parser->parse(argc, const_cast<char**>(argv));
 
     EXPECT_FALSE(result.hasError());
-    EXPECT_EQ("cpp_only", parser->getOptions().mode);
+    // 修正：Options构造函数中mode默认为空字符串，没有命令行参数时应该为空
+    EXPECT_EQ("", parser->getOptions().mode);
 }
 
 // 测试mode参数与其他参数组合

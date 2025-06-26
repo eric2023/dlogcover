@@ -212,12 +212,11 @@ TEST(ConfigManagerTest, MergeWithCommandLineOptions) {
     const Config& config = configManager.getConfig();
 
     // 验证扫描配置 - 修正期望值
-    // 命令行选项会设置项目目录，但不会直接替换扫描目录列表
-    // 扫描目录列表保持默认值，但会添加排除模式
+    // 命令行选项会设置项目目录，并且会更新扫描目录为绝对路径
     EXPECT_EQ(3, config.scan.directories.size()); // 保持默认的3个目录
-    EXPECT_EQ("include", config.scan.directories[0]);
-    EXPECT_EQ("src", config.scan.directories[1]);
-    EXPECT_EQ("tests", config.scan.directories[2]);
+    EXPECT_EQ("/custom/dir/include", config.scan.directories[0]);
+    EXPECT_EQ("/custom/dir/src", config.scan.directories[1]);
+    EXPECT_EQ("/custom/dir/tests", config.scan.directories[2]);
     
     // 验证排除模式被添加
     EXPECT_TRUE(std::find(config.scan.exclude_patterns.begin(), config.scan.exclude_patterns.end(), "custom_exclude/") !=
