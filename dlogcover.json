@@ -6,7 +6,7 @@
     },
     "scan": {
         "directories": ["."],
-        "file_extensions": [".go"],
+        "file_extensions": [".h",".cpp",".go"],
         "exclude_patterns": ["*build*", "*/build/*"]
     },
     "compile_commands": {

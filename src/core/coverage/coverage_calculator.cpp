@@ -349,7 +349,8 @@ void CoverageCalculator::calculateBranchCoverage(const ast_analyzer::ASTNodeInfo
     std::vector<const ast_analyzer::ASTNodeInfo*> branchNodes;
     collectNodesByType(node,
                        {ast_analyzer::NodeType::IF_STMT, ast_analyzer::NodeType::ELSE_STMT,
-                        ast_analyzer::NodeType::SWITCH_STMT, ast_analyzer::NodeType::CASE_STMT},
+                        ast_analyzer::NodeType::SWITCH_STMT, ast_analyzer::NodeType::CASE_STMT,
+                        ast_analyzer::NodeType::BRANCH},  // 添加对Go分析器生成的BRANCH节点的支持
                        branchNodes);
 
     LOG_DEBUG_FMT("文件 %s 中发现 %zu 个分支", filePath.c_str(), branchNodes.size());
@@ -440,7 +441,7 @@ void CoverageCalculator::calculateExceptionCoverage(const ast_analyzer::ASTNodeI
                   static_cast<int>(ast_analyzer::NodeType::TRY_STMT), 
                   static_cast<int>(ast_analyzer::NodeType::CATCH_STMT));
     
-    collectNodesByType(node, {ast_analyzer::NodeType::TRY_STMT, ast_analyzer::NodeType::CATCH_STMT}, exceptionNodes);
+    collectNodesByType(node, {ast_analyzer::NodeType::TRY_STMT, ast_analyzer::NodeType::CATCH_STMT, ast_analyzer::NodeType::TRY_CATCH}, exceptionNodes);  // 添加对Go分析器生成的TRY_CATCH节点的支持
 
     LOG_DEBUG_FMT("文件 %s 中发现 %zu 个异常处理", filePath.c_str(), exceptionNodes.size());
 
