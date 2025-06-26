@@ -9,8 +9,9 @@ execute_process(
     RESULT_VARIABLE COVERAGE_RESULT
 )
 
-# lcov将摘要输出到错误流，所以我们从ERROR_VARIABLE获取数据
-set(COVERAGE_SUMMARY "${COVERAGE_ERROR}")
+# lcov将摘要输出到标准输出流，所以我们从OUTPUT_VARIABLE获取数据
+# 同时合并错误输出以防有警告信息
+set(COVERAGE_SUMMARY "${COVERAGE_OUTPUT}${COVERAGE_ERROR}")
 
 if(NOT COVERAGE_RESULT EQUAL 0)
     message(FATAL_ERROR "无法获取覆盖率摘要: ${COVERAGE_ERROR}")

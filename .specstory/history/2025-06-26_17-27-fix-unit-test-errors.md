@@ -2804,6 +2804,1576 @@ _**User**_
 
 _**Assistant**_
 
+我理解了，您希望保持业务代码不变，只修改单元测试逻辑。让我先撤销对业务代码的修改，然后重新运行测试来验证第一个报错的单元测试。
+
+首先，让我撤销对 `options.h` 的修改：
+
+---
+
+
+
+---
+
+让我先读取当前文件内容：
+
+---
+
+Read file: include/dlogcover/cli/options.h
+
+---
+
+好的，业务代码已经是原始状态了（mode默认为空字符串）。现在让我修改单元测试逻辑来适应实际的代码行为。
+
+首先修改 `command_line_parser_test.cpp` 中的 `DefaultModeValue` 测试：
+
+---
+
+
+
+---
+
+现在让我撤销对 `config_manager_test.cpp` 的修改，将其恢复为原始期望：
+
+---
+
+
+
+---
+
+看起来这个测试期望已经是正确的了。让我撤销对 `integration_config_workflow_test.cpp` 的修改：
+
+---
+
+
+
+---
+
+看起来测试期望已经是正确的了。现在让我重新编译并运行测试来验证第一个报错的单元测试：
+
+---
+
+```bash
+./build.sh -c && ./build.sh
+```
+
+```
+清理构建目录...
+清理Go编译产物...
+清理完成!
+检查许可证一致性...
+🔍 Checking license consistency...
+📋 Detected license: GPL-3.0
+✅ License badge is correct
+✅ License text is correct
+
+📊 License Consistency Check Summary:
+   LICENSE file: GPL-3.0
+   Badge status: ✅ OK
+   Text status:  ✅ OK
+🎉 All license information is consistent!
+检查Go环境...
+✅ Go环境检查通过 (版本: 1.22.6)
+编译Go分析器...
+检查Go模块依赖...
+编译Go分析器到: build/bin/dlogcover-go-analyzer
+✅ Go分析器编译完成: build/bin/dlogcover-go-analyzer
+配置项目 (Debug)...
+-- The CXX compiler identification is GNU 12.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is GNU 12.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test HAVE_FFI_CALL
+-- Performing Test HAVE_FFI_CALL - Success
+-- Found FFI: /usr/lib/x86_64-linux-gnu/libffi.so
+-- Could NOT find LibEdit (missing: LibEdit_INCLUDE_DIRS LibEdit_LIBRARIES) 
+-- Performing Test Terminfo_LINKABLE
+-- Performing Test Terminfo_LINKABLE - Success
+-- Found Terminfo: /usr/lib/x86_64-linux-gnu/libtinfo.so
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.3.1")
+-- Found zstd: /usr/lib/x86_64-linux-gnu/libzstd.so
+-- Found LibXml2: /usr/lib/x86_64-linux-gnu/libxml2.so (found version "2.9.14")
+-- Could NOT find CURL (missing: CURL_LIBRARY CURL_INCLUDE_DIR) 
+-- Found LLVM 17.0.6
+-- Using LLVMConfig.cmake in: /usr/lib/llvm-17/cmake
+-- LLVM_LIBRARY_DIRS: /usr/lib/llvm-17/lib
+-- LLVM_INCLUDE_DIRS: /usr/lib/llvm-17/include
+-- LLVM_DEFINITIONS: -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIM
+IT_MACROS
+-- LLVM component libraries: LLVMSupport;LLVMCore;LLVMOption;LLVMIRReader;LLVMBitReader;LLVMBit
+Writer;LLVMX86CodeGen;LLVMX86Desc;LLVMX86Info
+-- clangOpenMP library not found - OpenMP support will be disabled
+-- CLANG_TOOLING_LIB: /usr/lib/llvm-17/lib/libclangTooling.a
+-- CLANG_BASIC_LIB: /usr/lib/llvm-17/lib/libclangBasic.a
+-- CLANG_AST_MATCHERS_LIB: /usr/lib/llvm-17/lib/libclangASTMatchers.a
+-- CLANG_AST_LIB: /usr/lib/llvm-17/lib/libclangAST.a
+-- CLANG_FRONTEND_LIB: /usr/lib/llvm-17/lib/libclangFrontend.a
+-- CLANG_LEX_LIB: /usr/lib/llvm-17/lib/libclangLex.a
+-- CLANG_PARSE_LIB: /usr/lib/llvm-17/lib/libclangParse.a
+-- CLANG_SEMA_LIB: /usr/lib/llvm-17/lib/libclangSema.a
+-- CLANG_ANALYSIS_LIB: /usr/lib/llvm-17/lib/libclangAnalysis.a
+-- CLANG_DRIVER_LIB: /usr/lib/llvm-17/lib/libclangDriver.a
+-- CLANG_EDIT_LIB: /usr/lib/llvm-17/lib/libclangEdit.a
+-- CLANG_REWRITE_LIB: /usr/lib/llvm-17/lib/libclangRewrite.a
+-- CLANG_SERIALIZATION_LIB: /usr/lib/llvm-17/lib/libclangSerialization.a
+-- CLANG_OPENMP_LIB: CLANG_OPENMP_LIB-NOTFOUND
+-- Found nlohmann_json: 3.11.3
+-- Found GTest: /usr/lib/x86_64-linux-gnu/cmake/GTest/GTestConfig.cmake (found version "1.12.1"
+)
+-- Found GoogleTest: 
+-- Could NOT find LibEdit (missing: LibEdit_INCLUDE_DIRS LibEdit_LIBRARIES) 
+-- Could NOT find CURL (missing: CURL_LIBRARY CURL_INCLUDE_DIR) 
+-- Found Clang 
+-- Using ClangConfig.cmake in: /usr/lib/cmake/clang-17
+-- Found Threads: TRUE
+-- Configuring done (1.6s)
+-- Generating done (0.2s)
+-- Build files have been written to: /home/uos/Desktop/source/dlogcover/build
+构建项目...
+[  4%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/common/log_types.cpp.o
+[  4%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/cli/options.cpp.o
+[  8%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/cli/config_validator.cpp.o
+[ 12%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/cli/command_line_parser.cpp.o
+[ 16%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/config/compile_commands_manager.cpp
+.o
+[ 20%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/config/config_manager.cpp.o
+[ 20%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/analyzer/cpp_analyzer_adapter.
+cpp.o
+[ 25%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/analyzer/go_analyzer.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/analyzer/cpp_an
+alyzer_adapter.h:11,
+                 from /home/uos/Desktop/source/dlogcover/src/core/analyzer/cpp_analyzer_adapter
+.cpp:7:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 29%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/analyzer/multi_language_analyz
+er.cpp.o
+[ 29%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_analyzer.cpp.
+o
+In file included from /home/uos/Desktop/source/dlogcover/src/core/ast_analyzer/ast_analyzer.cpp
+:32:
+/usr/lib/llvm-17/include/llvm/Support/Host.h:16:5: warning: This header is deprecated, please u
+se llvm/TargetParser/Host.h
+   16 |     "This header is deprecated, please use llvm/TargetParser/Host.h"
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 33%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_cache.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/analyzer/cpp_an
+alyzer_adapter.h:11,
+                 from /home/uos/Desktop/source/dlogcover/src/core/analyzer/multi_language_analy
+zer.cpp:8:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 37%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_expression_an
+alyzer.cpp.o
+[ 41%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_function_anal
+yzer.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/src/core/ast_analyzer/ast_analyzer.cpp
+:7:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/src/core/ast_analyzer/ast_expression_a
+nalyzer.cpp:7:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:14:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/src/core/ast_analyzer/ast_function_ana
+lyzer.cpp:7:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 41%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_node_analyzer
+.cpp.o
+[ 45%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/ast_statement_ana
+lyzer.cpp.o
+[ 50%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/ast_analyzer/file_ownership_va
+lidator.cpp.o
+[ 50%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/coverage/coverage_calculator.c
+pp.o
+[ 54%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/language_detector/language_det
+ector.cpp.o
+[ 58%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/log_identifier/identifier_type
+s.cpp.o
+[ 62%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/core/log_identifier/log_identifier.
+cpp.o
+[ 62%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/reporter/json_reporter_strategy.cpp
+.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/coverage/covera
+ge_calculator.h:12,
+                 from /home/uos/Desktop/source/dlogcover/src/core/coverage/coverage_calculator.
+cpp:15:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 66%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/reporter/reporter.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/log_identifier/
+log_identifier.h:11,
+                 from /home/uos/Desktop/source/dlogcover/src/core/log_identifier/log_identifier
+.cpp:14:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 70%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/reporter/reporter_factory.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/coverage/covera
+ge_calculator.h:12,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/reporter/reporter.h:
+11,
+                 from /home/uos/Desktop/source/dlogcover/src/reporter/reporter.cpp:7:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[ 70%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/reporter/text_reporter_strategy.cpp
+.o
+[ 75%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/source_manager/source_manager.cpp.o
+[ 79%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/cmake_parser.cpp.o
+[ 83%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/file_utils.cpp.o
+[ 83%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/log_utils.cpp.o
+[ 87%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/path_normalizer.cpp.o
+[ 91%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/string_utils.cpp.o
+[ 91%] Building CXX object CMakeFiles/dlogcover_lib.dir/src/utils/thread_pool.cpp.o
+[ 95%] Linking CXX static library lib/libdlogcover_lib.a
+[ 95%] Built target dlogcover_lib
+[100%] Building CXX object CMakeFiles/dlogcover.dir/src/main.cpp.o
+In file included from /usr/lib/llvm-17/include/clang/AST/DeclCXX.h:29,
+                 from /usr/lib/llvm-17/include/clang/AST/ExprCXX.h:21,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_expression_analyzer.h:16,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:13,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_analyzer.h:11,
+                 from /home/uos/Desktop/source/dlogcover/src/main.cpp:9:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h: In constructor ‘clang::TypeSourceInfo::TypeSource
+Info(clang::QualType, size_t)’:
+/usr/lib/llvm-17/include/clang/AST/TypeLoc.h:245:9: warning: ‘void* memset(void*, int, size_t)’
+ clearing an object of non-trivial type ‘class clang::TypeSourceInfo’; use assignment instead [
+-Wclass-memaccess]
+  245 |   memset(this + 1, 0, DataSize);
+      |   ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/lib/llvm-17/include/clang/AST/CanonicalType.h:17,
+                 from /usr/lib/llvm-17/include/clang/AST/ASTContext.h:18,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_node_analyzer.h:14,
+                 from /home/uos/Desktop/source/dlogcover/include/dlogcover/core/ast_analyzer/as
+t_function_analyzer.h:11:
+/usr/lib/llvm-17/include/clang/AST/Type.h:6655:18: note: ‘class clang::TypeSourceInfo’ declared
+ here
+ 6655 | class alignas(8) TypeSourceInfo {
+      |                  ^~~~~~~~~~~~~~
+[100%] Linking CXX executable bin/dlogcover
+[100%] Built target dlogcover
+构建完成!
+
+```
+
+---
+
+现在让我单独运行第一个失败的测试来验证修复：
+
+---
+
+```bash
+cd build && ctest -R command_line_parser_test --verbose
+```
+
+```
+UpdateCTestConfiguration  from :/home/uos/Desktop/source/dlogcover/build/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/uos/Desktop/source/dlogcover/build/DartConfiguration.tcl
+Test project /home/uos/Desktop/source/dlogcover/build
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 13
+    Start 13: command_line_parser_test
+Could not find executable /home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_test
+Looked in the following places:
+/home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Release/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Release/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Debug/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Debug/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/MinSizeRel/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/MinSizeRel/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/RelWithDebInfo/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/RelWithDebInfo/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Deployment/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Deployment/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Development/command_line_parser_test
+/home/uos/Desktop/source/dlogcover/build/bin/Development/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Release/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Release/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Debug/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Debug/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/MinSizeRel/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/MinSizeRel/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/RelWithDebInfo/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/RelWithDebInfo/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Deployment/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Deployment/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Development/command_line_parser_test
+home/uos/Desktop/source/dlogcover/build/bin/Development/command_line_parser_test
+
+13: Test command: 
+13: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+13: Environment variables: 
+13:  GTEST_COLOR=1
+Unable to find executable: /home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_tes
+t
+1/1 Test #13: command_line_parser_test .........***Not Run   0.00 sec
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   0.00 sec
+
+The following tests FAILED:
+         13 - command_line_parser_test (Not Run)
+Errors while running CTest
+Output from these tests are in: /home/uos/Desktop/source/dlogcover/build/Testing/Temporary/Last
+Test.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.
+
+```
+
+---
+
+看起来测试可执行文件没有被构建。让我重新构建测试：
+
+---
+
+```bash
+cd .. && ./build.sh -t
+```
+
+```
+uos@uos-PC:~/Desktop/source/dlogcover$ 
+20: [ RUN      ] ResultTest.BasicBoolResult
+20: [       OK ] ResultTest.BasicBoolResult (0 ms)
+20: [ RUN      ] ResultTest.StringResult
+20: [       OK ] ResultTest.StringResult (0 ms)
+20: [ RUN      ] ResultTest.SmartPointerResult
+20: [       OK ] ResultTest.SmartPointerResult (0 ms)
+20: [ RUN      ] ResultTest.ReferenceTypeDeduction
+20: [       OK ] ResultTest.ReferenceTypeDeduction (0 ms)
+20: [ RUN      ] ResultTest.CopyAndMove
+20: [       OK ] ResultTest.CopyAndMove (0 ms)
+20: [ RUN      ] ResultTest.ErrorHandling
+20: [       OK ] ResultTest.ErrorHandling (0 ms)
+20: [ RUN      ] ResultTest.TemplateTypeDeduction
+20: [       OK ] ResultTest.TemplateTypeDeduction (0 ms)
+20: [ RUN      ] ResultTest.PerformanceTest
+20: [       OK ] ResultTest.PerformanceTest (2 ms)
+20: [----------] 8 tests from ResultTest (2 ms total)
+20: 
+20: [----------] Global test environment tear-down
+20: [==========] 8 tests from 1 test suite ran. (2 ms total)
+20: [  PASSED  ] 8 tests.
+20/34 Test #20: result_test ..........................   Passed    0.01 sec
+test 21
+      Start 21: compile_commands_manager_test
+
+21: Test command: /home/uos/Desktop/source/dlogcover/build/bin/compile_commands_manager_test
+21: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+21: Environment variables: 
+21:  GTEST_COLOR=1
+21: Test timeout computed to be: 300
+21: Running main() from ./googletest/src/gtest_main.cc
+21: [==========] Running 15 tests from 1 test suite.
+21: [----------] Global test environment set-up.
+21: [----------] 15 tests from CompileCommandsManagerTest
+21: [ RUN      ] CompileCommandsManagerTest.DetectCMakeProject
+21: -- The C compiler identification is GNU 12.3.0
+21: -- The CXX compiler identification is GNU 12.3.0
+21: -- Detecting C compiler ABI info
+21: -- Detecting C compiler ABI info - done
+21: -- Check for working C compiler: /usr/bin/cc - skipped
+21: -- Detecting C compile features
+21: -- Detecting C compile features - done
+21: -- Detecting CXX compiler ABI info
+21: -- Detecting CXX compiler ABI info - done
+21: -- Check for working CXX compiler: /usr/bin/c++ - skipped
+21: -- Detecting CXX compile features
+21: -- Detecting CXX compile features - done
+21: -- Configuring done (0.6s)
+21: -- Generating done (0.0s)
+21: -- Build files have been written to: /tmp/dlogcover_compile_commands_test/build
+21: [       OK ] CompileCommandsManagerTest.DetectCMakeProject (594 ms)
+21: [ RUN      ] CompileCommandsManagerTest.DetectMissingCMakeListsFile
+21: [       OK ] CompileCommandsManagerTest.DetectMissingCMakeListsFile (17 ms)
+21: [ RUN      ] CompileCommandsManagerTest.DetectInvalidProjectDirectory
+21: [       OK ] CompileCommandsManagerTest.DetectInvalidProjectDirectory (17 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ParseValidCompileCommands
+21: [       OK ] CompileCommandsManagerTest.ParseValidCompileCommands (2 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ParseInvalidJsonFormat
+21: [       OK ] CompileCommandsManagerTest.ParseInvalidJsonFormat (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ParseMissingRequiredFields
+21: [       OK ] CompileCommandsManagerTest.ParseMissingRequiredFields (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ParseNonexistentFile
+21: [       OK ] CompileCommandsManagerTest.ParseNonexistentFile (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.GetCompilerArgsExactMatch
+21: [       OK ] CompileCommandsManagerTest.GetCompilerArgsExactMatch (1 ms)
+21: [ RUN      ] CompileCommandsManagerTest.GetCompilerArgsSameNameMatch
+21: [       OK ] CompileCommandsManagerTest.GetCompilerArgsSameNameMatch (1 ms)
+21: [ RUN      ] CompileCommandsManagerTest.GetCompilerArgsFallback
+21: [       OK ] CompileCommandsManagerTest.GetCompilerArgsFallback (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.GetProjectDirectory
+21: [       OK ] CompileCommandsManagerTest.GetProjectDirectory (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.GetProjectDirectoryNotFound
+21: [       OK ] CompileCommandsManagerTest.GetProjectDirectoryNotFound (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.IsCompileCommandsValid
+21: [       OK ] CompileCommandsManagerTest.IsCompileCommandsValid (0 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ClearFunction
+21: [       OK ] CompileCommandsManagerTest.ClearFunction (1 ms)
+21: [ RUN      ] CompileCommandsManagerTest.ParseCompilerCommandWithQuotes
+21: [       OK ] CompileCommandsManagerTest.ParseCompilerCommandWithQuotes (1 ms)
+21: [----------] 15 tests from CompileCommandsManagerTest (637 ms total)
+21: 
+21: [----------] Global test environment tear-down
+21: [==========] 15 tests from 1 test suite ran. (637 ms total)
+21: [  PASSED  ] 15 tests.
+21/34 Test #21: compile_commands_manager_test ........   Passed    0.65 sec
+test 22
+      Start 22: options_extended_test
+
+22: Test command: /home/uos/Desktop/source/dlogcover/build/bin/options_extended_test
+22: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+22: Environment variables: 
+22:  GTEST_COLOR=1
+22: Test timeout computed to be: 300
+22: Running main() from ./googletest/src/gtest_main.cc
+22: [==========] Running 28 tests from 1 test suite.
+22: [----------] Global test environment set-up.
+22: [----------] 28 tests from OptionsExtendedTest
+22: [ RUN      ] OptionsExtendedTest.ValidateExistingDirectory
+22: [       OK ] OptionsExtendedTest.ValidateExistingDirectory (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateNonexistentDirectory
+22: [       OK ] OptionsExtendedTest.ValidateNonexistentDirectory (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateFileAsDirectory
+22: [       OK ] OptionsExtendedTest.ValidateFileAsDirectory (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateEmptyDirectory
+22: [       OK ] OptionsExtendedTest.ValidateEmptyDirectory (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateExistingConfigFile
+22: [       OK ] OptionsExtendedTest.ValidateExistingConfigFile (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateNonexistentConfigFile
+22: [       OK ] OptionsExtendedTest.ValidateNonexistentConfigFile (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateOutputFileWithValidParentDir
+22: [       OK ] OptionsExtendedTest.ValidateOutputFileWithValidParentDir (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateOutputFileWithInvalidParentDir
+22: [       OK ] OptionsExtendedTest.ValidateOutputFileWithInvalidParentDir (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateEmptyExcludePattern
+22: [       OK ] OptionsExtendedTest.ValidateEmptyExcludePattern (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ValidateValidExcludePatterns
+22: [       OK ] OptionsExtendedTest.ValidateValidExcludePatterns (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonSerializationBasic
+22: [       OK ] OptionsExtendedTest.JsonSerializationBasic (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonSerializationEmptyExcludePatterns
+22: [       OK ] OptionsExtendedTest.JsonSerializationEmptyExcludePatterns (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationValid
+22: [       OK ] OptionsExtendedTest.JsonDeserializationValid (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationMissingVersion
+22: [       OK ] OptionsExtendedTest.JsonDeserializationMissingVersion (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationInvalidVersion
+22: [       OK ] OptionsExtendedTest.JsonDeserializationInvalidVersion (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationMissingDirectory
+22: [       OK ] OptionsExtendedTest.JsonDeserializationMissingDirectory (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationWithDefaults
+22: [       OK ] OptionsExtendedTest.JsonDeserializationWithDefaults (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationInvalidLogLevel
+22: [       OK ] OptionsExtendedTest.JsonDeserializationInvalidLogLevel (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationInvalidReportFormat
+22: [       OK ] OptionsExtendedTest.JsonDeserializationInvalidReportFormat (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonDeserializationMalformedJson
+22: [       OK ] OptionsExtendedTest.JsonDeserializationMalformedJson (0 ms)
+22: [ RUN      ] OptionsExtendedTest.IsValidFunction
+22: [       OK ] OptionsExtendedTest.IsValidFunction (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ResetFunction
+22: [       OK ] OptionsExtendedTest.ResetFunction (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ToStringFunction
+22: [       OK ] OptionsExtendedTest.ToStringFunction (0 ms)
+22: [ RUN      ] OptionsExtendedTest.EqualityOperator
+22: [       OK ] OptionsExtendedTest.EqualityOperator (0 ms)
+22: [ RUN      ] OptionsExtendedTest.LogLevelConversion
+22: [       OK ] OptionsExtendedTest.LogLevelConversion (0 ms)
+22: [ RUN      ] OptionsExtendedTest.ReportFormatConversion
+22: [       OK ] OptionsExtendedTest.ReportFormatConversion (0 ms)
+22: [ RUN      ] OptionsExtendedTest.InvalidReportFormatConversion
+22: [       OK ] OptionsExtendedTest.InvalidReportFormatConversion (0 ms)
+22: [ RUN      ] OptionsExtendedTest.JsonRoundTrip
+22: [       OK ] OptionsExtendedTest.JsonRoundTrip (0 ms)
+22: [----------] 28 tests from OptionsExtendedTest (2 ms total)
+22: 
+22: [----------] Global test environment tear-down
+22: [==========] 28 tests from 1 test suite ran. (2 ms total)
+22: [  PASSED  ] 28 tests.
+22/34 Test #22: options_extended_test ................   Passed    0.01 sec
+test 23
+      Start 23: string_utils_extended_test
+
+23: Test command: /home/uos/Desktop/source/dlogcover/build/bin/string_utils_extended_test
+23: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+23: Environment variables: 
+23:  GTEST_COLOR=1
+23: Test timeout computed to be: 300
+23: Running main() from ./googletest/src/gtest_main.cc
+23: [==========] Running 39 tests from 1 test suite.
+23: [----------] Global test environment set-up.
+23: [----------] 39 tests from StringUtilsExtendedTest
+23: [ RUN      ] StringUtilsExtendedTest.Utf8ValidString
+23: [       OK ] StringUtilsExtendedTest.Utf8ValidString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.Utf8AsciiString
+23: [       OK ] StringUtilsExtendedTest.Utf8AsciiString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.Utf8EmptyString
+23: [       OK ] StringUtilsExtendedTest.Utf8EmptyString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.Utf8InvalidSequence
+23: [       OK ] StringUtilsExtendedTest.Utf8InvalidSequence (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.Utf8TruncatedSequence
+23: [       OK ] StringUtilsExtendedTest.Utf8TruncatedSequence (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.Utf8FourByteSequence
+23: [       OK ] StringUtilsExtendedTest.Utf8FourByteSequence (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatBasicString
+23: [       OK ] StringUtilsExtendedTest.FormatBasicString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatMultipleArgs
+23: [       OK ] StringUtilsExtendedTest.FormatMultipleArgs (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatEmptyString
+23: [       OK ] StringUtilsExtendedTest.FormatEmptyString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatNullPointer
+23: [       OK ] StringUtilsExtendedTest.FormatNullPointer (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatLargeString
+23: [       OK ] StringUtilsExtendedTest.FormatLargeString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.FormatSpecialCharacters
+23: [       OK ] StringUtilsExtendedTest.FormatSpecialCharacters (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseIntValid
+23: [       OK ] StringUtilsExtendedTest.TryParseIntValid (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseIntInvalid
+23: [       OK ] StringUtilsExtendedTest.TryParseIntInvalid (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseIntBoundary
+23: [       OK ] StringUtilsExtendedTest.TryParseIntBoundary (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseDoubleValid
+23: [       OK ] StringUtilsExtendedTest.TryParseDoubleValid (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseDoubleInvalid
+23: [       OK ] StringUtilsExtendedTest.TryParseDoubleInvalid (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TryParseDoubleScientificNotation
+23: [       OK ] StringUtilsExtendedTest.TryParseDoubleScientificNotation (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.RepeatBasic
+23: [       OK ] StringUtilsExtendedTest.RepeatBasic (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.RepeatZeroTimes
+23: [       OK ] StringUtilsExtendedTest.RepeatZeroTimes (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.RepeatNegativeTimes
+23: [       OK ] StringUtilsExtendedTest.RepeatNegativeTimes (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.RepeatEmptyString
+23: [       OK ] StringUtilsExtendedTest.RepeatEmptyString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.RepeatSingleChar
+23: [       OK ] StringUtilsExtendedTest.RepeatSingleChar (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ContainsSubstringBasic
+23: [       OK ] StringUtilsExtendedTest.ContainsSubstringBasic (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ContainsSubstringEmptyStrings
+23: [       OK ] StringUtilsExtendedTest.ContainsSubstringEmptyStrings (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ContainsSubstringSameString
+23: [       OK ] StringUtilsExtendedTest.ContainsSubstringSameString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceAllBasic
+23: [       OK ] StringUtilsExtendedTest.ReplaceAllBasic (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceAllMultipleOccurrences
+23: [       OK ] StringUtilsExtendedTest.ReplaceAllMultipleOccurrences (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceAllNoMatches
+23: [       OK ] StringUtilsExtendedTest.ReplaceAllNoMatches (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceAllEmptyReplacements
+23: [       OK ] StringUtilsExtendedTest.ReplaceAllEmptyReplacements (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceAllOverlappingPatterns
+23: [       OK ] StringUtilsExtendedTest.ReplaceAllOverlappingPatterns (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.SplitLargeString
+23: [       OK ] StringUtilsExtendedTest.SplitLargeString (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.JoinLargeVector
+23: [       OK ] StringUtilsExtendedTest.JoinLargeVector (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TrimOnlyWhitespace
+23: [       OK ] StringUtilsExtendedTest.TrimOnlyWhitespace (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.TrimMixedWhitespace
+23: [       OK ] StringUtilsExtendedTest.TrimMixedWhitespace (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.CaseConversionSpecialChars
+23: [       OK ] StringUtilsExtendedTest.CaseConversionSpecialChars (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceEmptyPattern
+23: [       OK ] StringUtilsExtendedTest.ReplaceEmptyPattern (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceWithSelf
+23: [       OK ] StringUtilsExtendedTest.ReplaceWithSelf (0 ms)
+23: [ RUN      ] StringUtilsExtendedTest.ReplaceToEmpty
+23: [       OK ] StringUtilsExtendedTest.ReplaceToEmpty (0 ms)
+23: [----------] 39 tests from StringUtilsExtendedTest (1 ms total)
+23: 
+23: [----------] Global test environment tear-down
+23: [==========] 39 tests from 1 test suite ran. (1 ms total)
+23: [  PASSED  ] 39 tests.
+23/34 Test #23: string_utils_extended_test ...........   Passed    0.01 sec
+test 24
+      Start 24: log_types_test
+
+24: Test command: /home/uos/Desktop/source/dlogcover/build/bin/log_types_test
+24: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+24: Environment variables: 
+24:  GTEST_COLOR=1
+24: Test timeout computed to be: 300
+24: Running main() from ./googletest/src/gtest_main.cc
+24: [==========] Running 16 tests from 1 test suite.
+24: [----------] Global test environment set-up.
+24: [----------] 16 tests from LogTypesTest
+24: [ RUN      ] LogTypesTest.LogLevelToString
+24: [       OK ] LogTypesTest.LogLevelToString (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelValid
+24: [       OK ] LogTypesTest.ParseLogLevelValid (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelCaseInsensitive
+24: [       OK ] LogTypesTest.ParseLogLevelCaseInsensitive (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelInvalid
+24: [       OK ] LogTypesTest.ParseLogLevelInvalid (0 ms)
+24: [ RUN      ] LogTypesTest.LogLevelComparison
+24: [       OK ] LogTypesTest.LogLevelComparison (0 ms)
+24: [ RUN      ] LogTypesTest.LogLevelEnumValues
+24: [       OK ] LogTypesTest.LogLevelEnumValues (0 ms)
+24: [ RUN      ] LogTypesTest.LogLevelRoundTrip
+24: [       OK ] LogTypesTest.LogLevelRoundTrip (0 ms)
+24: [ RUN      ] LogTypesTest.LogLevelStringView
+24: [       OK ] LogTypesTest.LogLevelStringView (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelWhitespace
+24: [       OK ] LogTypesTest.ParseLogLevelWhitespace (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelEmptyAndWhitespace
+24: [       OK ] LogTypesTest.ParseLogLevelEmptyAndWhitespace (0 ms)
+24: [ RUN      ] LogTypesTest.IsLogLevelEnabled
+24: [       OK ] LogTypesTest.IsLogLevelEnabled (0 ms)
+24: [ RUN      ] LogTypesTest.LogLevelStringConsistency
+24: [       OK ] LogTypesTest.LogLevelStringConsistency (0 ms)
+24: [ RUN      ] LogTypesTest.AllLogLevelsSupported
+24: [       OK ] LogTypesTest.AllLogLevelsSupported (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelExceptionMessage
+24: [       OK ] LogTypesTest.ParseLogLevelExceptionMessage (0 ms)
+24: [ RUN      ] LogTypesTest.ParseLogLevelPerformance
+24: [       OK ] LogTypesTest.ParseLogLevelPerformance (0 ms)
+24: [ RUN      ] LogTypesTest.DefaultLogLevel
+24: [       OK ] LogTypesTest.DefaultLogLevel (0 ms)
+24: [----------] 16 tests from LogTypesTest (0 ms total)
+24: 
+24: [----------] Global test environment tear-down
+24: [==========] 16 tests from 1 test suite ran. (0 ms total)
+24: [  PASSED  ] 16 tests.
+24/34 Test #24: log_types_test .......................   Passed    0.01 sec
+test 25
+      Start 25: config_validator_extended_test
+
+25: Test command: /home/uos/Desktop/source/dlogcover/build/bin/config_validator_extended_test
+25: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+25: Environment variables: 
+25:  GTEST_COLOR=1
+25: Test timeout computed to be: 300
+25: Running main() from ./googletest/src/gtest_main.cc
+25: [==========] Running 14 tests from 1 test suite.
+25: [----------] Global test environment set-up.
+25: [----------] 14 tests from ConfigValidatorExtendedTest
+25: [ RUN      ] ConfigValidatorExtendedTest.VersionValidation
+25: [       OK ] ConfigValidatorExtendedTest.VersionValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.NestedFormatValidation
+25: [       OK ] ConfigValidatorExtendedTest.NestedFormatValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.SimplifiedFormatValidation
+25: [       OK ] ConfigValidatorExtendedTest.SimplifiedFormatValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.ConfigFileErrorHandling
+25: [       OK ] ConfigValidatorExtendedTest.ConfigFileErrorHandling (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.TypeValidationErrors
+25: [       OK ] ConfigValidatorExtendedTest.TypeValidationErrors (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.OutputConfigValidation
+25: [       OK ] ConfigValidatorExtendedTest.OutputConfigValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.LogLevelValidation
+25: [       OK ] ConfigValidatorExtendedTest.LogLevelValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.ReportFormatValidation
+25: [       OK ] ConfigValidatorExtendedTest.ReportFormatValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.ScanConfigValidation
+25: [       OK ] ConfigValidatorExtendedTest.ScanConfigValidation (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.LoadFromConfigFile
+25: [       OK ] ConfigValidatorExtendedTest.LoadFromConfigFile (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.LoadFromEnvironment
+25: [       OK ] ConfigValidatorExtendedTest.LoadFromEnvironment (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.EnvironmentErrorHandling
+25: [       OK ] ConfigValidatorExtendedTest.EnvironmentErrorHandling (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.AllLogLevelParsing
+25: [       OK ] ConfigValidatorExtendedTest.AllLogLevelParsing (0 ms)
+25: [ RUN      ] ConfigValidatorExtendedTest.AllReportFormatParsing
+25: [       OK ] ConfigValidatorExtendedTest.AllReportFormatParsing (0 ms)
+25: [----------] 14 tests from ConfigValidatorExtendedTest (7 ms total)
+25: 
+25: [----------] Global test environment tear-down
+25: [==========] 14 tests from 1 test suite ran. (7 ms total)
+25: [  PASSED  ] 14 tests.
+25/34 Test #25: config_validator_extended_test .......   Passed    0.01 sec
+test 26
+      Start 26: command_line_parser_extended_test
+
+26: Test command: /home/uos/Desktop/source/dlogcover/build/bin/command_line_parser_extended_tes
+t
+26: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+26: Environment variables: 
+26:  GTEST_COLOR=1
+26: Test timeout computed to be: 300
+26: Running main() from ./googletest/src/gtest_main.cc
+26: [==========] Running 16 tests from 1 test suite.
+26: [----------] Global test environment set-up.
+26: [----------] 16 tests from CommandLineParserExtendedTest
+26: [ RUN      ] CommandLineParserExtendedTest.HelpOption
+26: 
+26: DLogCover - C++代码日志覆盖分析工具 v0.1.0
+26: 用法: dlogcover [选项]
+26: 
+26: 主要选项:
+26:   -h, --help                 显示帮助信息
+26:   -v, --version              显示版本信息
+26:   -d, --directory <path>     指定扫描目录 (默认: ./)
+26:   -o, --output <path>        指定输出报告路径 (默认: ./dlogcover_report_<timestamp>.txt)
+26:   -c, --config <path>        指定配置文件路径 (默认: ./dlogcover.json)
+26:   -e, --exclude <pattern>    排除符合模式的文件或目录 (可多次使用)
+26:   -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fata
+l, all)
+26:   -f, --format <format>      指定报告格式 (text, json)
+26:   -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
+26:   -I, --include-path <path>  头文件搜索路径 (可多次使用)
+26:   -m, --mode <mode>          分析模式 (cpp_only, go_only, auto_detect, 默认: cpp_only)
+26:   -q, --quiet                静默模式，减少输出信息
+26:       --verbose              详细输出模式，显示更多调试信息
+26: 
+26: 性能选项:
+26:       --max-threads <num>    设置最大线程数 (默认: 0=自动检测)
+26:       --disable-parallel     禁用并行分析，强制使用单线程模式
+26:       --disable-cache        禁用AST缓存，每次都重新解析
+26:       --max-cache-size <num> 设置最大缓存条目数 (默认: 100)
+26:       --disable-io-opt       禁用I/O优化，使用标准文件读取
+26: 
+26: 环境变量:
+26:   DLOGCOVER_DIRECTORY       等同于 -d 选项
+26:   DLOGCOVER_OUTPUT          等同于 -o 选项
+26:   DLOGCOVER_CONFIG          等同于 -c 选项
+26:   DLOGCOVER_LOG_LEVEL       等同于 -l 选项
+26:   DLOGCOVER_REPORT_FORMAT   等同于 -f 选项
+26:   DLOGCOVER_EXCLUDE         排除模式列表，使用冒号分隔
+26:   DLOGCOVER_LOG_PATH        等同于 -p 选项
+26: 
+26: 配置文件格式 (JSON):
+26: 支持两种格式：
+26: 
+26: 1. 完整嵌套格式 (推荐):
+26: {
+26:   "project": {
+26:     "name": "my-project",
+26:     "directory": "./src",
+26:     "build_directory": "./build"
+26:   },
+26:   "scan": {
+26:     "directories": ["src", "include"],
+26:     "file_extensions": [".cpp", ".h"],
+26:     "exclude_patterns": ["build/*", "test/*"]
+26:   },
+26:   "output": {
+26:     "report_file": "./report.txt",
+26:     "log_file": "./dlogcover.log",
+26:     "log_level": "debug"
+26:   },
+26:   "analysis": {
+26:     "mode": "cpp_only"
+26:   },
+26:   "log_functions": {
+26:     "qt": {
+26:       "enabled": true,
+26:       "functions": ["qDebug", "qInfo"]
+26:     },
+26:     "custom": {
+26:       "enabled": true,
+26:       "functions": {
+26:         "debug": ["LOG_DEBUG"],
+26:         "info": ["LOG_INFO"]
+26:       }
+26:     }
+26:   }
+26: }
+26: 
+26: 2. 简化格式 (兼容):
+26: {
+26:   "directory": "./src",
+26:   "output": "./report.txt",
+26:   "log_level": "debug",
+26:   "exclude": ["build/*", "test/*"],
+26:   "log_path": "./dlogcover.log"
+26: }
+26: 
+26: 优先级:
+26:   命令行参数 > 配置文件 > 环境变量 > 默认值
+26: 
+26: 示例:
+26:   dlogcover -d /path/to/source -o report.txt
+26:   dlogcover -c config.json -e "build/*" -e "test/*"
+26:   dlogcover -I ./include -q
+26:   dlogcover --verbose -f json -o report.json
+26:   dlogcover -d ./src --mode cpp_only
+26:   dlogcover -d ./src --mode go_only
+26:   dlogcover -d ./src --mode auto_detect
+26:   DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
+26: 
+26: 
+26: DLogCover - C++代码日志覆盖分析工具 v0.1.0
+26: 用法: dlogcover [选项]
+26: 
+26: 主要选项:
+26:   -h, --help                 显示帮助信息
+26:   -v, --version              显示版本信息
+26:   -d, --directory <path>     指定扫描目录 (默认: ./)
+26:   -o, --output <path>        指定输出报告路径 (默认: ./dlogcover_report_<timestamp>.txt)
+26:   -c, --config <path>        指定配置文件路径 (默认: ./dlogcover.json)
+26:   -e, --exclude <pattern>    排除符合模式的文件或目录 (可多次使用)
+26:   -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fata
+l, all)
+26:   -f, --format <format>      指定报告格式 (text, json)
+26:   -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
+26:   -I, --include-path <path>  头文件搜索路径 (可多次使用)
+26:   -m, --mode <mode>          分析模式 (cpp_only, go_only, auto_detect, 默认: cpp_only)
+26:   -q, --quiet                静默模式，减少输出信息
+26:       --verbose              详细输出模式，显示更多调试信息
+26: 
+26: 性能选项:
+26:       --max-threads <num>    设置最大线程数 (默认: 0=自动检测)
+26:       --disable-parallel     禁用并行分析，强制使用单线程模式
+26:       --disable-cache        禁用AST缓存，每次都重新解析
+26:       --max-cache-size <num> 设置最大缓存条目数 (默认: 100)
+26:       --disable-io-opt       禁用I/O优化，使用标准文件读取
+26: 
+26: 环境变量:
+26:   DLOGCOVER_DIRECTORY       等同于 -d 选项
+26:   DLOGCOVER_OUTPUT          等同于 -o 选项
+26:   DLOGCOVER_CONFIG          等同于 -c 选项
+26:   DLOGCOVER_LOG_LEVEL       等同于 -l 选项
+26:   DLOGCOVER_REPORT_FORMAT   等同于 -f 选项
+26:   DLOGCOVER_EXCLUDE         排除模式列表，使用冒号分隔
+26:   DLOGCOVER_LOG_PATH        等同于 -p 选项
+26: 
+26: 配置文件格式 (JSON):
+26: 支持两种格式：
+26: 
+26: 1. 完整嵌套格式 (推荐):
+26: {
+26:   "project": {
+26:     "name": "my-project",
+26:     "directory": "./src",
+26:     "build_directory": "./build"
+26:   },
+26:   "scan": {
+26:     "directories": ["src", "include"],
+26:     "file_extensions": [".cpp", ".h"],
+26:     "exclude_patterns": ["build/*", "test/*"]
+26:   },
+26:   "output": {
+26:     "report_file": "./report.txt",
+26:     "log_file": "./dlogcover.log",
+26:     "log_level": "debug"
+26:   },
+26:   "analysis": {
+26:     "mode": "cpp_only"
+26:   },
+26:   "log_functions": {
+26:     "qt": {
+26:       "enabled": true,
+26:       "functions": ["qDebug", "qInfo"]
+26:     },
+26:     "custom": {
+26:       "enabled": true,
+26:       "functions": {
+26:         "debug": ["LOG_DEBUG"],
+26:         "info": ["LOG_INFO"]
+26:       }
+26:     }
+26:   }
+26: }
+26: 
+26: 2. 简化格式 (兼容):
+26: {
+26:   "directory": "./src",
+26:   "output": "./report.txt",
+26:   "log_level": "debug",
+26:   "exclude": ["build/*", "test/*"],
+26:   "log_path": "./dlogcover.log"
+26: }
+26: 
+26: 优先级:
+26:   命令行参数 > 配置文件 > 环境变量 > 默认值
+26: 
+26: 示例:
+26:   dlogcover -d /path/to/source -o report.txt
+26:   dlogcover -c config.json -e "build/*" -e "test/*"
+26:   dlogcover -I ./include -q
+26:   dlogcover --verbose -f json -o report.json
+26:   dlogcover -d ./src --mode cpp_only
+26:   dlogcover -d ./src --mode go_only
+26:   dlogcover -d ./src --mode auto_detect
+26:   DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
+26: 
+26: [       OK ] CommandLineParserExtendedTest.HelpOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.VersionOption
+26: DLogCover v0.1.0
+26: DLogCover v0.1.0
+26: [       OK ] CommandLineParserExtendedTest.VersionOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.DirectoryOption
+26: [       OK ] CommandLineParserExtendedTest.DirectoryOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.OutputOption
+26: [       OK ] CommandLineParserExtendedTest.OutputOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.ConfigOption
+26: [       OK ] CommandLineParserExtendedTest.ConfigOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.ExcludeOption
+26: [       OK ] CommandLineParserExtendedTest.ExcludeOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.LogLevelOption
+26: [       OK ] CommandLineParserExtendedTest.LogLevelOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.ReportFormatOption
+26: [       OK ] CommandLineParserExtendedTest.ReportFormatOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.LogPathOption
+26: [       OK ] CommandLineParserExtendedTest.LogPathOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.IncludePathOption
+26: [       OK ] CommandLineParserExtendedTest.IncludePathOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.VerbosityOptions
+26: [       OK ] CommandLineParserExtendedTest.VerbosityOptions (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.UnknownOption
+26: [       OK ] CommandLineParserExtendedTest.UnknownOption (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.MissingOptionValue
+26: [       OK ] CommandLineParserExtendedTest.MissingOptionValue (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.ComplexOptionCombination
+26: [       OK ] CommandLineParserExtendedTest.ComplexOptionCombination (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.PathValidation
+26: [       OK ] CommandLineParserExtendedTest.PathValidation (0 ms)
+26: [ RUN      ] CommandLineParserExtendedTest.DefaultValues
+26: [       OK ] CommandLineParserExtendedTest.DefaultValues (0 ms)
+26: [----------] 16 tests from CommandLineParserExtendedTest (3 ms total)
+26: 
+26: [----------] Global test environment tear-down
+26: [==========] 16 tests from 1 test suite ran. (3 ms total)
+26: [  PASSED  ] 16 tests.
+26/34 Test #26: command_line_parser_extended_test ....   Passed    0.01 sec
+test 27
+      Start 27: language_detector_test
+
+27: Test command: /home/uos/Desktop/source/dlogcover/build/bin/language_detector_test
+27: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+27: Environment variables: 
+27:  GTEST_COLOR=1
+27: Test timeout computed to be: 300
+27: Running main() from ./googletest/src/gtest_main.cc
+27: [==========] Running 7 tests from 1 test suite.
+27: [----------] Global test environment set-up.
+27: [----------] 7 tests from LanguageDetectorTest
+27: [ RUN      ] LanguageDetectorTest.DetectCppFiles
+27: [       OK ] LanguageDetectorTest.DetectCppFiles (0 ms)
+27: [ RUN      ] LanguageDetectorTest.DetectGoFiles
+27: [       OK ] LanguageDetectorTest.DetectGoFiles (0 ms)
+27: [ RUN      ] LanguageDetectorTest.DetectUnknownFiles
+27: [       OK ] LanguageDetectorTest.DetectUnknownFiles (0 ms)
+27: [ RUN      ] LanguageDetectorTest.CaseInsensitive
+27: [       OK ] LanguageDetectorTest.CaseInsensitive (0 ms)
+27: [ RUN      ] LanguageDetectorTest.PathHandling
+27: [       OK ] LanguageDetectorTest.PathHandling (0 ms)
+27: [ RUN      ] LanguageDetectorTest.ExtensionCheckers
+27: [       OK ] LanguageDetectorTest.ExtensionCheckers (0 ms)
+27: [ RUN      ] LanguageDetectorTest.LanguageNames
+27: [       OK ] LanguageDetectorTest.LanguageNames (0 ms)
+27: [----------] 7 tests from LanguageDetectorTest (0 ms total)
+27: 
+27: [----------] Global test environment tear-down
+27: [==========] 7 tests from 1 test suite ran. (0 ms total)
+27: [  PASSED  ] 7 tests.
+27/34 Test #27: language_detector_test ...............   Passed    0.01 sec
+test 28
+      Start 28: multi_language_analyzer_test
+
+28: Test command: /home/uos/Desktop/source/dlogcover/build/bin/multi_language_analyzer_test
+28: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+28: Environment variables: 
+28:  GTEST_COLOR=1
+28: Test timeout computed to be: 300
+28: Running main() from ./googletest/src/gtest_main.cc
+28: [==========] Running 11 tests from 1 test suite.
+28: [----------] Global test environment set-up.
+28: [----------] 11 tests from MultiLanguageAnalyzerTest
+28: [ RUN      ] MultiLanguageAnalyzerTest.BasicConstruction
+28: [       OK ] MultiLanguageAnalyzerTest.BasicConstruction (1 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.CppOnlyMode
+28: [       OK ] MultiLanguageAnalyzerTest.CppOnlyMode (0 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.GoOnlyMode
+28: [       OK ] MultiLanguageAnalyzerTest.GoOnlyMode (5 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.AutoDetectMode
+28: [       OK ] MultiLanguageAnalyzerTest.AutoDetectMode (4 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.InvalidAnalysisMode
+28: [       OK ] MultiLanguageAnalyzerTest.InvalidAnalysisMode (0 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.NonExistentFile
+28: [       OK ] MultiLanguageAnalyzerTest.NonExistentFile (0 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.EmptyFile
+28: [       OK ] MultiLanguageAnalyzerTest.EmptyFile (0 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.BatchAnalysis
+28: [       OK ] MultiLanguageAnalyzerTest.BatchAnalysis (6 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.Statistics
+28: [       OK ] MultiLanguageAnalyzerTest.Statistics (0 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.GoToolUnavailable
+28: [       OK ] MultiLanguageAnalyzerTest.GoToolUnavailable (5 ms)
+28: [ RUN      ] MultiLanguageAnalyzerTest.ParallelMode
+28: [       OK ] MultiLanguageAnalyzerTest.ParallelMode (0 ms)
+28: [----------] 11 tests from MultiLanguageAnalyzerTest (25 ms total)
+28: 
+28: [----------] Global test environment tear-down
+28: [==========] 11 tests from 1 test suite ran. (25 ms total)
+28: [  PASSED  ] 11 tests.
+28/34 Test #28: multi_language_analyzer_test .........   Passed    0.06 sec
+test 29
+      Start 29: go_analyzer_test
+
+29: Test command: /home/uos/Desktop/source/dlogcover/build/bin/go_analyzer_test
+29: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+29: Environment variables: 
+29:  GTEST_COLOR=1
+29: Test timeout computed to be: 300
+29: Running main() from ./googletest/src/gtest_main.cc
+29: [==========] Running 16 tests from 1 test suite.
+29: [----------] Global test environment set-up.
+29: [----------] 16 tests from GoAnalyzerTest
+29: [ RUN      ] GoAnalyzerTest.BasicConstruction
+29: [       OK ] GoAnalyzerTest.BasicConstruction (0 ms)
+29: [ RUN      ] GoAnalyzerTest.StandardLogRecognition
+29: [       OK ] GoAnalyzerTest.StandardLogRecognition (5 ms)
+29: [ RUN      ] GoAnalyzerTest.SlogRecognition
+29: [       OK ] GoAnalyzerTest.SlogRecognition (4 ms)
+29: [ RUN      ] GoAnalyzerTest.LogrusRecognition
+29: [       OK ] GoAnalyzerTest.LogrusRecognition (6 ms)
+29: [ RUN      ] GoAnalyzerTest.ZapRecognition
+29: [       OK ] GoAnalyzerTest.ZapRecognition (4 ms)
+29: [ RUN      ] GoAnalyzerTest.GolibRecognition
+29: [       OK ] GoAnalyzerTest.GolibRecognition (4 ms)
+29: [ RUN      ] GoAnalyzerTest.MixedLogRecognition
+29: [       OK ] GoAnalyzerTest.MixedLogRecognition (6 ms)
+29: [ RUN      ] GoAnalyzerTest.NonExistentFile
+29: [       OK ] GoAnalyzerTest.NonExistentFile (0 ms)
+29: [ RUN      ] GoAnalyzerTest.EmptyFile
+29: [       OK ] GoAnalyzerTest.EmptyFile (4 ms)
+29: [ RUN      ] GoAnalyzerTest.InvalidGoFile
+29: [       OK ] GoAnalyzerTest.InvalidGoFile (5 ms)
+29: [ RUN      ] GoAnalyzerTest.ParallelMode
+29: [       OK ] GoAnalyzerTest.ParallelMode (0 ms)
+29: [ RUN      ] GoAnalyzerTest.BatchAnalysis
+29: 读取请求文件失败: open --mode=batch: no such file or directory
+29: [       OK ] GoAnalyzerTest.BatchAnalysis (19 ms)
+29: [ RUN      ] GoAnalyzerTest.Statistics
+29: [       OK ] GoAnalyzerTest.Statistics (6 ms)
+29: [ RUN      ] GoAnalyzerTest.GoToolUnavailable
+29: [       OK ] GoAnalyzerTest.GoToolUnavailable (5 ms)
+29: [ RUN      ] GoAnalyzerTest.TimeoutSetting
+29: [       OK ] GoAnalyzerTest.TimeoutSetting (4 ms)
+29: [ RUN      ] GoAnalyzerTest.CustomLogLibraryConfig
+29: [       OK ] GoAnalyzerTest.CustomLogLibraryConfig (5 ms)
+29: [----------] 16 tests from GoAnalyzerTest (82 ms total)
+29: 
+29: [----------] Global test environment tear-down
+29: [==========] 16 tests from 1 test suite ran. (82 ms total)
+29: [  PASSED  ] 16 tests.
+29/34 Test #29: go_analyzer_test .....................   Passed    0.10 sec
+test 30
+      Start 30: cpp_analyzer_adapter_test
+
+30: Test command: /home/uos/Desktop/source/dlogcover/build/bin/cpp_analyzer_adapter_test
+30: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/unit
+30: Environment variables: 
+30:  GTEST_COLOR=1
+30: Test timeout computed to be: 300
+30: Running main() from ./googletest/src/gtest_main.cc
+30: [==========] Running 15 tests from 1 test suite.
+30: [----------] Global test environment set-up.
+30: [----------] 15 tests from CppAnalyzerAdapterTest
+30: [ RUN      ] CppAnalyzerAdapterTest.BasicConstruction
+30: [       OK ] CppAnalyzerAdapterTest.BasicConstruction (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.SimpleFileAnalysis
+30: [       OK ] CppAnalyzerAdapterTest.SimpleFileAnalysis (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.ComplexFileAnalysis
+30: [       OK ] CppAnalyzerAdapterTest.ComplexFileAnalysis (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.HeaderFileAnalysis
+30: [       OK ] CppAnalyzerAdapterTest.HeaderFileAnalysis (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.CustomLogFunctionRecognition
+30: [       OK ] CppAnalyzerAdapterTest.CustomLogFunctionRecognition (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.NonExistentFile
+30: [       OK ] CppAnalyzerAdapterTest.NonExistentFile (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.EmptyFile
+30: [       OK ] CppAnalyzerAdapterTest.EmptyFile (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.InvalidCppFile
+30: [       OK ] CppAnalyzerAdapterTest.InvalidCppFile (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.GetUnderlyingAnalyzer
+30: [       OK ] CppAnalyzerAdapterTest.GetUnderlyingAnalyzer (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.ParallelMode
+30: [       OK ] CppAnalyzerAdapterTest.ParallelMode (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.Statistics
+30: [       OK ] CppAnalyzerAdapterTest.Statistics (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.BatchAnalysis
+30: [       OK ] CppAnalyzerAdapterTest.BatchAnalysis (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.MissingCompileCommands
+30: [       OK ] CppAnalyzerAdapterTest.MissingCompileCommands (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.QtLogFunctionRecognition
+30: [       OK ] CppAnalyzerAdapterTest.QtLogFunctionRecognition (0 ms)
+30: [ RUN      ] CppAnalyzerAdapterTest.ExceptionHandlingLogs
+30: [       OK ] CppAnalyzerAdapterTest.ExceptionHandlingLogs (0 ms)
+30: [----------] 15 tests from CppAnalyzerAdapterTest (4 ms total)
+30: 
+30: [----------] Global test environment tear-down
+30: [==========] 15 tests from 1 test suite ran. (5 ms total)
+30: [  PASSED  ] 15 tests.
+30/34 Test #30: cpp_analyzer_adapter_test ............   Passed    0.03 sec
+test 31
+      Start 31: integration_config_workflow_test
+
+31: Test command: /home/uos/Desktop/source/dlogcover/build/bin/config_workflow_test
+31: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/integration
+31: Environment variables: 
+31:  GTEST_COLOR=1
+31: Test timeout computed to be: 600
+31: Running main() from ./googletest/src/gtest_main.cc
+31: [==========] Running 4 tests from 1 test suite.
+31: [----------] Global test environment set-up.
+31: [----------] 4 tests from ConfigWorkflowTest
+31: [ RUN      ] ConfigWorkflowTest.BasicConfigLoad
+31: 2025-06-27 01:49:35.846 [INFO] 日志系统初始化，级别: DEBUG
+31: 2025-06-27 01:49:35.847 [DEBUG] 配置管理器初始化，加载内置默认配置
+31: 2025-06-27 01:49:35.847 [DEBUG] 创建默认配置: 项目目录=
+31: 2025-06-27 01:49:35.847 [DEBUG] 编译命令管理器初始化
+31: 2025-06-27 01:49:35.847 [INFO] 加载配置文件: /tmp/config_test__3041/test_config.json
+31: 2025-06-27 01:49:35.847 [DEBUG] 配置文件解析成功
+31: 2025-06-27 01:49:35.847 [DEBUG] 验证配置
+31: 2025-06-27 01:49:35.847 [INFO] 配置文件加载成功
+31: 2025-06-27 01:49:35.847 [DEBUG] 配置管理器销毁
+31: 2025-06-27 01:49:35.847 [DEBUG] 编译命令管理器销毁
+31: 2025-06-27 01:49:35.847 [INFO] 日志系统关闭
+31: [       OK ] ConfigWorkflowTest.BasicConfigLoad (1 ms)
+31: [ RUN      ] ConfigWorkflowTest.InvalidConfig
+31: 2025-06-27 01:49:35.847 [INFO] 日志系统初始化，级别: DEBUG
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置管理器初始化，加载内置默认配置
+31: 2025-06-27 01:49:35.848 [DEBUG] 创建默认配置: 项目目录=
+31: 2025-06-27 01:49:35.848 [DEBUG] 编译命令管理器初始化
+31: 2025-06-27 01:49:35.848 [INFO] 加载配置文件: /tmp/config_test__3507/test_config.json
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置文件解析成功
+31: 2025-06-27 01:49:35.848 [DEBUG] 验证配置
+31: 2025-06-27 01:49:35.848 [INFO] 配置文件加载成功
+31: 2025-06-27 01:49:35.848 [DEBUG] 验证配置
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置管理器销毁
+31: 2025-06-27 01:49:35.848 [DEBUG] 编译命令管理器销毁
+31: 2025-06-27 01:49:35.848 [INFO] 日志系统关闭
+31: [       OK ] ConfigWorkflowTest.InvalidConfig (0 ms)
+31: [ RUN      ] ConfigWorkflowTest.ConfigValidation
+31: 2025-06-27 01:49:35.848 [INFO] 日志系统初始化，级别: DEBUG
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置管理器初始化，加载内置默认配置
+31: 2025-06-27 01:49:35.848 [DEBUG] 创建默认配置: 项目目录=
+31: 2025-06-27 01:49:35.848 [DEBUG] 编译命令管理器初始化
+31: 2025-06-27 01:49:35.848 [INFO] 加载配置文件: /tmp/config_test__6295/test_config.json
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置文件解析成功
+31: 2025-06-27 01:49:35.848 [DEBUG] 验证配置
+31: 2025-06-27 01:49:35.848 [ERROR] 扫描目录列表不能为空
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置管理器销毁
+31: 2025-06-27 01:49:35.848 [DEBUG] 编译命令管理器销毁
+31: 2025-06-27 01:49:35.848 [INFO] 日志系统关闭
+31: [       OK ] ConfigWorkflowTest.ConfigValidation (0 ms)
+31: [ RUN      ] ConfigWorkflowTest.CommandLineOverride
+31: 2025-06-27 01:49:35.848 [INFO] 日志系统初始化，级别: DEBUG
+31: 2025-06-27 01:49:35.848 [DEBUG] 配置管理器初始化，加载内置默认配置
+31: 2025-06-27 01:49:35.848 [DEBUG] 创建默认配置: 项目目录=
+31: 2025-06-27 01:49:35.848 [DEBUG] 编译命令管理器初始化
+31: 2025-06-27 01:49:35.849 [INFO] 加载配置文件: /tmp/config_test__7753/test_config.json
+31: 2025-06-27 01:49:35.849 [DEBUG] 配置文件解析成功
+31: 2025-06-27 01:49:35.849 [DEBUG] 验证配置
+31: 2025-06-27 01:49:35.849 [INFO] 配置文件加载成功
+31: 2025-06-27 01:49:35.849 [DEBUG] 从环境变量加载选项
+31: 2025-06-27 01:49:35.849 [INFO] 成功从环境变量加载选项
+31: 2025-06-27 01:49:35.849 [DEBUG] 开始验证选项
+31: 2025-06-27 01:49:35.849 [DEBUG] 验证目录路径: /tmp/config_test__7753/override_dir
+31: 2025-06-27 01:49:35.849 [DEBUG] 验证文件路径: , 检查父目录: 0
+31: 2025-06-27 01:49:35.849 [DEBUG] 验证文件路径: , 检查父目录: 1
+31: 2025-06-27 01:49:35.849 [DEBUG] 选项验证通过
+31: 2025-06-27 01:49:35.850 [DEBUG] 开始合并命令行选项
+31: 2025-06-27 01:49:35.850 [DEBUG] 设置项目目录: /tmp/config_test__7753/override_dir
+31: 2025-06-27 01:49:35.850 [DEBUG] 更新扫描目录：从 /home/uos/Desktop/source/dlogcover/build/t
+ests/integration 到 /tmp/config_test__7753/override_dir                                        3
+1: 2025-06-27 01:49:35.850 [DEBUG] 相对路径 './default_dir' 更新为: /tmp/config_test__7753/ove
+rride_dir/./default_dir
+31: 2025-06-27 01:49:35.850 [INFO] 扫描目录已更新:
+31: 2025-06-27 01:49:35.850 [INFO]   - /tmp/config_test__7753/override_dir/./default_dir
+31: 2025-06-27 01:49:35.850 [INFO] 根据项目目录更新扫描目录，新项目目录: /tmp/config_test__7753
+/override_dir
+31: 2025-06-27 01:49:35.850 [DEBUG] 使用配置文件输出文件: dlogcover_report.txt
+31: 2025-06-27 01:49:35.850 [DEBUG] 使用配置文件日志文件: dlogcover.log
+31: 2025-06-27 01:49:35.850 [DEBUG] 设置最大缓存大小: 100
+31: 2025-06-27 01:49:35.850 [DEBUG] 使用配置文件分析模式: cpp_only
+31: 2025-06-27 01:49:35.850 [DEBUG] 配置管理器销毁
+31: 2025-06-27 01:49:35.850 [DEBUG] 编译命令管理器销毁
+31: 2025-06-27 01:49:35.850 [INFO] 日志系统关闭
+31: [       OK ] ConfigWorkflowTest.CommandLineOverride (1 ms)
+31: [----------] 4 tests from ConfigWorkflowTest (3 ms total)
+31: 
+31: [----------] Global test environment tear-down
+31: [==========] 4 tests from 1 test suite ran. (3 ms total)
+31: [  PASSED  ] 4 tests.
+31/34 Test #31: integration_config_workflow_test .....   Passed    0.01 sec
+test 32
+      Start 32: integration_log_analysis_test
+
+32: Test command: /home/uos/Desktop/source/dlogcover/build/bin/log_analysis_test
+32: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/integration
+32: Environment variables: 
+32:  GTEST_COLOR=1
+32: Test timeout computed to be: 600
+32: Running main() from ./googletest/src/gtest_main.cc
+32: [==========] Running 3 tests from 1 test suite.
+32: [----------] Global test environment set-up.
+32: [----------] 3 tests from LogAnalysisTest
+32: [ RUN      ] LogAnalysisTest.ConfigurationValidation
+32: 2025-06-27 01:49:35.874 [INFO] 日志系统初始化，级别: INFO
+32: 2025-06-27 01:49:35.874 [INFO] 日志系统关闭
+32: [       OK ] LogAnalysisTest.ConfigurationValidation (0 ms)
+32: [ RUN      ] LogAnalysisTest.EnvironmentSetup
+32: 2025-06-27 01:49:35.874 [INFO] 日志系统初始化，级别: INFO
+32: 2025-06-27 01:49:35.874 [INFO] 日志系统关闭
+32: [       OK ] LogAnalysisTest.EnvironmentSetup (0 ms)
+32: [ RUN      ] LogAnalysisTest.PlaceholderForProjectLevelTests
+32: 2025-06-27 01:49:35.875 [INFO] 日志系统初始化，级别: INFO
+32: 2025-06-27 01:49:35.875 [INFO] 日志系统关闭
+32: [       OK ] LogAnalysisTest.PlaceholderForProjectLevelTests (0 ms)
+32: [----------] 3 tests from LogAnalysisTest (1 ms total)
+32: 
+32: [----------] Global test environment tear-down
+32: [==========] 3 tests from 1 test suite ran. (1 ms total)
+32: [  PASSED  ] 3 tests.
+32/34 Test #32: integration_log_analysis_test ........   Passed    0.02 sec
+test 33
+      Start 33: integration_coverage_workflow_test
+
+33: Test command: /home/uos/Desktop/source/dlogcover/build/bin/coverage_workflow_test
+33: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/integration
+33: Environment variables: 
+33:  GTEST_COLOR=1
+33: Test timeout computed to be: 600
+33: Running main() from ./googletest/src/gtest_main.cc
+33: [==========] Running 3 tests from 1 test suite.
+33: [----------] Global test environment set-up.
+33: [----------] 3 tests from CoverageWorkflowTest
+33: [ RUN      ] CoverageWorkflowTest.ConfigurationValidation
+33: 2025-06-27 01:49:35.902 [INFO] 日志系统初始化，级别: INFO
+33: 2025-06-27 01:49:35.902 [INFO] 日志系统关闭
+33: [       OK ] CoverageWorkflowTest.ConfigurationValidation (0 ms)
+33: [ RUN      ] CoverageWorkflowTest.ComponentInitialization
+33: 2025-06-27 01:49:35.902 [INFO] 日志系统初始化，级别: INFO
+33: 2025-06-27 01:49:35.903 [INFO] 文件归属验证器统计信息:
+33: 2025-06-27 01:49:35.903 [INFO] FileOwnershipValidator Statistics:
+33:   Total Validations: 0
+33:   Cache Hits: 0 (0%)
+33:   Strict Matches: 0
+33:   Canonical Matches: 0
+33:   Smart Matches: 0
+33:   Fuzzy Matches: 0
+33:   Cache Size: 0
+33: 
+33: 2025-06-27 01:49:35.903 [INFO] 共构建了 24 个日志函数名
+33: 2025-06-27 01:49:35.903 [INFO] 共构建了 24 个日志函数名
+33: 2025-06-27 01:49:35.903 [INFO] 文件归属验证器统计信息:
+33: 2025-06-27 01:49:35.903 [INFO] FileOwnershipValidator Statistics:
+33:   Total Validations: 0
+33:   Cache Hits: 0 (0%)
+33:   Strict Matches: 0
+33:   Canonical Matches: 0
+33:   Smart Matches: 0
+33:   Fuzzy Matches: 0
+33:   Cache Size: 0
+33: 
+33: 2025-06-27 01:49:35.903 [INFO] 日志系统关闭
+33: [       OK ] CoverageWorkflowTest.ComponentInitialization (1 ms)
+33: [ RUN      ] CoverageWorkflowTest.PlaceholderForProjectLevelTests
+33: 2025-06-27 01:49:35.903 [INFO] 日志系统初始化，级别: INFO
+33: 2025-06-27 01:49:35.903 [INFO] 日志系统关闭
+33: [       OK ] CoverageWorkflowTest.PlaceholderForProjectLevelTests (0 ms)
+33: [----------] 3 tests from CoverageWorkflowTest (2 ms total)
+33: 
+33: [----------] Global test environment tear-down
+33: [==========] 3 tests from 1 test suite ran. (2 ms total)
+33: [  PASSED  ] 3 tests.
+33/34 Test #33: integration_coverage_workflow_test ...   Passed    0.04 sec
+test 34
+      Start 34: integration_error_handling_test
+
+34: Test command: /home/uos/Desktop/source/dlogcover/build/bin/error_handling_test
+34: Working Directory: /home/uos/Desktop/source/dlogcover/build/tests/integration
+34: Environment variables: 
+34:  GTEST_COLOR=1
+34: Test timeout computed to be: 600
+34: Running main() from ./googletest/src/gtest_main.cc
+34: [==========] Running 4 tests from 1 test suite.
+34: [----------] Global test environment set-up.
+34: [----------] 4 tests from ErrorHandlingTest
+34: [ RUN      ] ErrorHandlingTest.ConfigurationErrorHandling
+34: 2025-06-27 01:49:35.936 [INFO] 日志系统初始化，级别: INFO
+34: 2025-06-27 01:49:35.937 [INFO] 日志系统关闭
+34: [       OK ] ErrorHandlingTest.ConfigurationErrorHandling (0 ms)
+34: [ RUN      ] ErrorHandlingTest.FileSystemErrorHandling
+34: 2025-06-27 01:49:35.937 [INFO] 日志系统初始化，级别: INFO
+34: 2025-06-27 01:49:35.937 [INFO] 日志系统关闭
+34: [       OK ] ErrorHandlingTest.FileSystemErrorHandling (0 ms)
+34: [ RUN      ] ErrorHandlingTest.ComponentInitializationErrorHandling
+34: 2025-06-27 01:49:35.937 [INFO] 日志系统初始化，级别: INFO
+34: 2025-06-27 01:49:35.938 [INFO] 文件归属验证器统计信息:
+34: 2025-06-27 01:49:35.938 [INFO] FileOwnershipValidator Statistics:
+34:   Total Validations: 0
+34:   Cache Hits: 0 (0%)
+34:   Strict Matches: 0
+34:   Canonical Matches: 0
+34:   Smart Matches: 0
+34:   Fuzzy Matches: 0
+34:   Cache Size: 0
+34: 
+34: 2025-06-27 01:49:35.938 [INFO] 共构建了 24 个日志函数名
+34: 2025-06-27 01:49:35.938 [INFO] 文件归属验证器统计信息:
+34: 2025-06-27 01:49:35.938 [INFO] FileOwnershipValidator Statistics:
+34:   Total Validations: 0
+34:   Cache Hits: 0 (0%)
+34:   Strict Matches: 0
+34:   Canonical Matches: 0
+34:   Smart Matches: 0
+34:   Fuzzy Matches: 0
+34:   Cache Size: 0
+34: 
+34: 2025-06-27 01:49:35.938 [INFO] 日志系统关闭
+34: [       OK ] ErrorHandlingTest.ComponentInitializationErrorHandling (0 ms)
+34: [ RUN      ] ErrorHandlingTest.PlaceholderForProjectLevelErrorTests
+34: 2025-06-27 01:49:35.938 [INFO] 日志系统初始化，级别: INFO
+34: 2025-06-27 01:49:35.938 [INFO] 日志系统关闭
+34: [       OK ] ErrorHandlingTest.PlaceholderForProjectLevelErrorTests (0 ms)
+34: [----------] 4 tests from ErrorHandlingTest (2 ms total)
+34: 
+34: [----------] Global test environment tear-down
+34: [==========] 4 tests from 1 test suite ran. (2 ms total)
+34: [  PASSED  ] 4 tests.
+34/34 Test #34: integration_error_handling_test ......   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 34
+
+Total Test time (real) = 139.13 sec
+构建完成!
+
+```
+
+---
+
+
+
+---
+
+_**User**_
+
+修正以下错误
+步骤9: 检查覆盖率要求...
+CMake Error at /home/uos/Desktop/source/dlogcover/cmake/CheckCoverage.cmake:27 (message):
+  无法解析覆盖率数据。摘要输出: 
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
 
 
 ---
