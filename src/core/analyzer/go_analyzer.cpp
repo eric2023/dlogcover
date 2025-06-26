@@ -376,7 +376,7 @@ std::string GoAnalyzer::generateGoConfig() {
 
 ast_analyzer::Result<std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>> 
 GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
-    LOG_DEBUG("解析Go分析器结果");
+    LOG_DEBUG("解析Go分析器结果 - 支持分支和错误处理分析");
     
     std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>> results;
     
@@ -451,7 +451,153 @@ GoAnalyzer::parseGoAnalysisResult(const std::string& jsonResult) {
             }
         }
         
-        LOG_DEBUG_FMT("成功解析Go分析结果，找到 %zu 个函数", results.size());
+        // 新增：解析分支信息
+        if (json.find("branches") != json.end()) {
+            LOG_DEBUG_FMT("解析 %zu 个分支结构", json["branches"].size());
+            
+            for (const auto& branchJson : json["branches"]) {
+                auto branchNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                
+                // 设置分支节点基本信息
+                std::string branchType = branchJson.value("type", "unknown");
+                branchNode->type = ast_analyzer::NodeType::BRANCH;
+                branchNode->name = branchType + "_branch";
+                branchNode->location.line = branchJson.value("line", 0);
+                branchNode->location.column = branchJson.value("column", 0);
+                branchNode->endLocation.line = branchJson.value("end_line", 0);
+                branchNode->endLocation.column = branchJson.value("end_column", 0);
+                branchNode->hasLogging = branchJson.value("has_logging", false);
+                branchNode->text = branchJson.value("context", "");
+                
+                // 设置文件路径
+                if (json.find("file_path") != json.end()) {
+                    branchNode->location.filePath = json["file_path"].get<std::string>();
+                    branchNode->location.fileName = std::filesystem::path(branchNode->location.filePath).filename().string();
+                }
+                
+                LOG_DEBUG_FMT("解析Go分支: %s, has_logging=%s", 
+                            branchNode->name.c_str(), 
+                            branchNode->hasLogging ? "true" : "false");
+                
+                // 解析分支路径作为子节点
+                if (branchJson.find("branches") != branchJson.end()) {
+                    for (const auto& pathJson : branchJson["branches"]) {
+                        auto pathNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                        
+                        std::string pathType = pathJson.value("path_type", "unknown");
+                        pathNode->type = ast_analyzer::NodeType::BRANCH;
+                        pathNode->name = pathType + "_path";
+                        pathNode->location.line = pathJson.value("line", 0);
+                        pathNode->location.column = pathJson.value("column", 0);
+                        pathNode->location.filePath = branchNode->location.filePath;
+                        pathNode->location.fileName = branchNode->location.fileName;
+                        pathNode->hasLogging = pathJson.value("has_logging", false);
+                        
+                        // 添加case值信息（如果存在）
+                        if (pathJson.find("case_value") != pathJson.end() && !pathJson["case_value"].is_null()) {
+                            std::string caseValue = pathJson["case_value"].get<std::string>();
+                            pathNode->text = pathType + ": " + caseValue;
+                        } else {
+                            pathNode->text = pathType;
+                        }
+                        
+                        // 解析路径中的日志调用
+                        if (pathJson.find("log_calls") != pathJson.end()) {
+                            for (const auto& logCallJson : pathJson["log_calls"]) {
+                                auto logNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                                logNode->type = ast_analyzer::NodeType::LOG_CALL;
+                                logNode->name = logCallJson.value("function_name", "unknown");
+                                logNode->location.line = logCallJson.value("line", 0);
+                                logNode->location.column = logCallJson.value("column", 0);
+                                logNode->location.filePath = pathNode->location.filePath;
+                                logNode->location.fileName = pathNode->location.fileName;
+                                logNode->hasLogging = true;
+                                
+                                std::string library = logCallJson.value("library", "unknown");
+                                std::string level = logCallJson.value("level", "info");
+                                logNode->text = library + " " + level + " log call";
+                                
+                                pathNode->children.push_back(std::move(logNode));
+                            }
+                        }
+                        
+                        branchNode->children.push_back(std::move(pathNode));
+                    }
+                }
+                
+                results.push_back(std::move(branchNode));
+            }
+        }
+        
+        // 新增：解析错误处理信息
+        if (json.find("error_handlings") != json.end()) {
+            LOG_DEBUG_FMT("解析 %zu 个错误处理结构", json["error_handlings"].size());
+            
+            for (const auto& errorJson : json["error_handlings"]) {
+                auto errorNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                
+                // 设置错误处理节点基本信息
+                std::string errorType = errorJson.value("type", "unknown");
+                std::string pattern = errorJson.value("pattern", "unknown");
+                errorNode->type = ast_analyzer::NodeType::TRY_CATCH;
+                errorNode->name = errorType + "_handling";
+                errorNode->location.line = errorJson.value("line", 0);
+                errorNode->location.column = errorJson.value("column", 0);
+                errorNode->hasLogging = errorJson.value("has_logging", false);
+                errorNode->text = pattern + " (" + errorJson.value("context", "") + ")";
+                
+                // 设置文件路径
+                if (json.find("file_path") != json.end()) {
+                    errorNode->location.filePath = json["file_path"].get<std::string>();
+                    errorNode->location.fileName = std::filesystem::path(errorNode->location.filePath).filename().string();
+                }
+                
+                // 添加错误变量信息
+                if (errorJson.find("error_var") != errorJson.end() && !errorJson["error_var"].is_null()) {
+                    std::string errorVar = errorJson["error_var"].get<std::string>();
+                    errorNode->text += " (var: " + errorVar + ")";
+                }
+                
+                LOG_DEBUG_FMT("解析Go错误处理: %s, has_logging=%s", 
+                            errorNode->name.c_str(), 
+                            errorNode->hasLogging ? "true" : "false");
+                
+                // 解析错误处理中的日志调用
+                if (errorJson.find("log_calls") != errorJson.end()) {
+                    for (const auto& logCallJson : errorJson["log_calls"]) {
+                        auto logNode = std::make_unique<ast_analyzer::ASTNodeInfo>();
+                        logNode->type = ast_analyzer::NodeType::LOG_CALL;
+                        logNode->name = logCallJson.value("function_name", "unknown");
+                        logNode->location.line = logCallJson.value("line", 0);
+                        logNode->location.column = logCallJson.value("column", 0);
+                        logNode->location.filePath = errorNode->location.filePath;
+                        logNode->location.fileName = errorNode->location.fileName;
+                        logNode->hasLogging = true;
+                        
+                        std::string library = logCallJson.value("library", "unknown");
+                        std::string level = logCallJson.value("level", "info");
+                        logNode->text = library + " " + level + " log call";
+                        
+                        errorNode->children.push_back(std::move(logNode));
+                    }
+                }
+                
+                results.push_back(std::move(errorNode));
+            }
+        }
+        
+        LOG_DEBUG_FMT("成功解析Go分析结果，找到 %zu 个节点（函数+分支+错误处理）", results.size());
+        
+        // 新增：记录增强统计信息
+        if (json.find("statistics") != json.end()) {
+            const auto& stats = json["statistics"];
+            LOG_INFO_FMT("Go分析统计 - 函数: %d, 分支: %d (覆盖率: %.1f%%), 错误处理: %d (覆盖率: %.1f%%)",
+                        stats.value("total_functions", 0),
+                        stats.value("total_branches", 0),
+                        stats.value("branch_coverage", 0.0) * 100.0,
+                        stats.value("total_error_handlings", 0),
+                        stats.value("error_handling_coverage", 0.0) * 100.0);
+        }
         
     } catch (const nlohmann::json::exception& e) {
         return ast_analyzer::makeError<std::vector<std::unique_ptr<ast_analyzer::ASTNodeInfo>>>(

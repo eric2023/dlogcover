@@ -62,7 +62,7 @@ struct Options {
         , disableCache(false)
         , maxCacheSize(100)
         , disableIOOptimization(false)
-        , mode("cpp_only")
+        , mode("")
     {
         // 字符串成员默认构造为空字符串 ""
     }

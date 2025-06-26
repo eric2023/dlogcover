@@ -1,0 +1,22 @@
+{
+  "file_path": "test_simple.go",
+  "config": {
+    "standard_log": {
+      "enabled": true,
+      "functions": ["log.Println", "log.Printf", "log.Print"]
+    },
+    "logrus": {
+      "enabled": false,
+      "functions": []
+    },
+    "zap": {
+      "enabled": false,
+      "logger_functions": [],
+      "sugared_functions": []
+    },
+    "golib": {
+      "enabled": false,
+      "functions": []
+    }
+  }
+}
