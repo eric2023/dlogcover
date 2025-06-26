@@ -10,11 +10,19 @@ execute_process(
 )
 
 # lcov将摘要输出到标准输出流，所以我们从OUTPUT_VARIABLE获取数据
-# 同时合并错误输出以防有警告信息
-set(COVERAGE_SUMMARY "${COVERAGE_OUTPUT}${COVERAGE_ERROR}")
+# 同时合并错误输出以防有警告信息，使用换行符分隔避免文本连接错误
+set(COVERAGE_SUMMARY "${COVERAGE_OUTPUT}")
+if(COVERAGE_ERROR)
+    set(COVERAGE_SUMMARY "${COVERAGE_SUMMARY}\n${COVERAGE_ERROR}")
+endif()
+
+# 调试信息：显示原始输出
+message(DEBUG "LCOV原始输出: ${COVERAGE_OUTPUT}")
+message(DEBUG "LCOV错误输出: ${COVERAGE_ERROR}")
+message(DEBUG "合并后摘要: ${COVERAGE_SUMMARY}")
 
 if(NOT COVERAGE_RESULT EQUAL 0)
-    message(FATAL_ERROR "无法获取覆盖率摘要: ${COVERAGE_ERROR}")
+    message(FATAL_ERROR "无法获取覆盖率摘要: ${COVERAGE_SUMMARY}")
 endif()
 
 
