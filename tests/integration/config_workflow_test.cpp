@@ -223,9 +223,9 @@ TEST_F(ConfigWorkflowTest, CommandLineOverride) {
     const config::Config& config = config_manager.getConfig();
     // 修正：命令行的-d选项设置的是项目目录，而不是扫描目录
     EXPECT_EQ(config.project.directory, override_dir);
-    // 扫描目录保持配置文件中的值
+    // 扫描目录会根据新的项目目录更新为绝对路径
     EXPECT_EQ(config.scan.directories.size(), 1);
-    EXPECT_EQ(config.scan.directories[0], "./default_dir");
+    EXPECT_EQ(config.scan.directories[0], override_dir + "/./default_dir");
 }
 
 }  // namespace test
