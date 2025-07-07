@@ -39,3 +39,15 @@ Thumbs.db
 *_report_* 
 # SpecStory explanation file
 .specstory/.what-is-this.md
+
+# Debian packaging - ignore generated files, not the source configs
+/debian/files
+/debian/substvars
+/debian/tmp
+/debian/dlogcover
+dlogcover_*.buildinfo
+dlogcover_*.changes
+*.deb
+*.dbgsym.ddeb
+dlogcover_*.tar.gz
+dlogcover_*.dsc
