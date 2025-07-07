@@ -14,7 +14,7 @@ Standards-Version: 4.5.0
 
 Package: dlogcover
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libllvm13
 Description: DLogCover - A tool for analyzing log coverage in code.
  DLogCover is a comprehensive static analysis tool designed to measure
  and report on the coverage of logging statements within C++ and Go

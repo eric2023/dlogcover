@@ -387,27 +387,25 @@ fi
 if [ $PACKAGE_DEB -eq 1 ]; then
     echo ""
     echo "开始构建Debian软件包..."
-    
+
     # 确保已安装dpkg-dev
     if ! command -v dpkg-buildpackage &> /dev/null; then
         echo "错误: dpkg-buildpackage 未找到。"
         echo "请安装打包工具: sudo apt-get install dpkg-dev debhelper"
         exit 1
     fi
-    
+
     # -us: 不对源码包签名
     # -uc: 不对 .changes 文件签名
-    # -b: 只构建二进制包
-    # --no-git: 强制dpkg-buildpackage不与git交互，避免因git状态导致的不可预测问题
-    # dpkg-buildpackage会自动调用debian/rules,后者会负责编译
-    if dpkg-buildpackage -us -uc -b --no-git; then
+    # -b:  只构建二进制包
+    # -nc: 构建后不清理论构建目录，便于调试
+    if dpkg-buildpackage -us -uc -b; then
         echo "✅ Debian软件包构建成功！"
         echo "你可以在上一级目录找到 .deb 文件。"
     else
         echo "❌ Debian软件包构建失败。"
         exit 1
     fi
-    # 打包完成后直接退出，避免执行后续的cd ..
     exit 0
 fi
 

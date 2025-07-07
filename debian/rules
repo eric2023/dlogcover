@@ -3,13 +3,33 @@
 # Uncomment this to see everything debhelper does.
 # export DH_VERBOSE=1
 
+# 定义构建目录，以便debhelper命令可以找到它
+export DH_VERBOSE=1
+DEB_BUILD_MAINT_OPTIONS=hardening=+all
+
 %:
 	dh $@
 
-# Tell debhelper to run our existing build script instead of cmake directly.
-override_dh_auto_build:
-	./build.sh --release
+# 重载配置步骤，明确告诉debhelper使用哪个目录
+override_dh_auto_configure:
+	dh_auto_configure --builddirectory=build
 
-# Clean up build artifacts using our script.
+# 重载构建步骤
+override_dh_auto_build:
+	# 1. 编译Go分析器
+	(cd tools/go-analyzer && go mod tidy && go build -o ../../build/bin/dlogcover-go-analyzer main.go)
+
+	# 2. 编译C++部分
+	dh_auto_build --builddirectory=build
+
+# 重载安装步骤
+override_dh_auto_install:
+	dh_auto_install --builddirectory=build
+
+# 重载清理步骤
 override_dh_auto_clean:
-	./build.sh --clean 
+	# 1. 清理C++部分
+	dh_auto_clean --builddirectory=build
+
+	# 2. 手动清理Go分析器的编译产物
+	rm -f build/bin/dlogcover-go-analyzer 

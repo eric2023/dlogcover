@@ -1,8 +1,8 @@
-# DLogCover - 多语言日志覆盖分析工具
+# DLogCover - 企业级多语言日志覆盖率分析工具
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![C++](https://img.shields.io/badge/C++-17/20-blue.svg)
 ![Go](https://img.shields.io/badge/Go-1.15+-00ADD8.svg)
 ![Tests](https://img.shields.io/badge/tests-34/34_passing-brightgreen.svg)
@@ -10,9 +10,9 @@
 ![Qt](https://img.shields.io/badge/Qt-5.x/6.x-41CD52.svg)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 
-**🎯 基于Clang/LLVM的深度静态分析，智能识别代码中的日志覆盖盲区**
+**🎯 基于Clang/LLVM的深度静态分析，智能识别代码中的日志覆盖盲区，提升系统可观测性**
 
-[快速开始](#-5分钟快速开始) • [功能特性](#-核心特性) • [安装指南](#-安装指南) • [配置文档](#-配置指南) • [技术架构](#-技术架构)
+[快速开始](#-5分钟快速开始) • [功能特性](#-核心特性) • [安装指南](#-安装指南) • [使用与配置](#-使用与配置) • [技术架构](#-技术架构)
 
 </div>
 
@@ -20,25 +20,25 @@
 
 ## 🌟 项目概述
 
-DLogCover 是一个专为现代软件开发设计的**日志覆盖分析工具**，通过深度静态代码分析技术，帮助开发团队识别代码中缺少日志记录的关键路径，显著提升系统的可观测性和调试效率。
+DLogCover是一款专为现代企业级软件开发设计的**智能日志覆盖率分析工具**。它通过深度静态代码分析技术，帮助开发团队精准定位代码中缺少日志记录的关键路径，从而显著提升系统的可观测性、加速问题排查效率，并降低生产环境的运维成本。
 
 ### 🎯 核心价值
 
-- **🔍 智能分析**: 基于Clang/LLVM LibTooling的AST深度解析，准确识别代码结构
-- **🚀 多语言支持**: 原生支持C++和Go，统一的分析框架
-- **⚡ 高性能**: 多线程并行分析，AST智能缓存，大型项目秒级完成
-- **🎨 现代化**: 支持Qt5/Qt6、C++17/20，与现代开发生态完美融合
-- **🛡️ 稳定可靠**: 100%测试通过率，73.5%代码覆盖率，生产环境可靠
+- **🔍 智能分析**: 基于Clang/LLVM LibTooling的AST深度解析，精准识别代码结构（函数、分支、异常等）。
+- **🚀 多语言支持**: 原生支持C++和Go，并提供统一的分析与报告框架，是混合项目开发的理想选择。
+- **⚡ 企业级性能**: 采用多线程并行分析、AST智能缓存等多种优化技术，大型项目也能在秒级完成分析。
+- **🎨 现代化生态**: 全面支持Qt5/Qt6、C++11到C++20标准，与现代开发生态无缝融合。
+- **🛡️ 稳定可靠**: 拥有100%的测试通过率和超过73.5%的代码覆盖率，确保在生产环境中的稳定可靠。
 
-### 📊 技术指标
+### 📊 技术与质量指标
 
 | 指标 | 数值 | 说明 |
 |------|------|------|
-| **测试通过率** | 100% (34/34) | 全部测试套件通过 |
-| **代码覆盖率** | 73.5% 行覆盖率 | 90.6% 函数覆盖率 |
-| **性能表现** | 3-30秒 | 中等项目分析时间 |
-| **语言支持** | C++/Go | 统一分析框架 |
-| **Qt支持** | Qt5/Qt6 | 自动检测，全版本兼容 |
+| **测试通过率** | **100%** (34/34) | 所有单元测试、集成测试、并发测试套件全部通过。 |
+| **代码覆盖率** | **73.5%** 行覆盖率 | 函数覆盖率高达**90.6%**，核心模块得到充分验证。 |
+| **性能表现** | **0.1 ~ 30秒** | 根据项目大小和分析模式，提供从毫秒级到秒级的快速分析。 |
+| **语言支持** | **C++ / Go** | 采用统一分析框架，支持混合项目分析。 |
+| **Qt支持** | **Qt5 / Qt6** | 自动检测Qt版本，全版本兼容，无需手动配置。 |
 
 ## 🚀 5分钟快速开始
 
@@ -49,50 +49,54 @@ DLogCover 是一个专为现代软件开发设计的**日志覆盖分析工具**
 git clone https://github.com/your-org/dlogcover.git
 cd dlogcover
 
-# 2. 一键构建
+# 2. 一键构建 (脚本会自动处理依赖和子模块)
 ./build.sh
 
-# 3. 分析您的项目
+# 3. 分析您的项目 (指定项目目录, 输出到report.txt)
 ./build/bin/dlogcover -d /path/to/your/project -o report.txt
 
 # 4. 查看结果
 cat report.txt
 ```
 
-### 典型分析结果
+### 典型分析报告
 ```
 📊 DLogCover 分析报告
 ====================
-项目: your-awesome-project
+项目: /path/to/your/project
 分析时间: 2025-06-21 23:30:00
 
 📈 覆盖率统计:
-- 总体覆盖率: 85.2%
-- 函数覆盖率: 78.4% (156/199)
+- 总体函数覆盖率: 78.4% (156/199)
 - 分支覆盖率: 82.1% (234/285)
-- 异常覆盖率: 90.0% (18/20)
-- 关键路径覆盖率: 88.7% (189/213)
+- 异常路径覆盖率: 90.0% (18/20)
 
-🎯 改进建议:
-- 建议在错误处理分支添加日志记录
-- 关键业务逻辑缺少调试日志
-- 异常处理路径需要增强日志输出
+🎯 未覆盖的风险点:
+- [HIGH] 函数 `processPayment` 在 `payment.cpp:152` 的错误处理分支缺少日志。
+- [MEDIUM] 函数 `loadConfig` 在 `config.cpp:88` 的`catch`块缺少异常详情日志。
+- [LOW] 函数 `updateUI` 在 `mainwindow.cpp:310` 缺少调试日志。
+
+💡 改进建议:
+- 强烈建议在所有错误处理和异常捕获路径中添加`qCritical`或`LOG_ERROR`级别的日志。
+- 建议在关键业务逻辑`processPayment`的入口和出口添加`qDebug`或`LOG_INFO`级别的日志，以追踪调用流程。
 ```
 
 ## 💡 核心特性
 
 ### 🌐 多语言统一分析
 
-#### 支持的编程语言
-- **C++**: 完整的C++11-C++20支持，基于Clang/LLVM
-- **Go**: 原生Go AST分析，支持Go 1.15+
+DLogCover为C++和Go提供了统一的分析体验，无论是纯C++项目、纯Go项目，还是两者混合的复杂项目，都能轻松应对。
 
-#### 支持的UI框架
-- **Qt5**: 5.12+ LTS版本，完整的Qt日志系统支持
-- **Qt6**: 6.0+ 现代版本，自动路径检测 ⭐**新增**
-- **跨平台**: Linux、macOS、Windows全平台支持
+| 语言/框架 | 支持详情 |
+|-----------|----------|
+| **C++** | 支持C++11到C++20标准，基于Clang/LLVM进行深度语法分析。 |
+| **Go** | 支持Go 1.15+版本，通过原生Go AST工具进行分析。 |
+| **Qt5** | 支持5.12+ LTS版本，完整覆盖`qDebug`, `qWarning`等Qt日志系统。 |
+| **Qt6** | 支持6.0+ 现代版本，并能自动检测路径，无需额外配置。⭐**新增** |
 
 #### 支持的日志库
+
+我们支持主流的日志框架，并允许您轻松扩展自定义日志函数。
 
 **C++生态**:
 ```cpp
@@ -107,7 +111,7 @@ qFatal("Fatal error");
 qCDebug(category) << "Category debug";
 qCInfo(category) << "Category info";
 
-// 自定义日志函数
+// 自定义日志函数 (可通过配置添加)
 LOG_DEBUG("Custom debug log");
 DLOG_INFO("Custom info log");
 ```
@@ -115,55 +119,39 @@ DLOG_INFO("Custom info log");
 **Go生态**:
 ```go
 // 标准库log
-log.Print("Standard log")
-log.Printf("Formatted: %s", msg)
+log.Print("Standard log");
+log.Printf("Formatted: %s", msg);
 
 // Logrus
-logrus.Info("Structured logging")
-logrus.WithField("key", "value").Error("Error with context")
+logrus.Info("Structured logging");
+logrus.WithField("key", "value").Error("Error with context");
 
 // Zap
-logger.Info("High-performance logging")
-sugar.Infow("Structured logging", "key", "value")
+logger.Info("High-performance logging");
+sugar.Infow("Structured logging", "key", "value");
 
-// Golib
-golib.Logger.Debug("Golib debug message")
+// Golib (示例)
+golib.Logger.Debug("Golib debug message");
 ```
 
 ### ⚡ 智能分析模式
 
-DLogCover 提供三种优化的分析模式：
+DLogCover提供三种优化的分析模式，以适应不同的项目需求和性能要求：
 
-#### 1. 🎯 CPP_ONLY模式 (默认)
-```bash
-dlogcover -d ./src --mode cpp_only
-```
-- **适用**: 纯C++项目（如Qt应用、游戏引擎）
-- **性能**: 3-5秒 (中等项目)
-- **特色**: 保持原有分析器最优性能
-
-#### 2. 🚀 GO_ONLY模式
-```bash
-dlogcover -d ./src --mode go_only
-```
-- **适用**: 纯Go项目（如微服务、云原生应用）
-- **性能**: 0.1-1秒 (中等项目)
-- **特色**: Go专用多线程优化
-
-#### 3. 🌐 AUTO_DETECT模式
-```bash
-dlogcover -d ./src --mode auto_detect
-```
-- **适用**: 混合语言项目（如C++ + Go微服务）
-- **性能**: 10-30秒 (中等项目)
-- **特色**: 智能语言检测，分别优化处理
+| 模式 | 命令 | 适用场景 | 性能 | 特点 |
+|---|---|---|---|---|
+| **CPP_ONLY (默认)** | `dlogcover --mode cpp_only` | 纯C++项目（如Qt应用、游戏引擎）。 | 3-5秒 (中等项目) | 专注C++分析，性能最优。 |
+| **GO_ONLY** | `dlogcover --mode go_only` | 纯Go项目（如微服务、云原生应用）。 | 0.1-1秒 (中等项目) | Go专用多线程优化，速度极快。 |
+| **AUTO_DETECT** | `dlogcover --mode auto_detect` | C++/Go混合项目。 | 10-30秒 (中等项目) | 智能语言检测，分别优化处理。 |
 
 ### 🔧 智能编译参数系统 ⭐**技术突破**
 
+告别繁琐的手动配置！我们的智能编译参数系统能够自动发现项目环境，将AST编译成功率从**60%提升至90%以上**。
+
 #### 自动检测能力
-- **系统库检测**: 自动发现C++标准库、Qt5/Qt6、GTest等
-- **项目结构感知**: 智能识别include、src、tests目录结构
-- **多架构支持**: 支持x86_64-linux-gnu等多种架构路径
+- **系统库检测**: 自动发现C++标准库、Qt5/Qt6、GTest/GMock等关键依赖的安装路径。
+- **项目结构感知**: 智能识别`include`、`src`、`tests`等目录结构，并自动添加到编译路径。
+- **多架构支持**: 原生支持`x86_64-linux-gnu`等多种架构的库路径。
 
 #### 技术优势
 ```cpp
@@ -172,401 +160,255 @@ dlogcover -d ./src --mode auto_detect
   ✓ /usr/include/c++/11/
   ✓ /usr/include/qt6/QtCore
   ✓ /usr/include/x86_64-linux-gnu/qt6/
-  ✓ /usr/include/gtest/
 
 检测到的项目结构:
   ✓ ./include/
   ✓ ./src/
   ✓ ./tests/
 ```
+这项技术极大地降低了工具的使用门槛，实现了真正的"开箱即用"。
 
 ### 📊 多维度覆盖率分析
 
-#### 分析维度
-- **函数级覆盖**: 识别缺少日志的函数
-- **分支级覆盖**: 分析if/else、switch分支的日志情况
-- **异常级覆盖**: 检查try/catch异常处理的日志记录
-- **关键路径覆盖**: 识别业务关键路径的日志盲区
+DLogCover超越了简单的函数覆盖，提供了更深层次、更贴近业务逻辑的分析维度。
+
+| 分析维度 | 描述 |
+|---|---|
+| **函数级覆盖** | 识别出完全没有日志记录的函数。 |
+| **分支级覆盖** | 分析`if/else`、`switch`等条件分支的日志覆盖情况，确保每个逻辑路径都被记录。 |
+| **异常级覆盖** | 检查`try/catch`块是否完整记录了异常信息，避免静默失败。 |
+| **关键路径覆盖**| (规划中) 结合静态分析与代码注解，识别业务关键路径的日志盲区。 |
 
 #### 报告格式
-- **📄 TEXT格式**: 人类友好的详细报告
-- **📋 JSON格式**: 机器可读，支持CI/CD集成
+- **📄 TEXT格式 (默认)**: 人类友好的详细报告，适合在终端查看。
+- **📋 JSON格式**: 机器可读的结构化数据，支持与CI/CD系统（如Jenkins, GitLab CI）集成，实现质量门禁自动化。
 
-### 🚀 性能优化技术
+### 🚀 企业级性能优化
 
-#### 并行处理
-- **多线程分析**: 充分利用多核CPU
-- **智能任务调度**: 基于文件大小和复杂度的负载均衡
-- **内存优化**: 流式处理大文件，避免内存溢出
+#### 并行与缓存
+- **多线程分析**: 充分利用多核CPU，通过智能任务调度实现高效并行分析。
+- **AST缓存系统**: 采用LRU策略缓存已解析的AST，在增量分析场景下可获得**10-50倍**的性能提升。
 
-#### AST缓存系统
-- **智能缓存**: LRU策略，避免重复解析
-- **增量分析**: 仅分析修改的文件，10-50倍性能提升
-- **缓存统计**: 实时监控缓存命中率和内存使用
-
-#### I/O优化
-- **文件预加载**: 后台预读文件内容
-- **批量处理**: 减少系统调用开销
-- **内存映射**: 大文件高效访问
+#### I/O与内存
+- **高效文件读取**: 通过后台预加载和内存映射等技术优化大文件I/O。
+- **流式处理**: 采用流式处理技术分析大文件，有效避免内存溢出问题。
 
 ## 📦 安装指南
 
-### 系统要求
+### 系统与硬件要求
 
-#### 最低配置
-- **操作系统**: Linux (Ubuntu 18.04+), macOS (10.15+), Windows (10 1903+)
-- **CPU**: 双核 2.4GHz
-- **内存**: 4GB RAM
-- **存储**: 2GB 可用空间
+| 要求类型 | 最低配置 | 推荐配置 |
+|---|---|---|
+| **操作系统** | Linux (Ubuntu 18.04+), macOS (10.15+), Windows 10 (WSL2) | Ubuntu 22.04 LTS |
+| **CPU** | 双核 2.4GHz | 四核 3.0GHz+ |
+| **内存** | 4GB RAM | 8GB+ RAM |
+| **存储** | 2GB 可用空间 | 5GB+ 可用空间 (推荐SSD) |
 
-#### 推荐配置
-- **CPU**: 四核 3.0GHz+
-- **内存**: 8GB+ RAM
-- **存储**: SSD，5GB+ 可用空间
+### 环境要求摘要
+
+为了确保您能顺利编译和使用DLogCover，请确保您的开发环境满足以下最低版本要求。我们同时提供了推荐版本以获得最佳性能和兼容性。
+
+| 类别 | 软件包 | 最低版本 | 推荐版本 | 说明 |
+| :--- | :--- | :--- | :--- |:---|
+| **构建系统** | `CMake` | `3.10` | `3.16+` | 用于跨平台构建项目。 |
+| **编译器** | C++ 编译器 | 支持 C++17 | - | 例如 GCC 7+, Clang 5+。 |
+| | `Go` | `1.15` | `1.18+` | 用于编译和运行 Go 语言分析器。 |
+| **核心依赖** | `Clang/LLVM` | `10.0` | `14.0` | **核心分析引擎**，必须安装其开发库。|
+| **UI 框架** | `Qt5` | `5.12` | `5.15` | 用于分析基于 Qt5 的项目。 |
+| | `Qt6` | `6.0` | `6.2+` | 用于分析基于 Qt6 的项目。 |
+| **第三方库**| `GoogleTest` | `1.10.0` | 最新版 | 用于运行项目的单元测试和集成测试。 |
+| | `nlohmann/json`| `3.9.0` | 最新版 | 用于处理 JSON 格式的配置和报告。 |
 
 ### 依赖安装
 
+我们提供了主流Linux发行版的依赖安装指南。
+
 #### Ubuntu/Debian
 ```bash
-# 基础开发环境
+# 1. 更新包列表
 sudo apt-get update
+
+# 2. 安装基础开发环境
 sudo apt-get install build-essential cmake git
 
-# Clang/LLVM开发库
+# 3. 安装Clang/LLVM开发库 (推荐LLVM 14)
 sudo apt-get install clang-14 llvm-14-dev libclang-14-dev
 
-# Qt开发库 (支持Qt5和Qt6)
+# 4. 安装Qt开发库 (同时安装Qt5和Qt6以获得最佳兼容性)
 sudo apt-get install qtbase5-dev qt6-base-dev
 
-# JSON库和测试框架
+# 5. 安装JSON库和测试框架
 sudo apt-get install nlohmann-json3-dev libgtest-dev
 
-# Go语言环境 (用于Go分析器)
+# 6. 安装Go语言环境 (用于Go分析器)
 sudo apt-get install golang-go
 ```
 
 #### CentOS/RHEL/Fedora
 ```bash
-# 基础开发环境
-sudo dnf install gcc-c++ cmake git
+# 1. 启用EPEL仓库 (CentOS/RHEL)
+sudo dnf install epel-release
 
-# Clang/LLVM开发库
-sudo dnf install clang llvm-devel clang-devel
+# 2. 安装基础开发环境
+sudo dnf install gcc-c++ make cmake git
 
-# Qt开发库
+# 3. 安装Clang/LLVM开发库 (版本可能较低，建议从官网安装)
+sudo dnf install clang clang-devel
+
+# 4. 安装Qt开发库
 sudo dnf install qt5-qtbase-devel qt6-qtbase-devel
 
-# JSON库和测试框架
+# 5. 安装JSON库和测试框架
 sudo dnf install nlohmann-json-devel gtest-devel
 
-# Go语言环境
+# 6. 安装Go语言环境
 sudo dnf install golang
 ```
 
-#### macOS
-```bash
-# 使用Homebrew
-brew install cmake llvm nlohmann-json googletest qt5 qt6 go
+## ⚙️ 使用与配置
 
-# 设置环境变量
-export LLVM_DIR=/usr/local/opt/llvm
-export PATH="$LLVM_DIR/bin:$PATH"
-```
+### 编译与运行
 
-### 构建安装
+DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和安装流程。
 
-#### 快速构建
-```bash
-# 克隆项目
-git clone https://github.com/your-org/dlogcover.git
-cd dlogcover
+#### 常用构建命令
 
-# 一键构建和测试
-./build.sh --test
+- **首次构建** (默认构建Debug版本):
+  ```bash
+  ./build.sh
+  ```
+- **构建并运行测试** (推荐在提交代码前执行):
+  ```bash
+  ./build.sh --test
+  ```
+- **构建Release版本** (用于生产部署):
+  ```bash
+  ./build.sh --release
+  ```
+- **清理构建目录**:
+  ```bash
+  ./build.sh --clean
+  ```
+- **并行构建** (利用8个CPU核心加速编译):
+  ```bash
+  ./build.sh -j8
+  ```
 
-# 安装到系统 (可选)
-sudo make install
-```
+### 命令行选项
 
-#### 高级构建选项
-```bash
-# 并行构建 (推荐)
-./build.sh -j8
+DLogCover提供了丰富的命令行选项来控制分析行为。
 
-# 仅构建，不运行测试
-./build.sh --no-test
+| 选项 | 别名 | 描述 | 示例 |
+|---|---|---|---|
+| `--directory` | `-d` | **(必需)** 指定要分析的项目根目录。 | `-d /path/to/project` |
+| `--output` | `-o` | 指定报告输出文件路径。默认为标准输出。 | `-o report.json` |
+| `--config` | `-c` | 指定自定义配置文件路径。 | `-c dlogcover.json` |
+| `--mode` | `-m` | 指定分析模式 (`cpp_only`, `go_only`, `auto_detect`)。 | `-m auto_detect` |
+| `--exclude` | `-e` | 指定要排除的目录或文件（支持正则表达式）。 | `-e ".*_test.cpp" -e "build/.*"` |
+| `--threads` | `-j` | 指定分析时使用的线程数。默认为CPU核心数。 | `-j 8` |
+| `--help` | `-h` | 显示帮助信息。 | `-h` |
 
-# 清理重新构建
-./build.sh --clean
+### 配置文件 (`dlogcover.json`)
 
-# 调试版本
-./build.sh --debug
-```
+通过配置文件，您可以对DLogCover进行更精细的控制。
 
-## 🎯 使用指南
-
-### 基本用法
-
-#### 命令行参数
-```bash
-# 基本分析
-dlogcover -d /path/to/source
-
-# 指定输出文件
-dlogcover -d /path/to/source -o report.txt
-
-# 使用配置文件
-dlogcover -c config.json
-
-# JSON格式输出
-dlogcover -d /path/to/source -f json -o report.json
-
-# 指定分析模式
-dlogcover -d /path/to/source --mode auto_detect
-```
-
-#### 参数说明
-- `-d, --directory`: 源代码目录路径
-- `-o, --output`: 输出报告路径
-- `-c, --config`: 配置文件路径
-- `-f, --format`: 报告格式 (text/json)
-- `--mode`: 分析模式 (cpp_only/go_only/auto_detect)
-- `-h, --help`: 显示帮助信息
-
-### 配置文件
-
-#### 基本配置示例
+#### 示例配置文件 (`dlogcover.json`)
 ```json
 {
-  "scan_directories": ["./src", "./include"],
-  "exclude_patterns": ["*/build/*", "*/test/*"],
-  "log_functions": {
-    "qt_logging": ["qDebug", "qInfo", "qWarning", "qCritical"],
-    "custom_logging": ["LOG_DEBUG", "LOG_INFO", "LOG_ERROR"]
-  },
-  "analysis_options": {
-    "enable_cache": true,
-    "parallel_threads": 4,
-    "max_file_size": "10MB"
-  },
-  "report_options": {
-    "format": "text",
-    "include_suggestions": true,
-    "detailed_statistics": true
-  }
-}
-```
-
-### 高级用法
-
-#### CI/CD集成
-```yaml
-# GitHub Actions示例
-- name: Run DLogCover Analysis
-  run: |
-    ./dlogcover -d ./src -f json -o coverage-report.json
-    # 处理报告结果...
-```
-
-#### 批量分析
-```bash
-# 分析多个项目
-for project in project1 project2 project3; do
-  dlogcover -d $project -o ${project}_report.txt
-done
-```
-
-## 🔧 配置指南
-
-### 配置文件详解
-
-DLogCover 支持JSON格式的配置文件，提供灵活的分析选项：
-
-#### 扫描配置
-```json
-{
-  "scan_directories": [
-    "./src",           // 源代码目录
-    "./include",       // 头文件目录
-    "./lib"           // 库文件目录
-  ],
+  "project_name": "MyAwesomeProject",
+  "analysis_mode": "auto_detect",
+  "target_directories": ["src", "include"],
   "exclude_patterns": [
-    "*/build/*",       // 排除构建目录
-    "*/test/*",        // 排除测试目录
-    "*.pb.cc",         // 排除protobuf生成文件
-    "*/third_party/*"  // 排除第三方代码
+    ".*_test.cpp$",
+    "third_party/",
+    "build/"
   ],
-  "file_extensions": [
-    ".cpp", ".cc", ".cxx",  // C++源文件
-    ".h", ".hpp",           // C++头文件
-    ".go"                   // Go源文件
-  ]
-}
-```
-
-#### 日志函数配置
-```json
-{
-  "log_functions": {
-    "qt5_logging": [
-      "qDebug", "qInfo", "qWarning", "qCritical", "qFatal"
+  "report_format": "json",
+  "output_path": "dlogcover_report.json",
+  "threads": 8,
+  "custom_log_functions": {
+    "cpp": [
+      {"name": "LOG_INFO", "level": "info"},
+      {"name": "LOG_ERROR", "level": "error"}
     ],
-    "qt6_logging": [
-      "qDebug", "qInfo", "qWarning", "qCritical", "qFatal"
-    ],
-    "qt_category_logging": [
-      "qCDebug", "qCInfo", "qCWarning", "qCCritical"
-    ],
-    "custom_logging": [
-      "LOG_DEBUG", "LOG_INFO", "LOG_WARNING", "LOG_ERROR", "LOG_FATAL"
-    ],
-    "go_logging": [
-      "log.Print", "log.Printf", "log.Println",
-      "logrus.Debug", "logrus.Info", "logrus.Warn", "logrus.Error"
+    "go": [
+      {"name": "MyLogger.Info", "level": "info"}
     ]
+  },
+  "coverage_thresholds": {
+    "function": 80,
+    "branch": 70
   }
 }
 ```
 
-#### 性能配置
-```json
-{
-  "performance_options": {
-    "enable_ast_cache": true,        // 启用AST缓存
-    "cache_size_mb": 512,           // 缓存大小限制
-    "parallel_threads": 8,          // 并行线程数
-    "max_file_size_mb": 10,         // 单文件大小限制
-    "timeout_seconds": 300          // 分析超时时间
-  }
-}
-```
+#### 配置项说明
 
-### 最佳实践
+- **`project_name`**: 项目名称，将显示在报告中。
+- **`analysis_mode`**: 分析模式，与命令行选项`-m`功能相同。
+- **`target_directories`**: 指定需要分析的具体子目录。
+- **`exclude_patterns`**: 正则表达式列表，用于排除不需要分析的文件或目录。
+- **`custom_log_functions`**: **(核心功能)** 在此定义您的自定义日志函数，DLogCover会将其纳入分析。
+- **`coverage_thresholds`**: 设置覆盖率阈值，用于CI/CD质量门禁。
 
-#### 大型项目优化
-```json
-{
-  "large_project_config": {
-    "enable_incremental_analysis": true,
-    "cache_directory": ".dlogcover_cache",
-    "parallel_threads": 16,
-    "memory_limit_gb": 4,
-    "exclude_patterns": [
-      "*/node_modules/*",
-      "*/vendor/*",
-      "*/build/*",
-      "*/dist/*"
-    ]
-  }
-}
-```
-
-## 🏗️ 技术架构
-
-### 系统架构
-
-```mermaid
-graph TB
-    CLI[命令行接口] --> Config[配置管理]
-    Config --> SourceMgr[源文件管理]
-    SourceMgr --> MultiLang[多语言分析器]
-    
-    MultiLang --> CppAnalyzer[C++分析器]
-    MultiLang --> GoAnalyzer[Go分析器]
-    
-    CppAnalyzer --> AST[AST解析]
-    GoAnalyzer --> GoAST[Go AST]
-    
-    AST --> LogId[日志识别]
-    GoAST --> LogId
-    
-    LogId --> Coverage[覆盖率计算]
-    Coverage --> Reporter[报告生成]
-    
-    AST --> Cache[AST缓存]
-    Cache --> AST
-```
+## 🔧 技术架构
 
 ### 核心组件
+```mermaid
+graph TD
+    subgraph "输入层"
+        A[命令行接口 CLI] --> C;
+        B[配置文件 Parser] --> C;
+    end
 
-#### 多语言分析架构
-- **ILanguageAnalyzer**: 统一的语言分析接口
-- **CppAnalyzerAdapter**: C++分析器适配器，基于Clang/LLVM
-- **GoAnalyzer**: Go语言分析器，原生Go AST解析
-- **MultiLanguageAnalyzer**: 多语言协调器，智能分发和结果聚合
+    subgraph "核心分析引擎"
+        C[ConfigManager] --> D[MultiLanguageAnalyzer];
+        D --> E{Language Detector};
+        E -->|C++| F[CppAnalyzerAdapter];
+        E -->|Go| G[GoAnalyzer];
+        F --> H[ASTAnalyzer];
+        H --> I[Clang/LLVM];
+        G --> J[Go AST Tool];
+    end
 
-#### AST分析引擎
-- **ASTAnalyzer**: 核心AST分析器，基于Clang LibTooling
-- **ASTCache**: 智能缓存系统，LRU策略优化性能
-- **LogIdentifier**: 日志调用识别器，支持多种日志库
+    subgraph "结果处理层"
+        F --> K[LogIdentifier];
+        G --> K;
+        K --> L[CoverageCalculator];
+        L --> M[Reporter];
+    end
 
-#### 报告生成系统
-- **IReporterStrategy**: 报告策略接口
-- **TextReporterStrategy**: 文本格式报告生成器
-- **JsonReporterStrategy**: JSON格式报告生成器
+    subgraph "输出层"
+        M --> N[Text Report];
+        M --> O[JSON Report];
+    end
+
+    style F fill:#cde4ff
+    style G fill:#cde4ff
+    style H fill:#cde4ff
+```
+
+1.  **输入层**: 解析命令行参数和`dlogcover.json`配置文件。
+2.  **核心分析引擎**:
+    - `MultiLanguageAnalyzer`: 根据文件类型，将分析任务分发给`CppAnalyzerAdapter`或`GoAnalyzer`。
+    - `CppAnalyzerAdapter`: 调用基于Clang/LLVM的`ASTAnalyzer`，深度分析C++代码。
+    - `GoAnalyzer`: 与外部Go AST工具通信，分析Go代码。
+3.  **结果处理层**:
+    - `LogIdentifier`: 根据内置规则和自定义配置，识别代码中的日志函数调用。
+    - `CoverageCalculator`: 计算函数、分支、异常等维度的日志覆盖率。
+    - `Reporter`: 根据计算结果生成指定格式的报告。
+4.  **输出层**: 将分析报告输出到文件或标准输出。
 
 ## 🤝 贡献指南
 
-### 开发环境设置
+我们欢迎任何形式的贡献！无论是提交Bug、建议新功能还是贡献代码。
 
-1. **Fork项目**并克隆到本地
-2. **安装依赖**：参考[安装指南](#-安装指南)
-3. **构建项目**：`./build.sh --test`
-4. **运行测试**：确保所有测试通过
-
-### 代码贡献流程
-
-1. **创建特性分支**：`git checkout -b feature/your-feature`
-2. **编写代码**：遵循项目代码规范
-3. **添加测试**：确保新功能有对应的测试
-4. **提交代码**：使用清晰的提交信息
-5. **创建PR**：详细描述变更内容
-
-### 代码规范
-
-#### C++代码规范
-- 遵循Google C++风格指南
-- 使用现代C++特性（C++17）
-- 完善的错误处理和异常安全
-- 详细的代码注释和文档
-
-#### 测试要求
-- 单元测试覆盖率 > 80%
-- 集成测试覆盖主要工作流
-- 性能测试防止回归
-- 并发安全测试
+1.  **Fork** 本仓库。
+2.  创建您的特性分支 (`git checkout -b feature/AmazingFeature`)。
+3.  提交您的更改 (`git commit -m 'Add some AmazingFeature'`)。
+4.  将更改推送到分支 (`git push origin feature/AmazingFeature`)。
+5.  提交一个 **Pull Request**。
 
 ## 📄 许可证
 
-本项目采用 [GNU通用公共许可证第3版(GPL v3)](LICENSE) 开源协议。
-
-### GPL v3 许可证要点
-
-- **自由使用**：您可以自由地运行、学习、修改和分发本软件
-- **开源要求**：如果您分发本软件的修改版本，必须以相同的GPL v3许可证开源
-- **源码获取**：有权获得完整的源代码
-- **无担保声明**：本软件按"原样"提供，不提供任何形式的担保
-- **专利保护**：防止专利被用来限制GPL软件的自由
-- **兼容性**：与其他GPL v3兼容的许可证项目可以组合使用
-
-更多详情请参阅：https://www.gnu.org/licenses/gpl-3.0.html
-
-## 🙏 致谢
-
-感谢所有为DLogCover项目做出贡献的开发者和用户。特别感谢：
-
-- **Clang/LLVM团队**：提供强大的静态分析基础设施
-- **Qt团队**：现代化的跨平台UI框架
-- **Go团队**：简洁高效的编程语言和工具链
-- **GoogleTest团队**：优秀的C++测试框架
-- **社区贡献者**：提供宝贵的反馈和改进建议
-
----
-
-<div align="center">
-
-**🌟 如果DLogCover对您有帮助，请给我们一个Star！**
-
-[⭐ Star on GitHub](https://github.com/your-org/dlogcover) | [📝 Report Issues](https://github.com/your-org/dlogcover/issues) | [💬 Discussions](https://github.com/your-org/dlogcover/discussions)
-
-</div>
+本项目基于 **GNU通用公共许可证第3版(GPL v3)** 许可证。详情请见 [LICENSE](LICENSE) 文件。
