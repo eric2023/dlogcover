@@ -1,0 +1,4 @@
+build/bin/dlogcover usr/bin
+build/bin/dlogcover-go-analyzer usr/bin
+README.md usr/share/doc/dlogcover/
+dlogcover.json usr/share/doc/dlogcover/ 

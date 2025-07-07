@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+# Uncomment this to see everything debhelper does.
+# export DH_VERBOSE=1
+
+%:
+	dh $@
+
+# Tell debhelper to run our existing build script instead of cmake directly.
+override_dh_auto_build:
+	./build.sh --release
+
+# Clean up build artifacts using our script.
+override_dh_auto_clean:
+	./build.sh --clean 

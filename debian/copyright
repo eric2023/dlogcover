@@ -1,0 +1,19 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: DLogCover
+Source: https://github.com/linuxdeepin/dlogcover
+
+Files: *
+Copyright: 2024 eric2023 <eric2023@163.com>
+License: GPL-3.0
+
+Files: debian/*
+Copyright: 2024 eric2023 <eric2023@163.com>
+License: GPL-3.0
+
+License: GPL-3.0
+ This package is licensed under the GNU General Public License,
+ version 3.
+ .
+ On Debian systems, the full text of the GNU General Public
+ License version 3 can be found in the file
+ '/usr/share/common-licenses/GPL-3'. 
