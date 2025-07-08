@@ -15,6 +15,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# -----------------------------------------------------------------------------
+# RPATH Configuration (Crucial for Debian Packaging)
+# Prevents embedding build-time library paths into the installed binary.
+# This ensures that dpkg-shlibdeps correctly infers runtime dependencies
+# on system-wide shared libraries like libllvm13 instead of development packages.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE) # 不使用链接路径作为安装RPATH
+set(CMAKE_INSTALL_RPATH "")                 # 清空安装RPATH
+set(CMAKE_SKIP_INSTALL_RPATH TRUE)          # 不在安装的二进制文件中硬编码RPATH
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)   # 不为构建树的二进制文件使用安装RPATH (对构建产物至关重要)
+set(CMAKE_SKIP_BUILD_RPATH TRUE)            # 彻底禁用构建树中的RPATH
+# -----------------------------------------------------------------------------
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -186,9 +198,13 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
 # 创建库目标（供测试使用）
 add_library(dlogcover_lib STATIC ${SOURCES})
+# 禁用dlogcover_lib的RPATH，避免在构建时嵌入链接路径
+set_target_properties(dlogcover_lib PROPERTIES SKIP_RPATH TRUE)
 
 # 创建可执行文件
 add_executable(dlogcover src/main.cpp)
+# 禁用dlogcover的RPATH，避免在构建时嵌入链接路径
+set_target_properties(dlogcover PROPERTIES SKIP_RPATH TRUE)
 
 # 查找Clang依赖
 find_package(Clang REQUIRED CONFIG)

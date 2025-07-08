@@ -15,7 +15,6 @@ show_help() {
     echo "  -t, --test                 构建并运行测试"
     echo "  -i, --install              安装到系统"
     echo "  -f, --full-process         执行完整流程：编译 -> 测试 -> 覆盖率统计"
-    echo "  --package-deb              构建Debian软件包"
     echo "  --prefix=<path>            安装路径前缀"
     echo ""
     echo "环境要求:"
@@ -167,7 +166,6 @@ BUILD_TESTS=0
 CLEAN=0
 INSTALL=0
 FULL_PROCESS=0
-PACKAGE_DEB=0
 INSTALL_PREFIX="/usr/local"
 
 # 保存原始参数用于后续判断
@@ -199,9 +197,6 @@ for arg in "$@"; do
             FULL_PROCESS=1
             BUILD_TESTS=1  # 完整流程包含测试
             CLEAN=1        # 完整流程强制清理，确保覆盖率数据一致性
-            ;;
-        --package-deb)
-            PACKAGE_DEB=1
             ;;
         --prefix=*)
             INSTALL_PREFIX="${arg#*=}"
@@ -381,37 +376,6 @@ fi
 # 如果不是完整流程，显示常规完成消息
 if [ $FULL_PROCESS -eq 0 ]; then
     echo "构建完成!"
-fi
-
-# 如果需要构建Debian软件包
-if [ $PACKAGE_DEB -eq 1 ]; then
-    echo ""
-    echo "开始构建Debian软件包..."
-
-    # 确保已安装dpkg-dev
-    if ! command -v dpkg-buildpackage &> /dev/null; then
-        echo "错误: dpkg-buildpackage 未找到。"
-        echo "请安装打包工具: sudo apt-get install dpkg-dev debhelper"
-        exit 1
-    fi
-
-    # -us: 不对源码包签名
-    # -uc: 不对 .changes 文件签名
-    # -b:  只构建二进制包
-    # -nc: 构建后不清理论构建目录，便于调试
-    if dpkg-buildpackage -us -uc -b; then
-        echo "✅ Debian软件包构建成功！"
-        echo "你可以在上一级目录找到 .deb 文件。"
-    else
-        echo "❌ Debian软件包构建失败。"
-        exit 1
-    fi
-    exit 0
-fi
-
-# 如果测试通过，并且启用了覆盖率
-if [ $BUILD_TESTS -eq 1 ] && [ $ENABLE_COVERAGE -eq 1 ]; then
-    # ... existing code ...
 fi
 
 cd ..

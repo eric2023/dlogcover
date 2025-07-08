@@ -265,6 +265,36 @@ sudo dnf install nlohmann-json-devel gtest-devel
 sudo dnf install golang
 ```
 
+### 🔧 编译与打包注意事项
+
+为了确保DLogCover在Debian/Ubuntu等Linux发行版上打包和运行时能正确解析LLVM库依赖（即依赖`libllvm13`而非`llvm-13-dev`），我们在`CMakeLists.txt`中进行了关键的RPATH配置。
+
+**RPATH配置原理与实践：**
+
+传统的CMake在构建二进制文件时，可能会将编译时链接到的库路径（特别是来自开发包的路径，如`/usr/lib/llvm-13/lib`）嵌入到可执行文件的运行时搜索路径（RPATH或RUNPATH）中。这会导致`dpkg-shlibdeps`等打包工具错误地推断出对开发包的运行时依赖。
+
+为解决此问题，我们在`CMakeLists.txt`中明确设置了以下CMake变量：
+
+```cmake
+# -----------------------------------------------------------------------------
+# RPATH Configuration (Crucial for Debian Packaging)
+# Prevents embedding build-time library paths into the installed binary.
+# This ensures that dpkg-shlibdeps correctly infers runtime dependencies
+# on system-wide shared libraries like libllvm13 instead of development packages.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE) # 不使用链接路径作为安装RPATH
+set(CMAKE_INSTALL_RPATH "")                 # 清空安装RPATH
+set(CMAKE_SKIP_INSTALL_RPATH TRUE)          # 不在安装的二进制文件中硬编码RPATH
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)   # 不为构建树的二进制文件使用安装RPATH (对构建产物至关重要)
+set(CMAKE_SKIP_BUILD_RPATH TRUE)            # 彻底禁用构建树中的RPATH
+# -----------------------------------------------------------------------------
+
+# 此外，对于生成的可执行文件和库目标，也显式禁用了RPATH：
+set_target_properties(dlogcover_lib PROPERTIES SKIP_RPATH TRUE)
+set_target_properties(dlogcover PROPERTIES SKIP_RPATH TRUE)
+```
+
+这些配置确保了`dlogcover`可执行文件在构建和安装后，不会包含硬编码的库路径，而是完全依赖系统标准的动态链接器查找机制（例如`/usr/lib/x86_64-linux-gnu/`）。因此，最终的Debian包将正确地依赖`libllvm13`等运行时库。
+
 ## ⚙️ 使用与配置
 
 ### 编译与运行

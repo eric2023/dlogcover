@@ -7,14 +7,14 @@ Build-Depends: debhelper-compat (=13),
                g++,
                golang-go (>= 1.15),
                libclang-dev,
-               llvm-dev,
+               llvm-13-dev | llvm-14-dev | llvm-17-dev,
                libgtest-dev,
                nlohmann-json3-dev
 Standards-Version: 4.5.0
 
 Package: dlogcover
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libllvm13
+Depends: ${shlibs:Depends}, ${misc:Depends}, llvm-13-dev | llvm-14-dev | llvm-17-dev
 Description: DLogCover - A tool for analyzing log coverage in code.
  DLogCover is a comprehensive static analysis tool designed to measure
  and report on the coverage of logging statements within C++ and Go
