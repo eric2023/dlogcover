@@ -265,6 +265,81 @@ sudo dnf install nlohmann-json-devel gtest-devel
 sudo dnf install golang
 ```
 
+### 📦 DEB 包构建与安装
+
+DLogCover 支持构建标准的 Debian 包，方便在 Ubuntu/Debian 系统上进行分发和安装。
+
+#### 构建 DEB 包
+
+**前提条件**:
+```bash
+# 安装 DEB 包构建工具
+sudo apt-get install debhelper devscripts build-essential
+
+# 确保已安装所有构建依赖
+sudo apt-get install cmake g++ golang-go libclang-dev llvm-dev libgtest-dev nlohmann-json3-dev
+```
+
+**构建步骤**:
+```bash
+# 1. 进入项目根目录
+cd dlogcover
+
+# 2. 构建 DEB 包
+dpkg-buildpackage -us -uc -b
+
+# 3. 构建完成后，DEB 包将在上级目录中生成
+ls -la ../dlogcover_*.deb
+```
+
+**构建产物**:
+- `dlogcover_0.1.0_amd64.deb` - 主程序包
+- `dlogcover-dbgsym_0.1.0_amd64.ddeb` - 调试符号包（可选）
+
+#### 安装 DEB 包
+
+**从本地安装**:
+```bash
+# 安装主程序包
+sudo dpkg -i ../dlogcover_0.1.0_amd64.deb
+
+# 如果出现依赖问题，运行以下命令修复
+sudo apt-get install -f
+```
+
+**验证安装**:
+```bash
+# 检查安装状态
+dpkg -l | grep dlogcover
+
+# 测试程序运行
+dlogcover --help
+
+# 查看安装的文件
+dpkg -L dlogcover
+```
+
+#### 卸载 DEB 包
+
+```bash
+# 卸载程序包
+sudo dpkg -r dlogcover
+
+# 完全清理（包括配置文件）
+sudo dpkg -P dlogcover
+```
+
+#### 包信息
+
+- **包名**: `dlogcover`
+- **版本**: `0.1.0`
+- **架构**: `amd64`
+- **依赖**: 自动检测系统库依赖（libclang, llvm, libc6 等）
+- **安装位置**: 
+  - 主程序: `/usr/bin/dlogcover`
+  - Go 分析器: `/usr/bin/dlogcover-go-analyzer`
+  - 文档: `/usr/share/doc/dlogcover/`
+
 ### 🔧 编译与打包注意事项
 
 为了确保DLogCover在Debian/Ubuntu等Linux发行版上打包和运行时能正确解析LLVM库依赖（即依赖`libllvm13`而非`llvm-13-dev`），我们在`CMakeLists.txt`中进行了关键的RPATH配置。

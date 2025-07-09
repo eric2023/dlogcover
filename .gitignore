@@ -45,6 +45,9 @@ Thumbs.db
 /debian/substvars
 /debian/tmp
 /debian/dlogcover
+/debian/.debhelper/
+/debian/*.debhelper.log
+/debian/*-stamp
 dlogcover_*.buildinfo
 dlogcover_*.changes
 *.deb
