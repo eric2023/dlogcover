@@ -8,10 +8,10 @@
 - **默认标准**: C++14 → **C++17** (重大升级)
 - **兼容范围**: C++11 到 C++20 (向下兼容，向上扩展)
 - **升级收益**: 
-  - **现代语言特性**: 结构化绑定、if constexpr、std::optional、std::filesystem
-  - **编译器优化**: 更好的代码生成和性能优化
-  - **生态兼容性**: 与现代C++项目生态完美融合
-  - **开发效率**: 更简洁的代码表达和更强的类型安全
+  - **现代语言特性**: 全面拥抱结构化绑定、`if constexpr`、`std::optional`、`std::filesystem`等现代特性。
+  - **编译器优化**: 利用C++17标准带来的编译器优化，提升代码生成效率和运行性能。
+  - **生态兼容性**: 与现代C++项目（如Abseil, Boost）和第三方库生态完美融合。
+  - **开发效率**: 采用更简洁、更安全的编码范式，提升开发和维护效率。
 
 #### Qt库支持增强 - 双版本并行支持架构
 **突破性Qt6全面支持** (用户贡献+技术整合)：
@@ -32,12 +32,12 @@ Qt6现代化支持 (⭐新增):
 ```
 
 **企业级技术特性**：
-- **双版本并行**: Qt5和Qt6项目同时支持，无需切换环境
-- **智能版本检测**: 自动识别项目使用的Qt版本并应用相应配置
-- **多架构兼容**: 支持x86_64-linux-gnu、aarch64等多种架构路径
-- **发行版通用**: 适配Ubuntu、Debian、CentOS、Fedora等主流发行版
-- **用户贡献整合**: 成功整合社区用户提供的Qt6路径支持
-- **向后兼容保障**: 现有Qt5项目零配置迁移
+- **双版本并行**: 在同一次分析中无缝支持Qt5和Qt6项目，无需用户切换环境或重新配置。
+- **智能版本检测**: 自动识别项目使用的Qt版本，并应用相应的头文件路径和编译宏。
+- **多架构兼容**: 支持`x86_64-linux-gnu`、`aarch64`等多种CPU架构的库路径布局。
+- **发行版通用**: 适配Ubuntu、Debian、CentOS、Fedora等主流Linux发行版的标准安装路径。
+- **用户贡献整合**: 成功整合了社区用户提供的完整Qt6路径支持，增强了跨平台兼容性。
+- **向后兼容保障**: 保证现有Qt5项目可以零配置平滑迁移。
 
 #### 智能编译参数系统 - 企业级AST编译优化
 
@@ -55,35 +55,35 @@ class CompileCommandsManager {
 ```
 
 **核心技术能力**：
-- **系统库智能发现**: C++标准库(多版本)、Qt5/Qt6(双版本)、GTest/GMock
-- **项目结构感知**: 自动识别include、src、tests目录层次结构
-- **现代编译参数**: C++17标准、-O2优化、-fPIC、错误抑制(-Wno-everything)
-- **多架构适配**: x86_64-linux-gnu、aarch64等架构路径自动适配
+- **系统库智能发现**: 自动检测并包含C++标准库（多版本）、Qt5/Qt6（双版本）、GTest/GMock等关键依赖的头文件路径。
+- **项目结构感知**: 自动识别项目的`include`、`src`、`tests`等目录层次结构，并将其加入编译路径。
+- **现代编译参数**: 默认采用C++17标准，并自动添加`-O2`优化、`-fPIC`等，同时通过`-Wno-everything`抑制无关警告。
+- **多架构适配**: 自动适配`x86_64-linux-gnu`、`aarch64`等不同架构的系统库路径。
 
 **技术收益**：
-- **编译成功率**: 从60%提升到90%+ (大幅减少AST解析失败)
-- **错误消除**: 解决`'bits/c++config.h' file not found`等系统库错误
-- **Qt项目兼容**: Qt5/Qt6项目开箱即用，无需手动配置
+- **编译成功率大幅提升**: 将AST解析成功率从约60%提升到90%以上，显著减少了因环境配置问题导致的分析失败。
+- **关键错误消除**: 有效解决了`'bits/c++config.h' file not found`等常见的系统库找不到的错误。
+- **Qt项目开箱即用**: 使得Qt5和Qt6项目无需任何手动配置即可进行分析，极大改善了用户体验。
 
 #### 测试质量保障升级 - 企业级质量标准达成
 
 **里程碑质量指标**：
-- **测试通过率**: 100% (34/34测试套件) ⭐**零失败率**
-- **执行效率**: 147.08秒（高效并行执行）
-- **代码覆盖率**: 73.5%行覆盖率，90.6%函数覆盖率
-- **稳定性**: 连续多次运行零波动
+- **测试通过率**: **100%** (34/34测试套件)，实现了零失败率的质量目标。
+- **执行效率**: 在标准测试环境下，147.08秒内完成全量测试，保障了CI/CD流程的高效并行执行。
+- **代码覆盖率**: 核心代码达到73.5%的行覆盖率和90.6%的函数覆盖率。
+- **稳定性**: 经过多次重复运行验证，测试结果零波动，证明了测试套件的可靠性。
 
 **企业级测试技术栈**：
-- **测试框架**: GoogleTest 1.10+ + GoogleMock (现代C++测试标准)
-- **覆盖率分析**: gcov + lcov (代码覆盖率可视化)
-- **并发安全测试**: 多线程竞态条件检测和死锁检测
-- **集成测试**: 端到端工作流验证，真实场景模拟
-- **性能基准测试**: 回归检测，性能监控
-- **内存安全**: Valgrind集成，内存泄漏和越界检测
+- **测试框架**: GoogleTest 1.10+ & GoogleMock，作为C++测试的事实标准。
+- **覆盖率分析**: gcov & lcov，用于生成详细的代码覆盖率报告，并进行可视化分析。
+- **并发安全测试**: 设计了多线程竞态条件和死锁检测的专用测试用例。
+- **集成测试**: 构建了端到端的完整工作流验证，模拟真实用户场景。
+- **性能基准测试**: 建立了性能回归检测机制，监控关键路径的性能变化。
+- **内存安全**: 集成Valgrind等工具，在CI流程中自动检测内存泄漏和越界访问。
 
 #### 多语言统一架构 - 架构重大突破
 
-**架构创新**：实现企业级多语言统一分析架构，支持C++和Go混合项目。
+**架构创新**：实现企业级多语言统一分析架构，无缝支持C++和Go的混合项目分析。
 
 **核心技术栈**：
 ```cpp
@@ -102,16 +102,16 @@ class GoAnalyzer : public ILanguageAnalyzer;
 ```
 
 **技术特性**：
-- **C++分析引擎**: 基于Clang/LLVM LibTooling，支持C++11-C++20
-- **Go分析引擎**: 原生Go AST解析，支持Go 1.15+
-- **统一接口**: 通过ILanguageAnalyzer统一多语言分析
-- **智能检测**: 自动识别项目中的不同编程语言
-- **结果聚合**: 跨语言覆盖率统计和报告生成
+- **C++分析引擎**: 基于Clang/LLVM LibTooling，提供强大的C++ AST分析能力，支持C++11到C++20。
+- **Go分析引擎**: 通过与原生Go AST解析工具集成，支持Go 1.15+的静态分析。
+- **统一接口 (`ILanguageAnalyzer`)**: 通过策略模式统一管理多语言分析器，实现了分析逻辑的解耦。
+- **智能语言检测**: `MultiLanguageAnalyzer`根据文件扩展名自动路由到相应的分析器。
+- **结果聚合**: 实现了跨语言分析结果的统一数据结构和覆盖率统计模型。
 
 **架构收益**：
-- **混合项目支持**: 同一项目中C++和Go文件并存分析
-- **结果完整性**: 解决C++分析结果丢失问题
-- **扩展性**: 为未来支持更多语言奠定架构基础
+- **混合项目支持**: 允许在同一次运行中分析包含C++和Go代码的复杂项目。
+- **结果完整性**: 解决了早期版本中C++分析结果在多语言模式下丢失的严重缺陷。
+- **高扩展性**: 为未来支持更多语言（如Java, Python）奠定了坚实的架构基础，新增语言仅需实现`ILanguageAnalyzer`接口。
 
 ### 构建系统增强
 
@@ -124,81 +124,89 @@ class GoAnalyzer : public ILanguageAnalyzer;
 ```
 
 **特性**：
-- **Go集成**: 自动编译Go分析器
-- **依赖检查**: 自动验证依赖完整性
-- **多平台**: Linux/macOS/Windows支持
-- **性能优化**: 并行编译和链接
+- **Go集成**: 构建脚本自动编译Go分析器，并将其打包到最终产物中。
+- **依赖检查**: 在构建开始前自动验证关键依赖（如Clang, LLVM）是否完整。
+- **多平台支持**: 脚本设计兼容Linux、macOS和Windows (WSL)环境。
+- **性能优化**: 默认启用并行编译和链接，大幅缩短构建时间。
 
 ## 技术栈概览
 
 ### 核心技术选择
 
 #### 编程语言
-- **主语言**: C++17 (升级)
-  - 理由：现代C++特性支持，与目标分析语言一致
-  - 版本选择：C++17提供了足够的现代特性同时保持广泛兼容性
-  - 关键特性：std::filesystem、std::optional、结构化绑定、if constexpr
+- **主语言**: C++17
+  - **最低标准**: C++17
+  - **兼容范围**: C++11 到 C++20
+  - **理由**: 利用现代C++特性提升代码质量和开发效率，同时与目标分析语言生态保持一致。
 
-- **辅助语言**: Go 1.15+
-  - 理由：Go代码分析需要，简洁高效
-  - 版本要求：Go 1.15.9.3+ (降低版本要求)
-  - 集成方式：外部工具，JSON通信
+- **辅助语言**: Go
+  - **最低版本**: `1.15`
+  - **推荐版本**: `1.18+`
+  - **理由**: 为了支持对Go语言项目的日志覆盖率分析，Go语言本身简洁高效。
+  - **集成方式**: 通过标准输入输出与外部Go分析工具进行JSON数据交换。
 
 #### 静态分析框架
 - **Clang/LLVM LibTooling**
-  - 版本要求：LLVM 10.0+，推荐 LLVM 14.0+
-  - 选择理由：业界标准的C++代码分析工具，AST解析能力强大
-  - 核心组件：
-    - `clang::tooling::ClangTool` - 编译数据库驱动的分析工具
-    - `clang::RecursiveASTVisitor` - AST遍历访问器
-    - `clang::ASTMatchers` - 声明式AST匹配器
-    - `clang::Rewriter` - 代码重写器（未来扩展用）
+  - **最低版本**: `10.0`
+  - **推荐版本**: `14.0`
+  - **选择理由**: 作为C++代码分析的业界标准，提供了无与伦比的AST解析和操作能力。
+  - **核心组件**:
+    - `clang::tooling::ClangTool` - 编译数据库驱动的分析工具，是整个分析流程的入口。
+    - `clang::RecursiveASTVisitor` - AST遍历访问器，用于深度优先遍历抽象语法树。
+    - `clang::ASTMatchers` - 声明式AST匹配器，用于精确查找特定的代码模式。
+    - `clang::Rewriter` - 代码重写器（为未来可能的代码修复和重构功能预留）。
 
 #### UI框架支持 (分析目标)
-- **Qt5**: 5.12+ (LTS版本支持)
-  - 组件：QtCore, QtGui, QtWidgets, QtNetwork等
-  - 日志系统：qDebug, qInfo, qWarning, qCritical, qFatal
+- **Qt5**
+  - **最低版本**: `5.12`
+  - **推荐版本**: `5.15` (LTS)
+  - **组件**: 支持对QtCore, QtGui, QtWidgets, QtNetwork等核心模块的日志分析。
+  - **日志系统**: `qDebug`, `qInfo`, `qWarning`, `qCritical`, `qFatal`等标准日志宏。
   
-- **Qt6**: 6.0+ (新增支持)
-  - 组件：QtCore, QtGui, QtWidgets, QtNetwork等
-  - 现代特性：更好的C++17/20支持
-  - 向后兼容：保持Qt5日志API兼容性
+- **Qt6**
+  - **最低版本**: `6.0`
+  - **推荐版本**: `6.2+`
+  - **组件**: 同样支持对QtCore, QtGui, QtWidgets, QtNetwork等核心模块的分析。
+  - **现代特性**: 支持分析基于C++17/20特性的现代Qt6代码。
+  - **向后兼容**: 完全兼容使用Qt5日志API的Qt6项目。
 
 #### 配置管理
 - **nlohmann/json**
-  - 版本：3.9.0+
-  - 选择理由：现代C++风格的JSON库，API简洁，性能优秀
-  - 特点：头文件单独包含，易于集成，支持现代C++特性
+  - **最低版本**: `3.9.0`
+  - **推荐版本**: 最新版
+  - **选择理由**: 现代C++风格的JSON库，API设计简洁直观，性能优秀，且为头文件单独包含，易于集成。
+  - **特点**: 在项目中广泛用于配置文件解析、Go分析器通信和JSON报告生成。
 
 #### 测试框架
 - **GoogleTest + GoogleMock**
-  - 版本：1.10.0+
-  - 选择理由：C++事实上的标准测试框架
-  - 组件：
-    - GTest - 单元测试框架
-    - GMock - Mock对象框架
-    - 覆盖率测试集成
+  - **最低版本**: `1.10.0`
+  - **推荐版本**: 最新版
+  - **选择理由**: C++事实上的标准测试框架，功能强大，生态成熟。
+  - **组件**:
+    - GTest - 提供丰富的断言和测试管理功能。
+    - GMock - 提供强大的Mock对象框架，用于隔离被测代码和外部依赖。
+    - 覆盖率测试集成：与gcov/lcov无缝集成。
 
 #### 构建系统
 - **CMake**
-  - 版本：3.10+
-  - 特点：跨平台构建，依赖管理，现代CMake最佳实践
-  - 模块：FindClang、FindLLVM、GoogleTest集成
+  - **最低版本**: `3.10`
+  - **推荐版本**: `3.16+`
+  - **特点**: 跨平台构建，强大的依赖管理能力，鼓励使用现代CMake最佳实践（如`target_*`系列命令）。
+  - **模块**: 项目中包含`FindClang`、`FindLLVM`等自定义模块，并与GoogleTest等第三方库良好集成。
 
 ## 开发环境设置
 
 ### 系统要求
 
 #### 操作系统支持
-- **Linux**（主要开发平台）
+- **Linux**（主要开发和测试平台）
   - Ubuntu 18.04+ / Debian 10+
   - CentOS 8+ / RHEL 8+
-  - Fedora 30+
 - **macOS**
   - macOS 10.15+ (Catalina+)
-  - Xcode 11.0+
+  - 需安装Xcode Command Line Tools 11.0+
 - **Windows**
-  - Windows 10 1903+
+  - Windows 10 1903+ (建议使用WSL2环境)
   - Visual Studio 2019+ 或 MinGW-w64
 
 #### 硬件要求
@@ -212,7 +220,7 @@ class GoAnalyzer : public ILanguageAnalyzer;
   CPU: 四核 3.0GHz
   内存: 8GB RAM
   存储: 5GB 可用空间
-  SSD: 推荐用于提高编译和分析速度
+  SSD: 强烈推荐，可显著提高编译和分析速度。
 
 大型项目分析:
   CPU: 8核+
@@ -228,18 +236,18 @@ class GoAnalyzer : public ILanguageAnalyzer;
 sudo apt-get update
 sudo apt-get install build-essential cmake git
 
-# Clang/LLVM 开发库
+# Clang/LLVM 开发库 (推荐 LLVM 14)
 sudo apt-get install clang-14 llvm-14-dev libclang-14-dev \
                      clang-tools-14 libclang-cpp14-dev
 
-# Qt开发库 (Qt5和Qt6支持)
+# Qt开发库 (同时安装 Qt5 和 Qt6 以获得最佳兼容性)
 sudo apt-get install qtbase5-dev qtbase5-dev-tools \
                      qt6-base-dev qt6-base-dev-tools
 
-# JSON 库
+# JSON 库 (nlohmann/json)
 sudo apt-get install nlohmann-json3-dev
 
-# 测试框架
+# 测试框架 (GoogleTest & GoogleMock)
 sudo apt-get install libgtest-dev libgmock-dev
 
 # Go语言环境 (用于Go分析器)
@@ -249,16 +257,18 @@ sudo apt-get install golang-go
 sudo apt-get install lcov gcovr
 ```
 
-#### CentOS/RHEL/Fedora (更新)
+#### CentOS/RHEL/Fedora (新增)
 ```bash
+# 启用EPEL仓库 (CentOS/RHEL)
+sudo dnf install epel-release
+
 # 基本开发工具
-sudo dnf install gcc-c++ cmake git
+sudo dnf install gcc-c++ make cmake git
 
-# Clang/LLVM 开发库
-sudo dnf install clang llvm-devel clang-devel \
-                  clang-tools-extra
+# Clang/LLVM 开发库 (版本可能较低，建议从源码或官方源安装)
+sudo dnf install clang clang-devel
 
-# Qt开发库
+# Qt开发库 (Qt5 和 Qt6)
 sudo dnf install qt5-qtbase-devel qt6-qtbase-devel
 
 # JSON 库
@@ -269,6 +279,9 @@ sudo dnf install gtest-devel gmock-devel
 
 # Go语言环境
 sudo dnf install golang
+
+# 可选：代码覆盖率工具
+sudo dnf install lcov
 ```
 
 #### macOS (更新)
