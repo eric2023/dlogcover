@@ -59,6 +59,22 @@ cd dlogcover
 cat report.txt
 ```
 
+### 📦 快速生成DEB安装包
+
+```bash
+# 1. 构建Release版本并生成DEB包
+./build.sh --release --package
+
+# 2. 查看生成的包文件
+ls -la build/packages/
+
+# 3. 安装DEB包 (可选)
+sudo dpkg -i build/packages/dlogcover_*.deb
+
+# 4. 验证安装
+dlogcover --help
+```
+
 ### 典型分析报告
 ```
 📊 DLogCover 分析报告
@@ -218,6 +234,8 @@ DLogCover超越了简单的函数覆盖，提供了更深层次、更贴近业�
 | | `Qt6` | `6.0` | `6.2+` | 用于分析基于 Qt6 的项目。 |
 | **第三方库**| `GoogleTest` | `1.10.0` | 最新版 | 用于运行项目的单元测试和集成测试。 |
 | | `nlohmann/json`| `3.9.0` | 最新版 | 用于处理 JSON 格式的配置和报告。 |
+| **打包工具**| `debhelper` | `13` | 最新版 | 用于构建DEB包（可选）。 |
+| | `dpkg-dev` | - | 最新版 | 用于构建DEB包（可选）。 |
 
 ### 依赖安装
 
@@ -242,6 +260,9 @@ sudo apt-get install nlohmann-json3-dev libgtest-dev
 
 # 6. 安装Go语言环境 (用于Go分析器)
 sudo apt-get install golang-go
+
+# 7. 安装DEB包构建工具 (可选，用于构建安装包)
+sudo apt-get install debhelper devscripts build-essential
 ```
 
 #### CentOS/RHEL/Fedora
@@ -390,6 +411,18 @@ DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和�
   ```bash
   ./build.sh --release
   ```
+- **构建DEB包** (构建并生成debian安装包):
+  ```bash
+  ./build.sh --package
+  ```
+- **构建Release版本并生成DEB包**:
+  ```bash
+  ./build.sh --release --package
+  ```
+- **执行完整流程并生成DEB包** (清理+构建+测试+覆盖率+打包):
+  ```bash
+  ./build.sh --full-process --package
+  ```
 - **清理构建目录**:
   ```bash
   ./build.sh --clean
@@ -398,6 +431,21 @@ DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和�
   ```bash
   ./build.sh -j8
   ```
+
+#### build.sh 脚本参数详解
+
+| 参数 | 简写 | 描述 | 示例 |
+|------|------|------|------|
+| `--help` | `-h` | 显示帮助信息 | `./build.sh -h` |
+| `--clean` | `-c` | 清理构建目录 | `./build.sh -c` |
+| `--debug` | `-d` | 构建Debug版本（默认） | `./build.sh -d` |
+| `--release` | `-r` | 构建Release版本 | `./build.sh -r` |
+| `--test` | `-t` | 构建并运行测试 | `./build.sh -t` |
+| `--install` | `-i` | 安装到系统 | `./build.sh -i` |
+| `--package` | `-p` | **构建DEB包并放置到build/packages目录** | `./build.sh -p` |
+| `--full-process` | `-f` | 执行完整流程：编译→测试→覆盖率统计 | `./build.sh -f` |
+| `--prefix=<path>` | | 指定安装路径前缀 | `./build.sh --prefix=/usr/local` |
+| `--package-dir=<path>` | | **指定包输出目录（默认：build/packages）** | `./build.sh -p --package-dir=dist` |
 
 ### 命令行选项
 

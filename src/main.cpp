@@ -101,6 +101,9 @@ bool loadAndValidateConfig(cli::Options& options, config::ConfigManager& configM
         // 尝试在当前目录查找dlogcover.json
         if (std::filesystem::exists("dlogcover.json")) {
             configLoaded = configManager.loadConfig("dlogcover.json");
+        } else if (std::filesystem::exists("/usr/share/dlogcover/dlogcover.json")) {
+            // 如果当前目录未找到，尝试查找deb包安装的默认配置文件
+            configLoaded = configManager.loadConfig("/usr/share/dlogcover/dlogcover.json");
         }
     }
 
