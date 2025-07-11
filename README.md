@@ -59,6 +59,22 @@ cd dlogcover
 cat report.txt
 ```
 
+### 📦 快速生成DEB安装包
+
+```bash
+# 1. 构建Release版本并生成DEB包
+./build.sh --release --package
+
+# 2. 查看生成的包文件
+ls -la build/packages/
+
+# 3. 安装DEB包 (可选)
+sudo dpkg -i build/packages/dlogcover_*.deb
+
+# 4. 验证安装
+dlogcover --help
+```
+
 ### 典型分析报告
 ```
 📊 DLogCover 分析报告
@@ -218,6 +234,8 @@ DLogCover超越了简单的函数覆盖，提供了更深层次、更贴近业�
 | | `Qt6` | `6.0` | `6.2+` | 用于分析基于 Qt6 的项目。 |
 | **第三方库**| `GoogleTest` | `1.10.0` | 最新版 | 用于运行项目的单元测试和集成测试。 |
 | | `nlohmann/json`| `3.9.0` | 最新版 | 用于处理 JSON 格式的配置和报告。 |
+| **打包工具**| `debhelper` | `13` | 最新版 | 用于构建DEB包（可选）。 |
+| | `dpkg-dev` | - | 最新版 | 用于构建DEB包（可选）。 |
 
 ### 依赖安装
 
@@ -242,6 +260,9 @@ sudo apt-get install nlohmann-json3-dev libgtest-dev
 
 # 6. 安装Go语言环境 (用于Go分析器)
 sudo apt-get install golang-go
+
+# 7. 安装DEB包构建工具 (可选，用于构建安装包)
+sudo apt-get install debhelper devscripts build-essential
 ```
 
 #### CentOS/RHEL/Fedora
@@ -264,6 +285,81 @@ sudo dnf install nlohmann-json-devel gtest-devel
 # 6. 安装Go语言环境
 sudo dnf install golang
 ```
+
+### 📦 DEB 包构建与安装
+
+DLogCover 支持构建标准的 Debian 包，方便在 Ubuntu/Debian 系统上进行分发和安装。
+
+#### 构建 DEB 包
+
+**前提条件**:
+```bash
+# 安装 DEB 包构建工具
+sudo apt-get install debhelper devscripts build-essential
+
+# 确保已安装所有构建依赖
+sudo apt-get install cmake g++ golang-go libclang-dev llvm-dev libgtest-dev nlohmann-json3-dev
+```
+
+**构建步骤**:
+```bash
+# 1. 进入项目根目录
+cd dlogcover
+
+# 2. 构建 DEB 包
+dpkg-buildpackage -us -uc -b
+
+# 3. 构建完成后，DEB 包将在上级目录中生成
+ls -la ../dlogcover_*.deb
+```
+
+**构建产物**:
+- `dlogcover_0.1.0_amd64.deb` - 主程序包
+- `dlogcover-dbgsym_0.1.0_amd64.ddeb` - 调试符号包（可选）
+
+#### 安装 DEB 包
+
+**从本地安装**:
+```bash
+# 安装主程序包
+sudo dpkg -i ../dlogcover_0.1.0_amd64.deb
+
+# 如果出现依赖问题，运行以下命令修复
+sudo apt-get install -f
+```
+
+**验证安装**:
+```bash
+# 检查安装状态
+dpkg -l | grep dlogcover
+
+# 测试程序运行
+dlogcover --help
+
+# 查看安装的文件
+dpkg -L dlogcover
+```
+
+#### 卸载 DEB 包
+
+```bash
+# 卸载程序包
+sudo dpkg -r dlogcover
+
+# 完全清理（包括配置文件）
+sudo dpkg -P dlogcover
+```
+
+#### 包信息
+
+- **包名**: `dlogcover`
+- **版本**: `0.1.0`
+- **架构**: `amd64`
+- **依赖**: 自动检测系统库依赖（libclang, llvm, libc6 等）
+- **安装位置**: 
+  - 主程序: `/usr/bin/dlogcover`
+  - Go 分析器: `/usr/bin/dlogcover-go-analyzer`
+  - 文档: `/usr/share/doc/dlogcover/`
 
 ### 🔧 编译与打包注意事项
 
@@ -315,6 +411,18 @@ DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和�
   ```bash
   ./build.sh --release
   ```
+- **构建DEB包** (构建并生成debian安装包):
+  ```bash
+  ./build.sh --package
+  ```
+- **构建Release版本并生成DEB包**:
+  ```bash
+  ./build.sh --release --package
+  ```
+- **执行完整流程并生成DEB包** (清理+构建+测试+覆盖率+打包):
+  ```bash
+  ./build.sh --full-process --package
+  ```
 - **清理构建目录**:
   ```bash
   ./build.sh --clean
@@ -323,6 +431,21 @@ DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和�
   ```bash
   ./build.sh -j8
   ```
+
+#### build.sh 脚本参数详解
+
+| 参数 | 简写 | 描述 | 示例 |
+|------|------|------|------|
+| `--help` | `-h` | 显示帮助信息 | `./build.sh -h` |
+| `--clean` | `-c` | 清理构建目录 | `./build.sh -c` |
+| `--debug` | `-d` | 构建Debug版本（默认） | `./build.sh -d` |
+| `--release` | `-r` | 构建Release版本 | `./build.sh -r` |
+| `--test` | `-t` | 构建并运行测试 | `./build.sh -t` |
+| `--install` | `-i` | 安装到系统 | `./build.sh -i` |
+| `--package` | `-p` | **构建DEB包并放置到build/packages目录** | `./build.sh -p` |
+| `--full-process` | `-f` | 执行完整流程：编译→测试→覆盖率统计 | `./build.sh -f` |
+| `--prefix=<path>` | | 指定安装路径前缀 | `./build.sh --prefix=/usr/local` |
+| `--package-dir=<path>` | | **指定包输出目录（默认：build/packages）** | `./build.sh -p --package-dir=dist` |
 
 ### 命令行选项
 

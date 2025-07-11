@@ -14,8 +14,15 @@ show_help() {
     echo "  -r, --release              构建Release版本"
     echo "  -t, --test                 构建并运行测试"
     echo "  -i, --install              安装到系统"
+    echo "  -p, --package              构建DEB包并放置到build/packages目录"
     echo "  -f, --full-process         执行完整流程：编译 -> 测试 -> 覆盖率统计"
     echo "  --prefix=<path>            安装路径前缀"
+    echo "  --package-dir=<path>       指定包输出目录(默认: build/packages)"
+    echo ""
+    echo "使用示例:"
+    echo "  $0 -r -p                   构建Release版本并生成DEB包"
+    echo "  $0 -f -p                   执行完整流程并生成DEB包"
+    echo "  $0 -p --package-dir=dist   生成DEB包到dist目录"
     echo ""
     echo "环境要求:"
     echo "  - Go 1.15+ (用于Go语言分析器)"
@@ -23,6 +30,7 @@ show_help() {
     echo "  - Clang/LLVM开发库"
     echo "  - nlohmann_json库"
     echo "  - GoogleTest库"
+    echo "  - debhelper, dpkg-dev (用于DEB包构建)"
 }
 
 # 检查许可证一致性
@@ -160,13 +168,166 @@ clean_go_artifacts() {
     fi
 }
 
+# 检查debian构建工具
+check_debian_tools() {
+    echo "检查debian构建工具..."
+    
+    # 检查必要的debian构建工具
+    local missing_tools=()
+    
+    if ! command -v dpkg-buildpackage &> /dev/null; then
+        missing_tools+=("dpkg-dev")
+    fi
+    
+    if ! command -v debhelper &> /dev/null && ! command -v dh &> /dev/null; then
+        missing_tools+=("debhelper")
+    fi
+    
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        echo "错误: 缺少debian构建工具: ${missing_tools[*]}"
+        echo "请安装缺少的工具："
+        echo "  Ubuntu/Debian: sudo apt install ${missing_tools[*]}"
+        return 1
+    fi
+    
+    # 检查debian配置文件
+    local missing_files=()
+    
+    if [ ! -f "debian/rules" ]; then
+        missing_files+=("debian/rules")
+    fi
+    
+    if [ ! -f "debian/control" ]; then
+        missing_files+=("debian/control")
+    fi
+    
+    if [ ! -f "debian/changelog" ]; then
+        missing_files+=("debian/changelog")
+    fi
+    
+    if [ ${#missing_files[@]} -gt 0 ]; then
+        echo "错误: 缺少debian配置文件: ${missing_files[*]}"
+        echo "请确保项目包含完整的debian配置文件"
+        return 1
+    fi
+    
+    echo "✅ debian构建工具检查通过"
+    return 0
+}
+
+# 构建DEB包
+build_deb_package() {
+    echo "开始构建DEB包..."
+    
+    # 检查debian构建工具
+    if ! check_debian_tools; then
+        echo "错误: debian构建工具检查失败"
+        return 1
+    fi
+    # 记录当前目录
+    local current_dir=$(pwd)
+    
+    # 回到项目根目录（如果当前在build目录中）
+    if [[ "$current_dir" == */build ]]; then
+        cd ..
+    fi
+    
+    echo "在目录 $(pwd) 中构建DEB包..."
+        
+    # 构建DEB包
+    echo "执行: dpkg-buildpackage -us -uc -b"
+    if ! dpkg-buildpackage -us -uc -b; then
+        echo "错误: DEB包构建失败"
+        return 1
+    fi
+    
+    # 确保包输出目录存在
+    if ! mkdir -p "$PACKAGE_DIR"; then
+        echo "错误: 无法创建包输出目录: $PACKAGE_DIR"
+        return 1
+    fi
+
+    # 移动生成的包文件到指定目录
+    echo "移动包文件到: $PACKAGE_DIR"
+    
+    # 确保包目录是绝对路径
+    if [[ ! "$PACKAGE_DIR" = /* ]]; then
+        PACKAGE_DIR="$(pwd)/$PACKAGE_DIR"
+    fi
+    
+    # 移动所有相关文件
+    local moved_files=()
+    
+    # 移动.deb文件
+    for file in ../dlogcover_*.deb; do
+        if [ -f "$file" ]; then
+            mv "$file" "$PACKAGE_DIR/"
+            moved_files+=("$(basename "$file")")
+        fi
+    done
+    
+    # 移动.ddeb文件（调试符号包，如果存在）
+    for file in ../dlogcover_*.ddeb; do
+        if [ -f "$file" ]; then
+            mv "$file" "$PACKAGE_DIR/"
+            moved_files+=("$(basename "$file")")
+        fi
+    done
+    
+    # 移动.buildinfo文件
+    for file in ../dlogcover_*.buildinfo; do
+        if [ -f "$file" ]; then
+            mv "$file" "$PACKAGE_DIR/"
+            moved_files+=("$(basename "$file")")
+        fi
+    done
+    
+    # 移动.changes文件
+    for file in ../dlogcover_*.changes; do
+        if [ -f "$file" ]; then
+            mv "$file" "$PACKAGE_DIR/"
+            moved_files+=("$(basename "$file")")
+        fi
+    done
+
+    # 移动.ddebs文件（调试符号包，如果存在）
+    for file in ../dlogcover-dbgsym_*.deb; do
+        if [ -f "$file" ]; then
+            mv "$file" "$PACKAGE_DIR/"
+            moved_files+=("$(basename "$file")")
+        fi
+    done
+    
+    # 检查是否成功移动了文件
+    if [ ${#moved_files[@]} -eq 0 ]; then
+        echo "警告: 没有找到生成的包文件"
+        return 1
+    fi
+    
+    echo "✅ DEB包构建完成！"
+    echo "📦 生成的包文件:"
+    for file in "${moved_files[@]}"; do
+        echo "  - $file"
+    done
+    echo "📁 包文件位置: $PACKAGE_DIR"
+    
+    # 显示包文件详细信息
+    echo ""
+    echo "📋 包文件详细信息:"
+    ls -la "$PACKAGE_DIR"/dlogcover_*.deb 2>/dev/null || echo "  未找到.deb文件"
+    
+    return 0
+}
+
 # 默认值
 BUILD_TYPE="Debug"
 BUILD_TESTS=0
 CLEAN=0
 INSTALL=0
 FULL_PROCESS=0
+BUILD_DEB_PACKAGE=0
 INSTALL_PREFIX="/usr/local"
+PACKAGE_DIR="build/packages"
 
 # 保存原始参数用于后续判断
 ORIGINAL_ARGS=("$@")
@@ -193,6 +354,9 @@ for arg in "$@"; do
         -i|--install)
             INSTALL=1
             ;;
+        -p|--package)
+            BUILD_DEB_PACKAGE=1
+            ;;
         -f|--full-process)
             FULL_PROCESS=1
             BUILD_TESTS=1  # 完整流程包含测试
@@ -200,6 +364,9 @@ for arg in "$@"; do
             ;;
         --prefix=*)
             INSTALL_PREFIX="${arg#*=}"
+            ;;
+        --package-dir=*)
+            PACKAGE_DIR="${arg#*=}"
             ;;
         *)
             echo "未知选项: $arg"
@@ -373,9 +540,18 @@ if [ $INSTALL -eq 1 ]; then
     cmake --install .
 fi
 
+# 回到项目根目录
+cd ..
+
+# 构建DEB包
+if [ $BUILD_DEB_PACKAGE -eq 1 ]; then
+    if ! build_deb_package; then
+        echo "错误: DEB包构建失败"
+        exit 1
+    fi
+fi
+
 # 如果不是完整流程，显示常规完成消息
 if [ $FULL_PROCESS -eq 0 ]; then
     echo "构建完成!"
 fi
-
-cd ..
