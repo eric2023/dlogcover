@@ -1,0 +1,16 @@
+
+src/environments.h
+
+CMakeLists.txt.user
+
+build-ut/
+build/
+
+*.qm
+
+.unioncode
+.cursor
+.vscode
+
+dist/
+3rdparty/antlr4

@@ -613,8 +613,22 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
                      totalDecls, decl->getDeclKindName(), isInMainFile ? "是" : "否", 
                      declFilePath.c_str());
         
+        // 分析是否是LinkageSpec声明（如extern "C"）
+        if (auto* linkageDecl = llvm::dyn_cast<clang::LinkageSpecDecl>(decl)) {
+            LOG_DEBUG_FMT("发现LinkageSpec声明 #%d: 语言=%s, 在主文件=%s", 
+                         totalDecls, 
+                         linkageDecl->getLanguage() == clang::LinkageSpecDecl::lang_c ? "C" : "C++",
+                         isInMainFile ? "是" : "否");
+            
+            // 递归分析LinkageSpec内部的声明
+            if (isInMainFile) {
+                analyzeLinkageSpec(linkageDecl, filePath, sourceManager, functionAnalyzer, rootNode, funcDecls);
+            } else {
+                LOG_DEBUG("跳过LinkageSpec: 不在主文件中");
+            }
+        }
         // 分析是否是函数声明
-        if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+        else if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
             funcDecls++;
             bool hasBody = funcDecl->hasBody();
             
@@ -854,6 +868,138 @@ Result<std::unique_ptr<ASTNodeInfo>> ASTAnalyzer::analyzeASTContext(clang::ASTCo
 
     LOG_INFO_FMT("AST上下文分析完成，找到 %zu 个顶层函数/方法", rootNode->children.size());
     return makeSuccess(std::move(rootNode));
+}
+
+// 递归分析LinkageSpec的辅助函数
+void ASTAnalyzer::analyzeLinkageSpec(clang::LinkageSpecDecl* linkageDecl,
+                                    const std::string& filePath,
+                                    clang::SourceManager& sourceManager,
+                                    ASTFunctionAnalyzer& functionAnalyzer,
+                                    std::unique_ptr<ASTNodeInfo>& rootNode,
+                                    int& funcDecls) {
+    LOG_DEBUG_FMT("递归分析LinkageSpec: 语言=%s", 
+                  linkageDecl->getLanguage() == clang::LinkageSpecDecl::lang_c ? "C" : "C++");
+    
+    int declCount = 0;
+    for (auto* decl : linkageDecl->decls()) {
+        declCount++;
+        
+        // 检查声明的位置信息
+        auto loc = decl->getBeginLoc();
+        bool isInMainFile = sourceManager.isInMainFile(loc);
+        std::string declFilePath;
+        if (loc.isValid()) {
+            clang::FileID fileID = sourceManager.getFileID(loc);
+            if (const clang::FileEntry* entry = sourceManager.getFileEntryForID(fileID)) {
+                declFilePath = entry->getName().str();
+            }
+        }
+        
+        // 简化文件归属判断：只统计当前文件中真正定义的声明
+        bool isRelevantFile = isInMainFile;
+        
+        LOG_DEBUG_FMT("LinkageSpec中的声明 #%d: 类型=%s, 主文件=%s, 文件匹配=%s", 
+                     declCount, decl->getDeclKindName(),
+                     isInMainFile ? "是" : "否", isRelevantFile ? "是" : "否");
+        
+        if (auto* funcDecl = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+            funcDecls++;
+            bool hasBody = funcDecl->hasBody();
+            
+            // 过滤隐式函数（编译器生成的构造函数、析构函数等）
+            if (funcDecl->isImplicit()) {
+                LOG_DEBUG_FMT("跳过LinkageSpec中的隐式函数: %s", funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 精确过滤宏展开函数：保留函数名来自宏但函数体不是宏展开的函数（如TEST_F）
+            auto funcLoc = funcDecl->getNameInfo().getLoc();
+            bool isNameMacroExpanded = funcLoc.isValid() && sourceManager.isMacroBodyExpansion(funcLoc);
+            bool isBodyMacroExpanded = false;
+            
+            // 检查函数体是否来自宏展开
+            if (funcDecl->hasBody()) {
+                auto bodyLoc = funcDecl->getBody()->getBeginLoc();
+                isBodyMacroExpanded = bodyLoc.isValid() && sourceManager.isMacroBodyExpansion(bodyLoc);
+            }
+            
+            // 过滤完全由宏展开生成的函数，保留TEST_F等有实际函数体的函数
+            if (isNameMacroExpanded && isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("跳过LinkageSpec中完全宏展开生成的函数: %s", funcDecl->getNameAsString().c_str());
+                continue;
+            }
+            
+            // 记录宏展开状态用于调试
+            if (isNameMacroExpanded || isBodyMacroExpanded) {
+                LOG_DEBUG_FMT("LinkageSpec函数 %s: 名称宏展开=%s, 函数体宏展开=%s", 
+                             funcDecl->getNameAsString().c_str(),
+                             isNameMacroExpanded ? "是" : "否",
+                             isBodyMacroExpanded ? "是" : "否");
+            }
+            
+            bool isMethodDecl = llvm::isa<clang::CXXMethodDecl>(funcDecl);
+            std::string funcType = isMethodDecl ? "方法" : "函数";
+            
+            LOG_DEBUG_FMT("发现LinkageSpec%s #%d: %s, 有函数体=%s, 主文件=%s, 文件匹配=%s", 
+                         funcType.c_str(), declCount, funcDecl->getNameAsString().c_str(),
+                         hasBody ? "是" : "否", isInMainFile ? "是" : "否", isRelevantFile ? "是" : "否");
+            
+            if (hasBody && isRelevantFile) {
+                LOG_DEBUG_FMT("分析LinkageSpec%s: %s", 
+                             funcType.c_str(), funcDecl->getNameAsString().c_str());
+                
+                // 根据函数类型选择合适的分析方法
+                if (isMethodDecl) {
+                    auto* methodDecl = llvm::cast<clang::CXXMethodDecl>(funcDecl);
+                    auto result = functionAnalyzer.analyzeMethodDecl(methodDecl);
+                    if (!result.hasError()) {
+                        auto& funcNode = result.value();
+                        if (funcNode) {
+                            if (funcNode->hasLogging) {
+                                rootNode->hasLogging = true;
+                            }
+                            rootNode->children.push_back(std::move(funcNode));
+                            LOG_DEBUG_FMT("成功添加LinkageSpec%s节点: %s", 
+                                       funcType.c_str(), funcDecl->getNameAsString().c_str());
+                        }
+                    } else {
+                        LOG_WARNING_FMT("LinkageSpec%s分析失败: %s, 错误: %s", 
+                                       funcType.c_str(), funcDecl->getNameAsString().c_str(),
+                                       result.errorMessage().c_str());
+                    }
+                } else {
+                    auto result = functionAnalyzer.analyzeFunctionDecl(funcDecl);
+                    if (!result.hasError()) {
+                        auto& funcNode = result.value();
+                        if (funcNode) {
+                            if (funcNode->hasLogging) {
+                                rootNode->hasLogging = true;
+                            }
+                            rootNode->children.push_back(std::move(funcNode));
+                            LOG_DEBUG_FMT("成功添加LinkageSpec%s节点: %s", 
+                                       funcType.c_str(), funcDecl->getNameAsString().c_str());
+                        }
+                    } else {
+                        LOG_WARNING_FMT("LinkageSpec%s分析失败: %s, 错误: %s", 
+                                       funcType.c_str(), funcDecl->getNameAsString().c_str(),
+                                       result.errorMessage().c_str());
+                    }
+                }
+            } else {
+                LOG_DEBUG_FMT("跳过LinkageSpec%s %s: 无函数体=%s, 文件不匹配=%s", 
+                             funcType.c_str(), funcDecl->getNameAsString().c_str(),
+                             !hasBody ? "是" : "否", !isRelevantFile ? "是" : "否");
+            }
+        }
+        // 处理嵌套的LinkageSpec或其他声明类型
+        else if (auto* nestedLinkageDecl = llvm::dyn_cast<clang::LinkageSpecDecl>(decl)) {
+            LOG_DEBUG("发现嵌套的LinkageSpec，递归处理");
+            analyzeLinkageSpec(nestedLinkageDecl, filePath, sourceManager, functionAnalyzer, rootNode, funcDecls);
+        }
+        else {
+            LOG_DEBUG_FMT("跳过LinkageSpec中的非函数声明: %s", decl->getDeclKindName());
+        }
+    }
 }
 
 // 递归分析命名空间的辅助函数

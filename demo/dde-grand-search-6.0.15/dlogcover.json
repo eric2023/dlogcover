@@ -1,0 +1,84 @@
+{
+    "project": {
+        "name": "dlog-project",
+        "directory": ".",
+        "build_directory": "./build"
+    },
+    "scan": {
+        "directories": ["src"],
+        "file_extensions": [".h",".cpp",".go"],
+        "exclude_patterns": ["*build*", "*/build/*"]
+    },
+    "compile_commands": {
+        "path": "./build/compile_commands.json",
+        "auto_generate": true,
+        "cmake_args": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
+    },
+    "analysis": {
+        "mode": "cpp_only",
+        "auto_detection": {
+            "enabled": true,
+            "sample_size": 10,
+            "cpp_threshold": 0.6,
+            "go_threshold": 0.3
+        },
+        "function_coverage": true,
+        "branch_coverage": true,
+        "exception_coverage": true,
+        "key_path_coverage": true
+    },
+    "output": {
+        "report_file": "dlogcover_report.txt",
+        "log_file": "dlogcover.log",
+        "log_level": "DEBUG",
+        "show_uncovered_paths_details": false
+    },
+    "log_functions": {
+        "qt": {
+            "enabled": true,
+            "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+            "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+        },
+        "custom": {
+            "enabled": true,
+            "functions": {
+                "debug": ["logDebug", "LOG_DEBUG", "LOG_DEBUG_FMT"],
+                "info": ["logInfo", "LOG_INFO", "LOG_INFO_FMT"],
+                "warning": ["logWarning", "LOG_WARNING", "LOG_WARNING_FMT"],
+                "error": ["logError", "LOG_ERROR", "LOG_ERROR_FMT"],
+                "fatal": ["logFatal", "LOG_FATAL", "LOG_FATAL_FMT"]
+            }
+        }
+    },
+    "performance": {
+        "enable_parallel_analysis": true,
+        "max_threads": 0,
+        "enable_ast_cache": true,
+        "max_cache_size": 100,
+        "enable_io_optimization": true,
+        "file_buffer_size": 65536,
+        "enable_file_preloading": true
+    },
+    "go": {
+        "standard_log": {
+            "enabled": true,
+            "functions": ["Print", "Printf", "Println", "Fatal", "Fatalf", "Fatalln", "Panic", "Panicf", "Panicln"]
+        },
+        "logrus": {
+            "enabled": true,
+            "functions": ["Trace", "Debug", "Info", "Warn", "Warning", "Error", "Fatal", "Panic"],
+            "formatted_functions": ["Tracef", "Debugf", "Infof", "Warnf", "Errorf", "Fatalf", "Panicf"],
+            "line_functions": ["Traceln", "Debugln", "Infoln", "Warnln", "Errorln", "Fatalln", "Panicln"]
+        },
+        "zap": {
+            "enabled": true,
+            "logger_functions": ["Debug", "Info", "Warn", "Error", "DPanic", "Panic", "Fatal"],
+            "sugared_functions": ["Debugf", "Debugln", "Debugw", "Infof", "Infoln", "Infow", "Warnf", "Warnln", "Warnw", "Errorf", "Errorln", "Errorw", "DPanicf", "DPanicln", "DPanicw", "Panicf", "Panicln", "Panicw", "Fatalf", "Fatalln", "Fatalw"]
+        },
+        "golib": {
+            "enabled": true,
+            "functions": ["Info", "Error", "Debug", "Warn"],
+            "formatted_functions": ["Infof", "Errorf", "Debugf", "Warnf"]
+        }
+    }
+} 

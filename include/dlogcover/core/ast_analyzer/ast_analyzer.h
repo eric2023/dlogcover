@@ -181,6 +181,22 @@ private:
     bool isLogFunctionCall(clang::CallExpr* call) const;
 
     /**
+     * @brief 递归分析LinkageSpec的辅助函数
+     * @param linkageDecl LinkageSpec声明（如extern "C"）
+     * @param filePath 文件路径
+     * @param sourceManager 源代码管理器
+     * @param functionAnalyzer 函数分析器
+     * @param rootNode 根节点用于添加分析结果
+     * @param funcDecls 函数声明计数器的引用
+     */
+    void analyzeLinkageSpec(clang::LinkageSpecDecl* linkageDecl,
+                           const std::string& filePath,
+                           clang::SourceManager& sourceManager,
+                           ASTFunctionAnalyzer& functionAnalyzer,
+                           std::unique_ptr<ASTNodeInfo>& rootNode,
+                           int& funcDecls);
+
+    /**
      * @brief 递归分析命名空间的辅助函数
      * @param namespaceDecl 命名空间声明
      * @param namespacePath 命名空间路径（如 "dlogcover::core::ast_analyzer"）

@@ -1,0 +1,11 @@
+-I/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/src
+-I/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/3rdparty
+-I/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/src/tools
+-I/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/src/tools/semanticparser
+-I/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/obj-x86_64-linux-gnu/src/tools/semanticparser
+-DAPP_VERSION="6.0.15"
+-DPLUGIN_PREVIEW_DIR="/usr/lib/x86_64-linux-gnu/dde-grand-search/plugins/preview"
+-DPLUGIN_SEARCHER_DIR="/usr/lib/x86_64-linux-gnu/dde-grand-search-daemon/plugins/searcher"
+-o
+/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/obj-x86_64-linux-gnu/src/tools/semanticparser/moc_vectorindex.cpp
+/home/ut000520@uos/workspace/git/dlogcover/demo/dde-grand-search-6.0.15/obj-x86_64-linux-gnu/src/tools/semanticparser/vectorindex.h
