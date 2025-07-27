@@ -193,6 +193,12 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
 )
 
+# 确保包含新的流水线模块
+file(GLOB_RECURSE PIPELINE_SOURCES
+    "src/core/pipeline/*.cpp"
+)
+list(APPEND SOURCES ${PIPELINE_SOURCES})
+
 # 分离主函数和库源文件
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 

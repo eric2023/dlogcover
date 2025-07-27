@@ -32,6 +32,8 @@ struct ASTCacheEntry {
     std::chrono::system_clock::time_point cacheTime;        ///< 缓存时间
     size_t accessCount;                                      ///< 访问次数
     std::chrono::system_clock::time_point lastAccessTime;   ///< 最后访问时间
+    std::vector<std::string> dependencies;                  ///< 文件依赖关系
+    std::filesystem::file_time_type dependenciesLastCheck;  ///< 依赖关系最后检查时间
     
     /**
      * @brief 默认构造函数
@@ -98,8 +100,10 @@ public:
      * @brief 缓存AST信息
      * @param filePath 文件路径
      * @param astInfo AST信息
+     * @param dependencies 文件依赖关系（可选）
      */
-    void cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo> astInfo);
+    void cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo> astInfo,
+                  const std::vector<std::string>& dependencies = {});
 
     /**
      * @brief 清空缓存
@@ -171,6 +175,20 @@ private:
      * @return 如果文件发生变化返回true
      */
     bool hasFileChanged(const std::string& filePath, const ASTCacheEntry& entry);
+    
+    /**
+     * @brief 检查依赖文件是否发生变化
+     * @param entry 缓存条目
+     * @return 如果任何依赖文件发生变化返回true
+     */
+    bool hasDependenciesChanged(const ASTCacheEntry& entry);
+    
+    /**
+     * @brief 扫描文件的依赖关系
+     * @param filePath 文件路径
+     * @return 依赖文件列表
+     */
+    std::vector<std::string> scanFileDependencies(const std::string& filePath);
 
     /**
      * @brief 执行LRU淘汰

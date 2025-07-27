@@ -1,0 +1,37 @@
+{
+    "project": {
+        "name": "dlogcover",
+        "directory": ".",
+        "build_directory": "./build"
+    },
+    "scan": {
+        "directories": ["src", "include"],
+        "file_extensions": [".cpp", ".h"],
+        "exclude_patterns": ["build/*", "tests/*"]
+    },
+    "output": {
+        "report_file": "./dlogcover_report.txt",
+        "log_file": "./dlogcover.log",
+        "log_level": "debug"
+    },
+    "log_functions": {
+        "qt": {
+            "enabled": true,
+            "functions": ["qDebug", "qInfo", "qWarning", "qCritical"],
+            "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+        },
+        "custom": {
+            "enabled": true,
+            "functions": {
+                "general": ["LOG_DEBUG", "LOG_INFO", "LOG_WARNING", "LOG_ERROR", "LOG_CRITICAL", "LOG_TRACE"],
+                "format": ["LOG_DEBUG_FMT", "LOG_INFO_FMT", "LOG_WARNING_FMT", "LOG_ERROR_FMT", "LOG_CRITICAL_FMT"]
+            }
+        }
+    },
+    "analysis": {
+        "mode": "cpp_only",
+        "include_headers": false,
+        "skip_system_headers": true,
+        "parallel_jobs": 4
+    }
+} 
