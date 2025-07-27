@@ -14,6 +14,7 @@
 #include <dlogcover/config/config.h>
 #include <dlogcover/source_manager/source_manager.h>
 #include <dlogcover/utils/thread_pool.h>
+#include <dlogcover/utils/work_stealing_thread_pool.h>
 
 // Clang headers
 #include <clang/AST/ASTContext.h>
@@ -86,6 +87,12 @@ public:
     void setParallelMode(bool enabled, size_t maxThreads = 0);
 
     /**
+     * @brief 设置工作窃取模式
+     * @param enabled 是否启用工作窃取线程池
+     */
+    void setWorkStealingMode(bool enabled);
+
+    /**
      * @brief 启用AST缓存
      * @param enabled 是否启用缓存
      * @param maxCacheSize 最大缓存大小
@@ -146,9 +153,11 @@ private:
     std::unique_ptr<FileOwnershipValidator> fileValidator_; ///< 文件归属验证器
 
     // 并行处理相关成员
-    std::unique_ptr<utils::ThreadPool> threadPool_;  ///< 线程池
+    std::unique_ptr<utils::ThreadPool> threadPool_;  ///< 传统线程池
+    std::unique_ptr<utils::WorkStealingThreadPool> workStealingPool_;  ///< 工作窃取线程池
     std::mutex astNodesMutex_;                       ///< 保护astNodes_的并发访问
     bool parallelEnabled_ = false;                   ///< 是否启用并行模式
+    bool useWorkStealing_ = true;                    ///< 是否使用工作窃取线程池（默认启用）
     size_t maxThreads_ = 0;                         ///< 最大线程数
 
     // 缓存相关成员

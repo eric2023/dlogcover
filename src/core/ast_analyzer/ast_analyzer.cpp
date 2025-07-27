@@ -206,27 +206,40 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
         return makeSuccess(std::move(allSuccess));
     }
     
-    // 创建线程池
-    threadPool_ = std::make_unique<utils::ThreadPool>(numThreads);
+    // 根据配置创建线程池
+    if (useWorkStealing_) {
+        workStealingPool_ = std::make_unique<utils::WorkStealingThreadPool>(numThreads);
+        LOG_INFO_FMT("使用工作窃取线程池进行并行分析，线程数: %zu", numThreads);
+    } else {
+        threadPool_ = std::make_unique<utils::ThreadPool>(numThreads);
+        LOG_INFO_FMT("使用传统线程池进行并行分析，线程数: %zu", numThreads);
+    }
     
     // 使用RAII确保线程池正确关闭
     class ThreadPoolGuard {
         std::unique_ptr<utils::ThreadPool>& pool_;
+        std::unique_ptr<utils::WorkStealingThreadPool>& wsPool_;
     public:
-        explicit ThreadPoolGuard(std::unique_ptr<utils::ThreadPool>& pool) : pool_(pool) {}
+        explicit ThreadPoolGuard(std::unique_ptr<utils::ThreadPool>& pool, 
+                                std::unique_ptr<utils::WorkStealingThreadPool>& wsPool) 
+            : pool_(pool), wsPool_(wsPool) {}
         ~ThreadPoolGuard() {
-            if (pool_) {
-                try {
+            try {
+                if (pool_) {
                     pool_->shutdown();
                     pool_.reset();
-                } catch (const std::exception& e) {
-                    LOG_ERROR_FMT("线程池关闭异常: %s", e.what());
                 }
+                if (wsPool_) {
+                    wsPool_->shutdown();
+                    wsPool_.reset();
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR_FMT("线程池关闭异常: %s", e.what());
             }
         }
     };
     
-    ThreadPoolGuard poolGuard(threadPool_);
+    ThreadPoolGuard poolGuard(threadPool_, workStealingPool_);
     
     // 提交分析任务
     std::vector<std::future<Result<bool>>> futures;
@@ -236,13 +249,46 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
     futures.reserve(sourceFiles.size());
     
     try {
-        for (const auto& sourceFile : sourceFiles) {
-            auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
-            if (detectedLang != language_detector::SourceLanguage::CPP) {
-                continue;
-            }
+        if (useWorkStealing_ && workStealingPool_) {
+            // 使用工作窃取线程池，支持更好的负载均衡
+            for (const auto& sourceFile : sourceFiles) {
+                auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
+                if (detectedLang != language_detector::SourceLanguage::CPP) {
+                    continue;
+                }
 
-            futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
+                futures.emplace_back(workStealingPool_->submit([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
+                    auto result = this->analyzeSingleFile(sourceFile.path);
+                    
+                    size_t currentProcessed = processedCount.fetch_add(1) + 1;
+                    
+                    if (result.hasError()) {
+                        errorCount.fetch_add(1);
+                        LOG_ERROR_FMT("并行文件分析失败: %s, 错误: %s", 
+                                     sourceFile.path.c_str(), result.errorMessage().c_str());
+                    } else {
+                        LOG_DEBUG_FMT("并行文件分析成功: %s", sourceFile.path.c_str());
+                    }
+                    
+                    // 每处理10个文件报告一次进度
+                    if (currentProcessed % 10 == 0 || currentProcessed == sourceFiles.size()) {
+                        LOG_INFO_FMT("分析进度: %zu/%zu (%.1f%%)", 
+                                   currentProcessed, sourceFiles.size(), 
+                                   (currentProcessed * 100.0) / sourceFiles.size());
+                    }
+                    
+                    return result;
+                }));
+            }
+        } else {
+            // 使用传统线程池
+            for (const auto& sourceFile : sourceFiles) {
+                auto detectedLang = language_detector::LanguageDetector::detectLanguage(sourceFile.path);
+                if (detectedLang != language_detector::SourceLanguage::CPP) {
+                    continue;
+                }
+
+                futures.emplace_back(threadPool_->enqueue([this, sourceFile, &processedCount, &errorCount, &sourceFiles]() {
                 auto result = this->analyzeSingleFile(sourceFile.path);
                 
                 size_t currentProcessed = processedCount.fetch_add(1) + 1;
@@ -264,6 +310,7 @@ Result<bool> ASTAnalyzer::analyzeAllParallel() {
                 
                 return result;
             }));
+            }
         }
     } catch (const std::exception& e) {
         LOG_ERROR_FMT("提交任务时发生异常: %s", e.what());
@@ -315,6 +362,13 @@ void ASTAnalyzer::setParallelMode(bool enabled, size_t maxThreads) {
     
     LOG_INFO_FMT("并行模式设置: %s, 最大线程数: %zu", 
                 enabled ? "启用" : "禁用", maxThreads);
+}
+
+void ASTAnalyzer::setWorkStealingMode(bool enabled) {
+    useWorkStealing_ = enabled;
+    
+    LOG_INFO_FMT("工作窃取线程池模式设置: %s", 
+                enabled ? "启用" : "禁用");
 }
 
 void ASTAnalyzer::enableCache(bool enabled, size_t maxCacheSize, size_t maxMemoryMB) {
