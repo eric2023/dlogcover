@@ -52,6 +52,14 @@ bool ASTCache::isCacheValid(const std::string& filePath) {
         return false;
     }
     
+    // 检查依赖文件是否发生变化
+    if (hasDependenciesChanged(it->second)) {
+        debugLog("依赖文件已变化，移除缓存: " + filePath);
+        cache_.erase(it);
+        cacheMisses_.fetch_add(1);
+        return false;
+    }
+    
     // 更新访问统计
     updateAccessStats(it->second);
     cacheHits_.fetch_add(1);
@@ -73,6 +81,12 @@ std::unique_ptr<ASTNodeInfo> ASTCache::getCachedAST(const std::string& filePath)
         return nullptr;
     }
     
+    // 检查依赖文件是否发生变化
+    if (hasDependenciesChanged(it->second)) {
+        cache_.erase(it);
+        return nullptr;
+    }
+    
     // 更新访问统计
     updateAccessStats(it->second);
     
@@ -85,7 +99,8 @@ std::unique_ptr<ASTNodeInfo> ASTCache::getCachedAST(const std::string& filePath)
     return nullptr;
 }
 
-void ASTCache::cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo> astInfo) {
+void ASTCache::cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo> astInfo,
+                        const std::vector<std::string>& dependencies) {
     if (!astInfo) {
         LOG_WARNING_FMT("尝试缓存空的AST信息: %s", filePath.c_str());
         return;
@@ -97,6 +112,12 @@ void ASTCache::cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo
         // 获取文件信息
         auto lastModified = std::filesystem::last_write_time(filePath);
         auto fileSize = std::filesystem::file_size(filePath);
+        
+        // 如果没有提供依赖关系，则自动扫描
+        std::vector<std::string> actualDependencies = dependencies;
+        if (actualDependencies.empty()) {
+            actualDependencies = scanFileDependencies(filePath);
+        }
         
         // 读取文件内容计算哈希
         std::ifstream file(filePath);
@@ -123,6 +144,8 @@ void ASTCache::cacheAST(const std::string& filePath, std::unique_ptr<ASTNodeInfo
         
         // 创建缓存条目
         ASTCacheEntry entry(filePath, lastModified, fileSize, contentHash, std::move(astInfo));
+        entry.dependencies = actualDependencies;
+        entry.dependenciesLastCheck = std::filesystem::file_time_type::clock::now();
         cache_[filePath] = std::move(entry);
         
         debugLog("缓存AST信息: " + filePath + 
@@ -314,6 +337,82 @@ void ASTCache::debugLog(const std::string& message) const {
     if (debugMode_) {
         LOG_DEBUG_FMT("[ASTCache] %s", message.c_str());
     }
+}
+
+bool ASTCache::hasDependenciesChanged(const ASTCacheEntry& entry) {
+    // 如果没有依赖关系，则认为未变化
+    if (entry.dependencies.empty()) {
+        return false;
+    }
+    
+    try {
+        for (const auto& depPath : entry.dependencies) {
+            if (!std::filesystem::exists(depPath)) {
+                debugLog("依赖文件不存在: " + depPath);
+                return true;
+            }
+            
+            auto lastModified = std::filesystem::last_write_time(depPath);
+            if (lastModified > entry.dependenciesLastCheck) {
+                debugLog("依赖文件已修改: " + depPath);
+                return true;
+            }
+        }
+    } catch (const std::exception& e) {
+        LOG_WARNING_FMT("检查依赖关系时出错: %s", e.what());
+        return true;  // 出错时保守地认为依赖已变化
+    }
+    
+    return false;
+}
+
+std::vector<std::string> ASTCache::scanFileDependencies(const std::string& filePath) {
+    std::vector<std::string> dependencies;
+    
+    try {
+        std::ifstream file(filePath);
+        if (!file.is_open()) {
+            return dependencies;
+        }
+        
+        std::string line;
+        std::filesystem::path basePath = std::filesystem::path(filePath).parent_path();
+        
+        while (std::getline(file, line)) {
+            // 简单的#include解析
+            if (line.find("#include") != std::string::npos) {
+                // 查找引号或尖括号内的文件名
+                size_t start = line.find('"');
+                size_t end = line.find('"', start + 1);
+                
+                if (start == std::string::npos) {
+                    start = line.find('<');
+                    end = line.find('>', start + 1);
+                }
+                
+                if (start != std::string::npos && end != std::string::npos && end > start) {
+                    std::string includePath = line.substr(start + 1, end - start - 1);
+                    
+                    // 尝试解析相对路径
+                    if (includePath[0] != '/') {
+                        std::filesystem::path fullPath = basePath / includePath;
+                        if (std::filesystem::exists(fullPath)) {
+                            dependencies.push_back(fullPath.string());
+                        }
+                    } else if (std::filesystem::exists(includePath)) {
+                        dependencies.push_back(includePath);
+                    }
+                }
+            }
+        }
+        
+        debugLog("扫描到 " + std::to_string(dependencies.size()) + " 个依赖文件: " + filePath);
+        
+    } catch (const std::exception& e) {
+        LOG_WARNING_FMT("扫描文件依赖关系失败: %s, 错误: %s", filePath.c_str(), e.what());
+    }
+    
+    return dependencies;
 }
 
 } // namespace ast_analyzer
