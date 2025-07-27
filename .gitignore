@@ -54,3 +54,4 @@ dlogcover_*.changes
 *.dbgsym.ddeb
 dlogcover_*.tar.gz
 dlogcover_*.dsc
+.specstory/history/*2025-07-03_06-15Z*
