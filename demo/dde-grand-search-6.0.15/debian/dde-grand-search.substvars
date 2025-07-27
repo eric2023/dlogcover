@@ -1,3 +1,0 @@
-misc:Depends=dconf-gsettings-backend | gsettings-backend
-shlibs:Depends=libavformat60 (>= 7:6.0), libc6 (>= 2.34), libdde-shell (>= 2.0.1), libdeepin-pdfium, libdfm6-search, libdtk6core (>= 6.0), libdtk6gui (>= 6.0), libdtk6log (>= 0.0), libdtk6widget (>= 6.0), libffmpegthumbnailer4v5 (>= 2.2.2+git20220218+dfsg), libgcc-s1 (>= 3.4), libglib2.0-0 (>= 2.24.0), libicu74 (>= 74.1-1~), liblucene++0v5 (>= 3.0.8), libqt6concurrent6 (>= 6.1.2), libqt6core5compat6 (>= 6.8.0), libqt6core6 (>= 6.8.0), libqt6dbus6 (>= 6.4.0), libqt6gui6 (>= 6.8.0), libqt6network6 (>= 6.1.2), libqt6widgets6 (>= 6.3.0), libstdc++6 (>= 12), libtag1v5 (>= 1.9.1-2.2~)
-misc:Pre-Depends=
