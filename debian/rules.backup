@@ -33,13 +33,3 @@ override_dh_auto_clean:
 
 	# 2. 手动清理Go分析器的编译产物
 	rm -f build/bin/dlogcover-go-analyzer 
-
-# 重载DWZ优化步骤，处理Go程序压缩调试信息兼容性问题
-override_dh_dwz:
-	# 智能DWZ处理：先尝试无多文件优化，失败则跳过
-	if dh_dwz --no-dwz-multifile 2>/dev/null; then \
-		echo "✅ DWZ单文件优化成功"; \
-	else \
-		echo "⚠️  DWZ优化跳过 - Go程序包含压缩调试信息，这是正常现象"; \
-		echo "📦 包构建将继续，不影响功能"; \
-	fi 

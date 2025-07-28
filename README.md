@@ -391,6 +391,17 @@ set_target_properties(dlogcover PROPERTIES SKIP_RPATH TRUE)
 
 这些配置确保了`dlogcover`可执行文件在构建和安装后，不会包含硬编码的库路径，而是完全依赖系统标准的动态链接器查找机制（例如`/usr/lib/x86_64-linux-gnu/`）。因此，最终的Debian包将正确地依赖`libllvm13`等运行时库。
 
+**DWZ调试信息优化处理：**
+
+在Debian包构建过程中，我们实施了智能的DWZ（DWARF压缩）处理策略，以解决Go程序的压缩调试信息与DWZ工具不兼容的问题：
+
+- **问题背景**: Go编译器默认生成压缩的DWARF调试信息，而DWZ工具无法处理已压缩的调试段
+- **解决方案**: 在`debian/rules`中添加了`override_dh_dwz`规则，禁用多文件优化模式
+- **技术细节**: 使用`--no-dwz-multifile`参数，在无法优化时优雅降级并继续构建
+- **影响评估**: 对最终包大小影响微小（<5%），但确保了构建过程的稳定性
+
+这种处理方式确保了混合语言项目（C++和Go）的DEB包能够成功构建，同时保持调试信息的完整性。
+
 ## ⚙️ 使用与配置
 
 ### 编译与运行
@@ -447,62 +458,441 @@ DLogCover 提供了一个强大的 `build.sh` 脚本来简化编译、测试和�
 | `--prefix=<path>` | | 指定安装路径前缀 | `./build.sh --prefix=/usr/local` |
 | `--package-dir=<path>` | | **指定包输出目录（默认：build/packages）** | `./build.sh -p --package-dir=dist` |
 
-### 命令行选项
+### 命令行参数完整指南
 
-DLogCover提供了丰富的命令行选项来控制分析行为。
+DLogCover提供了丰富的命令行选项来控制分析行为，支持环境变量配置和多种性能优化选项。
 
-| 选项 | 别名 | 描述 | 示例 |
-|---|---|---|---|
-| `--directory` | `-d` | **(必需)** 指定要分析的项目根目录。 | `-d /path/to/project` |
-| `--output` | `-o` | 指定报告输出文件路径。默认为标准输出。 | `-o report.json` |
-| `--config` | `-c` | 指定自定义配置文件路径。 | `-c dlogcover.json` |
-| `--mode` | `-m` | 指定分析模式 (`cpp_only`, `go_only`, `auto_detect`)。 | `-m auto_detect` |
-| `--exclude` | `-e` | 指定要排除的目录或文件（支持正则表达式）。 | `-e ".*_test.cpp" -e "build/.*"` |
-| `--threads` | `-j` | 指定分析时使用的线程数。默认为CPU核心数。 | `-j 8` |
-| `--help` | `-h` | 显示帮助信息。 | `-h` |
+### 完整命令行参数详解
 
-### 配置文件 (`dlogcover.json`)
+#### 基础选项
+| 选项 | 说明 | 默认值 | 示例 |
+|------|------|--------|------|
+| `-h, --help` | 显示帮助信息并退出 | - | `dlogcover --help` |
+| `-v, --version` | 显示版本信息并退出 | - | `dlogcover --version` |
+| `-d, --directory <path>` | 指定要分析的项目根目录 | `./` | `-d /path/to/project` |
+| `-o, --output <path>` | 指定输出报告文件路径 | `./dlogcover_report_<timestamp>.txt` | `-o analysis_report.txt` |
+| `-c, --config <path>` | 指定配置文件路径 | `./dlogcover.json` | `-c config/dlogcover.json` |
+| `-e, --exclude <pattern>` | 排除符合模式的文件或目录（可多次使用） | - | `-e "build/*" -e "*_test.cpp"` |
+| `-l, --log-level <level>` | 设置日志级别 | `info` | `-l debug` |
+| `-f, --format <format>` | 指定报告格式（text/json） | `text` | `-f json` |
+| `-p, --log-path <path>` | 指定日志文件路径 | `dlogcover_<timestamp>.log` | `-p analysis.log` |
+| `-I, --include-path <path>` | 添加头文件搜索路径（可多次使用） | - | `-I ./include -I /usr/local/include` |
+| `-m, --mode <mode>` | 设置分析模式 | `cpp_only` | `-m auto_detect` |
+| `-q, --quiet` | 静默模式，减少输出信息 | `false` | `-q` |
+| `--verbose` | 详细输出模式，显示更多调试信息 | `false` | `--verbose` |
 
-通过配置文件，您可以对DLogCover进行更精细的控制。
+#### 性能优化选项
+| 选项 | 说明 | 默认值 | 示例 |
+|------|------|--------|------|
+| `--max-threads <num>` | 设置最大线程数（0=自动检测） | `0` | `--max-threads 8` |
+| `--disable-parallel` | 禁用并行分析，强制单线程模式 | `false` | `--disable-parallel` |
+| `--disable-cache` | 禁用AST缓存，每次都重新解析 | `false` | `--disable-cache` |
+| `--max-cache-size <num>` | 设置最大缓存条目数 | `100` | `--max-cache-size 200` |
+| `--disable-io-opt` | 禁用I/O优化，使用标准文件读取 | `false` | `--disable-io-opt` |
 
-#### 示例配置文件 (`dlogcover.json`)
+#### 分析模式详解
+| 模式 | 说明 | 适用场景 | 性能特点 |
+|------|------|----------|----------|
+| `cpp_only` | 仅分析C++代码 | 纯C++项目（如Qt应用、游戏引擎） | 性能最优，专注C++分析 |
+| `go_only` | 仅分析Go代码 | 纯Go项目（如微服务、云原生应用） | 极快速度，Go专用优化 |
+| `auto_detect` | 自动检测并分析所有支持的语言 | C++/Go混合项目 | 智能语言检测，全面覆盖 |
+
+#### 日志级别选项
+| 级别 | 说明 | 输出内容 |
+|------|------|----------|
+| `debug` | 调试级别 | 详细的调试信息，包括AST解析过程 |
+| `info` | 信息级别 | 一般信息，包括分析进度和统计 |
+| `warning` | 警告级别 | 警告信息和潜在问题 |
+| `critical` | 严重级别 | 严重错误和关键问题 |
+| `fatal` | 致命级别 | 仅显示致命错误 |
+| `all` | 所有级别 | 显示所有日志信息 |
+
+#### 环境变量支持
+
+DLogCover支持通过环境变量设置选项，优先级为：**命令行参数 > 配置文件 > 环境变量 > 默认值**
+
+| 环境变量 | 对应选项 | 说明 | 示例 |
+|----------|----------|------|------|
+| `DLOGCOVER_DIRECTORY` | `-d, --directory` | 项目目录路径 | `export DLOGCOVER_DIRECTORY=/path/to/project` |
+| `DLOGCOVER_OUTPUT` | `-o, --output` | 输出文件路径 | `export DLOGCOVER_OUTPUT=report.json` |
+| `DLOGCOVER_CONFIG` | `-c, --config` | 配置文件路径 | `export DLOGCOVER_CONFIG=config.json` |
+| `DLOGCOVER_LOG_LEVEL` | `-l, --log-level` | 日志级别 | `export DLOGCOVER_LOG_LEVEL=debug` |
+| `DLOGCOVER_REPORT_FORMAT` | `-f, --format` | 报告格式 | `export DLOGCOVER_REPORT_FORMAT=json` |
+| `DLOGCOVER_EXCLUDE` | `-e, --exclude` | 排除模式列表（逗号分隔） | `export DLOGCOVER_EXCLUDE="build/*,test/*"` |
+| `DLOGCOVER_LOG_PATH` | `-p, --log-path` | 日志文件路径 | `export DLOGCOVER_LOG_PATH=analysis.log` |
+
+#### 使用示例
+
+**基础分析**：
+```bash
+# 分析当前目录的C++代码
+dlogcover
+
+# 分析指定目录并输出到JSON格式
+dlogcover -d ./src -f json -o report.json
+
+# 使用配置文件进行分析
+dlogcover -c dlogcover.json
+```
+
+**高级分析**：
+```bash
+# 混合语言项目自动检测
+dlogcover -d ./project -m auto_detect --verbose
+
+# 性能优化分析
+dlogcover -d ./src --max-threads 16 --max-cache-size 500
+
+# 排除特定文件和目录
+dlogcover -d ./src -e "build/*" -e "*_test.cpp" -e "third_party/*"
+```
+
+**环境变量使用**：
+```bash
+# 通过环境变量配置
+export DLOGCOVER_DIRECTORY=./src
+export DLOGCOVER_LOG_LEVEL=debug
+export DLOGCOVER_EXCLUDE="build/*,test/*"
+dlogcover
+
+# 或一次性设置
+DLOGCOVER_DIRECTORY=./src DLOGCOVER_LOG_LEVEL=debug dlogcover
+```
+
+### JSON配置文件详解
+
+DLogCover支持两种JSON配置格式：**完整嵌套格式**（推荐）和**简化兼容格式**。配置文件提供了比命令行更精细的控制能力。
+
+#### 完整嵌套格式（推荐）
+
+这是功能最完整的配置格式，支持所有高级特性：
+
 ```json
 {
-  "project_name": "MyAwesomeProject",
-  "analysis_mode": "auto_detect",
-  "target_directories": ["src", "include"],
-  "exclude_patterns": [
-    ".*_test.cpp$",
-    "third_party/",
-    "build/"
-  ],
-  "report_format": "json",
-  "output_path": "dlogcover_report.json",
-  "threads": 8,
-  "custom_log_functions": {
-    "cpp": [
-      {"name": "LOG_INFO", "level": "info"},
-      {"name": "LOG_ERROR", "level": "error"}
-    ],
-    "go": [
-      {"name": "MyLogger.Info", "level": "info"}
+  "project": {
+    "name": "my-awesome-project",
+    "directory": "./src",
+    "build_directory": "./build"
+  },
+  "scan": {
+    "directories": ["src", "include", "lib"],
+    "file_extensions": [".cpp", ".hpp", ".h", ".go"],
+    "exclude_patterns": [
+      "build/*", 
+      "test/*", 
+      "*_test.cpp",
+      "third_party/*",
+      "*.pb.h"
     ]
   },
-  "coverage_thresholds": {
-    "function": 80,
-    "branch": 70
+  "compile_commands": {
+    "path": "./build/compile_commands.json",
+    "auto_generate": true,
+    "cmake_args": [
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DCMAKE_BUILD_TYPE=Debug"
+    ]
+  },
+  "analysis": {
+    "mode": "auto_detect",
+    "auto_detection": {
+      "enabled": true,
+      "sample_size": 10,
+      "cpp_threshold": 0.6,
+      "go_threshold": 0.3
+    },
+    "function_coverage": true,
+    "branch_coverage": true,
+    "exception_coverage": true,
+    "key_path_coverage": true
+  },
+  "output": {
+    "report_file": "./analysis_report.json",
+    "log_file": "./dlogcover.log",
+    "log_level": "info",
+    "show_uncovered_paths_details": true
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+      "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["LOG_DEBUG", "DLOG", "自定义调试函数"],
+        "info": ["LOG_INFO", "ILOG", "自定义信息函数"],
+        "warning": ["LOG_WARNING", "WLOG", "自定义警告函数"],
+        "error": ["LOG_ERROR", "ELOG", "自定义错误函数"],
+        "fatal": ["LOG_FATAL", "FLOG", "自定义致命错误函数"]
+      }
+    }
+  },
+  "performance": {
+    "enable_parallel_analysis": true,
+    "max_threads": 0,
+    "enable_ast_cache": true,
+    "max_cache_size": 200,
+    "enable_io_optimization": true,
+    "file_buffer_size": 131072,
+    "enable_file_preloading": true
+  },
+  "go": {
+    "standard_log": {
+      "enabled": true,
+      "functions": [
+        "log.Print", "log.Printf", "log.Println",
+        "log.Fatal", "log.Fatalf", "log.Fatalln",
+        "log.Panic", "log.Panicf", "log.Panicln"
+      ]
+    },
+    "logrus": {
+      "enabled": true,
+      "functions": ["logrus.Info", "logrus.Error"],
+      "formatted_functions": ["logrus.Infof", "logrus.Errorf"]
+    },
+    "zap": {
+      "enabled": true,
+      "logger_functions": ["Debug", "Info", "Warn", "Error"],
+      "sugared_functions": ["Debugf", "Infof", "Warnf", "Errorf"]
+    }
   }
 }
 ```
 
-#### 配置项说明
+#### 简化兼容格式
 
-- **`project_name`**: 项目名称，将显示在报告中。
-- **`analysis_mode`**: 分析模式，与命令行选项`-m`功能相同。
-- **`target_directories`**: 指定需要分析的具体子目录。
-- **`exclude_patterns`**: 正则表达式列表，用于排除不需要分析的文件或目录。
-- **`custom_log_functions`**: **(核心功能)** 在此定义您的自定义日志函数，DLogCover会将其纳入分析。
-- **`coverage_thresholds`**: 设置覆盖率阈值，用于CI/CD质量门禁。
+适合快速配置和向后兼容：
+
+```json
+{
+  "directory": "./src",
+  "output": "./report.txt",
+  "log_level": "debug",
+  "format": "json",
+  "exclude": ["build/*", "test/*", "*_test.cpp"],
+  "log_path": "./dlogcover.log",
+  "mode": "cpp_only"
+}
+```
+
+#### 配置节详解
+
+##### 1. 项目配置 (`project`)
+```json
+{
+  "project": {
+    "name": "项目名称",
+    "directory": "项目根目录路径",
+    "build_directory": "构建目录路径"
+  }
+}
+```
+
+##### 2. 扫描配置 (`scan`)
+```json
+{
+  "scan": {
+    "directories": ["要扫描的目录列表"],
+    "file_extensions": ["文件扩展名列表"],
+    "exclude_patterns": ["排除模式列表（支持通配符）"]
+  }
+}
+```
+
+##### 3. 编译命令配置 (`compile_commands`)
+```json
+{
+  "compile_commands": {
+    "path": "compile_commands.json文件路径",
+    "auto_generate": "是否自动生成（布尔值）",
+    "cmake_args": ["CMake参数列表"]
+  }
+}
+```
+
+##### 4. 分析配置 (`analysis`)
+```json
+{
+  "analysis": {
+    "mode": "分析模式（cpp_only/go_only/auto_detect）",
+    "auto_detection": {
+      "enabled": "是否启用自动检测",
+      "sample_size": "抽样文件数量",
+      "cpp_threshold": "C++文件阈值",
+      "go_threshold": "Go文件阈值"
+    },
+    "function_coverage": "是否分析函数覆盖率",
+    "branch_coverage": "是否分析分支覆盖率",
+    "exception_coverage": "是否分析异常处理覆盖率",
+    "key_path_coverage": "是否分析关键路径覆盖率"
+  }
+}
+```
+
+##### 5. 输出配置 (`output`)
+```json
+{
+  "output": {
+    "report_file": "报告文件路径",
+    "log_file": "日志文件路径",
+    "log_level": "日志级别",
+    "show_uncovered_paths_details": "是否显示未覆盖路径详细信息"
+  }
+}
+```
+
+##### 6. 日志函数配置 (`log_functions`)
+
+**C++日志函数配置**：
+```json
+{
+  "log_functions": {
+    "qt": {
+      "enabled": true,
+      "functions": ["qDebug", "qInfo", "qWarning", "qCritical", "qFatal"],
+      "category_functions": ["qCDebug", "qCInfo", "qCWarning", "qCCritical"]
+    },
+    "custom": {
+      "enabled": true,
+      "functions": {
+        "debug": ["LOG_DEBUG", "DLOG", "自定义调试函数"],
+        "info": ["LOG_INFO", "ILOG", "自定义信息函数"],
+        "warning": ["LOG_WARNING", "WLOG", "自定义警告函数"],
+        "error": ["LOG_ERROR", "ELOG", "自定义错误函数"],
+        "fatal": ["LOG_FATAL", "FLOG", "自定义致命错误函数"]
+      }
+    }
+  }
+}
+```
+
+ **Go日志函数配置**：
+ ```json
+ {
+   "go": {
+     "standard_log": {
+       "enabled": true,
+       "functions": [
+         "log.Print", "log.Printf", "log.Println",
+         "log.Fatal", "log.Fatalf", "log.Fatalln",
+         "log.Panic", "log.Panicf", "log.Panicln"
+       ]
+     },
+     "logrus": {
+       "enabled": true,
+       "functions": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal", "Panic"],
+       "formatted_functions": ["Tracef", "Debugf", "Infof", "Warnf", "Errorf", "Fatalf", "Panicf"],
+       "line_functions": ["Traceln", "Debugln", "Infoln", "Warnln", "Errorln", "Fatalln", "Panicln"]
+     },
+     "zap": {
+       "enabled": true,
+       "logger_functions": ["Debug", "Info", "Warn", "Error", "DPanic", "Panic", "Fatal"],
+       "sugared_functions": [
+         "Debugf", "Debugln", "Debugw", "Infof", "Infoln", "Infow",
+         "Warnf", "Warnln", "Warnw", "Errorf", "Errorln", "Errorw",
+         "DPanicf", "DPanicln", "DPanicw", "Panicf", "Panicln", "Panicw",
+         "Fatalf", "Fatalln", "Fatalw"
+       ]
+     },
+     "golib": {
+       "enabled": true,
+       "functions": ["Info", "Error", "Debug", "Warn"],
+       "formatted_functions": ["Infof", "Errorf", "Debugf", "Warnf"]
+     }
+   }
+ }
+```
+
+##### 7. 性能配置 (`performance`)
+```json
+{
+  "performance": {
+    "enable_parallel_analysis": "是否启用并行分析",
+    "max_threads": "最大线程数（0=自动检测）",
+    "enable_ast_cache": "是否启用AST缓存",
+    "max_cache_size": "最大缓存条目数",
+    "enable_io_optimization": "是否启用I/O优化",
+    "file_buffer_size": "文件缓冲区大小（字节）",
+    "enable_file_preloading": "是否启用文件预加载"
+  }
+}
+```
+
+#### 配置文件优先级和合并规则
+
+1. **优先级顺序**：命令行参数 > 配置文件 > 环境变量 > 默认值
+2. **配置合并**：数组类型选项会进行合并，基础类型选项会被覆盖
+3. **验证机制**：配置加载时会进行完整性和有效性验证
+
+#### 配置文件示例场景
+
+**场景1：Qt项目配置**
+```json
+{
+  "project": {
+    "name": "qt-desktop-app",
+    "directory": "./src"
+  },
+  "scan": {
+    "directories": ["src", "include"],
+    "file_extensions": [".cpp", ".h", ".hpp"],
+    "exclude_patterns": ["build/*", "ui_*.h", "moc_*.cpp"]
+  },
+  "analysis": {
+    "mode": "cpp_only"
+  },
+  "log_functions": {
+    "qt": {
+      "enabled": true
+    },
+    "custom": {
+      "enabled": false
+    }
+  }
+}
+```
+
+**场景2：Go微服务配置**
+```json
+{
+  "project": {
+    "name": "go-microservice",
+    "directory": "./cmd"
+  },
+  "analysis": {
+    "mode": "go_only"
+  },
+  "go": {
+    "logrus": {"enabled": true},
+    "zap": {"enabled": true},
+    "standard_log": {"enabled": false}
+  }
+}
+```
+
+**场景3：混合语言项目配置**
+```json
+{
+  "analysis": {
+    "mode": "auto_detect",
+    "auto_detection": {
+      "sample_size": 20,
+      "cpp_threshold": 0.4,
+      "go_threshold": 0.4
+    }
+  },
+  "log_functions": {
+    "qt": {"enabled": true},
+    "custom": {"enabled": true}
+  },
+  "go": {
+    "standard_log": {"enabled": true},
+    "logrus": {"enabled": true}
+  }
+}
+```
 
 ## 🔧 技术架构
 
