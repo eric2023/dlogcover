@@ -32,6 +32,7 @@ struct Options {
     std::string log_file;                       ///< 日志文件路径
     std::vector<std::string> excludePatterns;   ///< 排除模式列表
     std::vector<std::string> includePaths;      ///< 头文件搜索路径列表
+    std::vector<std::string> includePatterns;   ///< 仅扫描模式列表（新增）
     LogLevel logLevel;                          ///< 日志级别
     ReportFormat reportFormat;                  ///< 报告格式
     bool showHelp;                              ///< 是否显示帮助

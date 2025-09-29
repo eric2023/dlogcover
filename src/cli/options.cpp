@@ -133,6 +133,12 @@ ReportFormat parseReportFormat(std::string_view str) {
 }
 
 ErrorResult Options::validate() const {
+    // 验证include模式
+    for (const auto& pattern : includePatterns) {
+        if (pattern.empty()) {
+            LOG_WARNING("发现空的include模式");
+        }
+    }
     LOG_DEBUG("开始验证选项");
 
     // 验证扫描目录
@@ -175,7 +181,13 @@ std::string Options::toString() const {
             oss << ", ";
         oss << excludePatterns[i];
     }
-
+    oss << "]\n"
+        << "  includePatterns: [";
+    for (size_t i = 0; i < includePatterns.size(); ++i) {
+        if (i > 0)
+            oss << ", ";
+        oss << includePatterns[i];
+    }
     oss << "]\n"
         << "  logLevel: " << cli::toString(logLevel) << "\n"
         << "  reportFormat: " << cli::toString(reportFormat) << "\n"
@@ -203,6 +215,7 @@ std::string Options::toJson() const {
     j["output"] = output_file;
     j["config"] = configPath;
     j["exclude"] = excludePatterns;
+    j["include"] = includePatterns; // 新增序列化include_patterns
     j["log_level"] = std::string(cli::toString(logLevel));
     j["report_format"] = std::string(cli::toString(reportFormat));
     j["version"] = config::CURRENT_CONFIG_VERSION;
@@ -237,6 +250,7 @@ ErrorResult Options::fromJson(std::string_view json) {
         output_file = j.value("output", std::string(config::cli::DEFAULT_OUTPUT));
         configPath = j.value("config", std::string(config::cli::DEFAULT_CONFIG));
         excludePatterns = j.value("exclude", std::vector<std::string>());
+        includePatterns = j.value("include", std::vector<std::string>());
 
         // 解析日志级别
         if (j.find("log_level") != j.end()) {

@@ -52,7 +52,7 @@ bool ConfigManager::initializeDefault(const std::string& project_dir) {
     LOG_INFO_FMT("初始化默认配置: 项目目录=%s", project_dir.c_str());
 
     config_ = createDefaultConfig(project_dir);
-    
+
     if (!validateConfig()) {
         return false;
     }
@@ -73,12 +73,22 @@ CompileCommandsManager& ConfigManager::getCompileCommandsManager() {
 bool ConfigManager::validateConfig() const {
     LOG_DEBUG("验证配置");
 
-    return validateProjectConfig() && 
-           validateScanConfig() && 
+    return validateProjectConfig() &&
+           validateScanConfig() &&
            validateCompileCommandsConfig();
 }
 
 void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options) {
+    // 合并include模式（命令行优先，且有include时忽略exclude）
+    if (!options.includePatterns.empty()) {
+        config_.scan.include_patterns = options.includePatterns;
+        LOG_DEBUG_FMT("设置仅扫描模式（include_patterns），数量: %zu", options.includePatterns.size());
+        LOG_DEBUG("有include参数时，自动忽略所有exclude");
+    } else if (!config_.scan.include_patterns.empty()) {
+        // 配置文件有include_patterns，命令行无
+        options.includePatterns = config_.scan.include_patterns;
+        LOG_DEBUG("配置文件有include_patterns时，自动忽略所有exclude");
+    }
     LOG_DEBUG("开始合并命令行选项");
 
     // 合并目录配置
@@ -86,7 +96,7 @@ void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options
         std::string oldProjectDir = config_.project.directory;
         config_.project.directory = options.directory;
         LOG_DEBUG_FMT("设置项目目录: %s", config_.project.directory.c_str());
-        
+
         // 如果扫描目录是相对路径或默认值，需要相应调整
         if (shouldUpdateScanDirectories(oldProjectDir, options.directory)) {
             updateScanDirectoriesForNewProject(oldProjectDir, options.directory);
@@ -147,27 +157,27 @@ void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options
         config_.performance.enable_parallel_analysis = false;
         LOG_DEBUG("禁用并行分析");
     }
-    
+
     if (options.maxThreads > 0) {
         config_.performance.max_threads = options.maxThreads;
         LOG_DEBUG_FMT("设置最大线程数: %zu", config_.performance.max_threads);
     }
-    
+
     if (options.disableCache) {
         config_.performance.enable_ast_cache = false;
         LOG_DEBUG("禁用AST缓存");
     }
-    
+
     if (options.maxCacheSize > 0) {
         config_.performance.max_cache_size = options.maxCacheSize;
         LOG_DEBUG_FMT("设置最大缓存大小: %zu", config_.performance.max_cache_size);
     }
-    
+
     if (options.disableIOOptimization) {
         config_.performance.enable_io_optimization = false;
         LOG_DEBUG("禁用I/O优化");
     }
-    
+
     // 合并分析模式配置
     if (!options.mode.empty()) {
         // 命令行指定了分析模式，使用命令行值
@@ -180,7 +190,7 @@ void ConfigManager::mergeWithCommandLineOptions(dlogcover::cli::Options& options
     }
 }
 
-bool ConfigManager::generateDefaultConfig(const std::string& config_path, 
+bool ConfigManager::generateDefaultConfig(const std::string& config_path,
                                          const std::string& project_dir) {
     LOG_INFO_FMT("生成默认配置文件: %s", config_path.c_str());
 
@@ -188,7 +198,7 @@ bool ConfigManager::generateDefaultConfig(const std::string& config_path,
         Config default_config = createDefaultConfig(project_dir);
 
         nlohmann::json json_config;
-        
+
         // 项目配置
         json_config["project"]["name"] = default_config.project.name;
         json_config["project"]["directory"] = default_config.project.directory;
@@ -301,7 +311,7 @@ Config ConfigManager::createDefaultConfig(const std::string& project_dir) {
     config.performance.enable_file_preloading = true;
 
     // 日志函数配置 (保持原样)
-    
+
     return config;
 }
 
@@ -346,6 +356,14 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                 for (const auto& ext : scan["file_extensions"]) {
                     if (ext.is_string()) {
                         config_.scan.file_extensions.push_back(ext.get<std::string>());
+                    }
+                }
+            }
+            if (scan.find("include_patterns") != scan.end() && scan["include_patterns"].is_array()) {
+                config_.scan.include_patterns.clear();
+                for (const auto& pattern : scan["include_patterns"]) {
+                    if (pattern.is_string()) {
+                        config_.scan.include_patterns.push_back(pattern.get<std::string>());
                     }
                 }
             }
@@ -398,7 +416,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         // 解析日志函数配置
         if (json_config.find("log_functions") != json_config.end()) {
             const auto& log_funcs = json_config["log_functions"];
-            
+
             // 解析Qt日志函数配置
             if (log_funcs.find("qt") != log_funcs.end()) {
                 const auto& qt = log_funcs["qt"];
@@ -422,7 +440,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            
+
             // 解析自定义日志函数配置
             if (log_funcs.find("custom") != log_funcs.end()) {
                 const auto& custom = log_funcs["custom"];
@@ -449,12 +467,12 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         // 解析分析配置
         if (json_config.find("analysis") != json_config.end()) {
             const auto& analysis = json_config["analysis"];
-            
+
             // 解析分析模式
             if (analysis.find("mode") != analysis.end() && analysis["mode"].is_string()) {
                 config_.analysis.mode = analysis["mode"].get<std::string>();
             }
-            
+
             // 解析自动检测配置
             if (analysis.find("auto_detection") != analysis.end()) {
                 const auto& auto_detect = analysis["auto_detection"];
@@ -465,7 +483,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     config_.analysis.auto_detection.confidence_threshold = auto_detect["confidence_threshold"].get<double>();
                 }
             }
-            
+
             // 解析覆盖率配置
             if (analysis.find("function_coverage") != analysis.end() && analysis["function_coverage"].is_boolean()) {
                 config_.analysis.function_coverage = analysis["function_coverage"].get<bool>();
@@ -484,7 +502,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         // 解析性能配置
         if (json_config.find("performance") != json_config.end()) {
             const auto& performance = json_config["performance"];
-            
+
             if (performance.find("enable_parallel_analysis") != performance.end() && performance["enable_parallel_analysis"].is_boolean()) {
                 config_.performance.enable_parallel_analysis = performance["enable_parallel_analysis"].get<bool>();
             }
@@ -511,7 +529,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
         // 解析Go语言配置
         if (json_config.find("go") != json_config.end()) {
             const auto& go = json_config["go"];
-            
+
             // 标准库log配置
             if (go.find("standard_log") != go.end()) {
                 const auto& std_log = go["standard_log"];
@@ -527,7 +545,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            
+
             // Logrus配置
             if (go.find("logrus") != go.end()) {
                 const auto& logrus = go["logrus"];
@@ -559,7 +577,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            
+
             // Zap配置
             if (go.find("zap") != go.end()) {
                 const auto& zap = go["zap"];
@@ -583,7 +601,7 @@ bool ConfigManager::parseConfigFile(const std::string& config_path) {
                     }
                 }
             }
-            
+
             // golib配置
             if (go.find("golib") != go.end()) {
                 const auto& golib = go["golib"];
@@ -673,36 +691,36 @@ bool ConfigManager::shouldUpdateScanDirectories(const std::string& oldProjectDir
     if (oldProjectDir == newProjectDir) {
         return false;
     }
-    
+
     // 检查扫描目录是否包含相对路径或特殊情况
     for (const auto& dir : config_.scan.directories) {
         // 如果是当前目录标记
         if (dir == ".") {
             return true;
         }
-        
+
         // 如果是相对路径（不以/开头）
         if (!dir.empty() && dir[0] != '/') {
             return true;
         }
-        
+
         // 如果是默认的C++项目目录
         if (dir == "include" || dir == "src" || dir == "tests") {
             return true;
         }
     }
-    
+
     return false;
 }
 
 void ConfigManager::updateScanDirectoriesForNewProject(const std::string& oldProjectDir, const std::string& newProjectDir) {
     std::vector<std::string> updatedDirectories;
-    
+
     LOG_DEBUG_FMT("更新扫描目录：从 %s 到 %s", oldProjectDir.c_str(), newProjectDir.c_str());
-    
+
     for (const auto& dir : config_.scan.directories) {
         std::string updatedDir;
-        
+
         if (dir == ".") {
             // 当前目录标记改为新的项目目录
             updatedDir = newProjectDir;
@@ -717,12 +735,12 @@ void ConfigManager::updateScanDirectoriesForNewProject(const std::string& oldPro
             updatedDir = dir;
             LOG_DEBUG_FMT("绝对路径 '%s' 保持不变", dir.c_str());
         }
-        
+
         updatedDirectories.push_back(updatedDir);
     }
-    
+
     config_.scan.directories = updatedDirectories;
-    
+
     // 输出更新后的扫描目录列表
     LOG_INFO("扫描目录已更新:");
     for (const auto& dir : config_.scan.directories) {

@@ -68,6 +68,8 @@ const char* const OPTION_CONFIG_SHORT = "-c";
 const char* const OPTION_CONFIG_LONG = "--config";
 const char* const OPTION_EXCLUDE_SHORT = "-e";
 const char* const OPTION_EXCLUDE_LONG = "--exclude";
+const char* const OPTION_INCLUDE_SHORT = "-i";
+const char* const OPTION_INCLUDE_LONG = "--include";
 const char* const OPTION_LOG_LEVEL_SHORT = "-l";
 const char* const OPTION_LOG_LEVEL_LONG = "--log-level";
 const char* const OPTION_FORMAT_SHORT = "-f";
@@ -92,6 +94,7 @@ const char* const DEFAULT_CONFIG = "./dlogcover.json";
 
 // 帮助信息模板
 const std::string HELP_TEXT = R"(
+
 DLogCover - C++代码日志覆盖分析工具 v)" +
                               VERSION + R"(
 用法: dlogcover [选项]
@@ -103,6 +106,7 @@ DLogCover - C++代码日志覆盖分析工具 v)" +
   -o, --output <path>        指定输出报告路径 (默认: ./dlogcover_report_<timestamp>.txt)
   -c, --config <path>        指定配置文件路径 (默认: ./dlogcover.json)
   -e, --exclude <pattern>    排除符合模式的文件或目录 (可多次使用)
+  -i, --include <pattern>    仅扫描指定的文件或目录 (可多次使用，优先生效)
   -l, --log-level <level>    指定最低日志级别进行过滤 (debug, info, warning, critical, fatal, all)
   -f, --format <format>      指定报告格式 (text, json)
   -p, --log-path <path>      指定日志文件路径 (默认: dlogcover_<timestamp>.log)
@@ -386,6 +390,21 @@ ErrorResult CommandLineParser::parse(int argc, char** argv) {
                 if (result.hasError()) {
                     return result;
                 }
+            }
+
+            // 新增include参数分支
+            else if (arg == config::cli::OPTION_INCLUDE_SHORT || arg == config::cli::OPTION_INCLUDE_LONG) {
+                auto result = handleOption(args, i, arg, [this](std::string_view pattern) -> ErrorResult {
+                    if (pattern.empty()) {
+                        return ErrorResult(ConfigError::InvalidExcludePattern,
+                                           "include模式不能为空");
+                    }
+                    options_.includePatterns.emplace_back(pattern);
+                    return ErrorResult();
+                });
+                if (result.hasError()) {
+                    return result;
+                }
             } else if (arg == config::cli::OPTION_LOG_LEVEL_SHORT || arg == config::cli::OPTION_LOG_LEVEL_LONG) {
                 auto result = handleOption(args, i, arg, [this](std::string_view levelStr) -> ErrorResult {
                     try {
@@ -554,12 +573,12 @@ void CommandLineParser::logParsedOptions() const {
     if (!utils::Logger::isInitialized()) {
         return;  // 日志系统未初始化，直接返回
     }
-    
+
     LOG_INFO("=== 命令行参数解析结果 ===");
     LOG_INFO_FMT("扫描目录: %s", options_.directory.c_str());
     LOG_INFO_FMT("输出路径: %s", options_.output_file.c_str());
     LOG_INFO_FMT("配置文件: %s", options_.configPath.c_str());
-    
+
     // 记录日志级别
     std::string logLevelStr;
     switch (options_.logLevel) {
@@ -572,16 +591,16 @@ void CommandLineParser::logParsedOptions() const {
         default: logLevelStr = "UNKNOWN"; break;
     }
     LOG_INFO_FMT("日志级别: %s", logLevelStr.c_str());
-    
+
     // 记录报告格式
     std::string formatStr = (options_.reportFormat == ReportFormat::TEXT) ? "TEXT" : "JSON";
     LOG_INFO_FMT("报告格式: %s", formatStr.c_str());
-    
+
     // 记录日志文件路径
     if (!options_.log_file.empty()) {
         LOG_INFO_FMT("日志文件: %s", options_.log_file.c_str());
     }
-    
+
     // 记录排除模式
     if (!options_.excludePatterns.empty()) {
         LOG_INFO("排除模式:");
@@ -589,7 +608,7 @@ void CommandLineParser::logParsedOptions() const {
             LOG_INFO_FMT("  - %s", pattern.c_str());
         }
     }
-    
+
     // 记录包含路径
     if (!options_.includePaths.empty()) {
         LOG_INFO("包含路径:");
@@ -597,11 +616,11 @@ void CommandLineParser::logParsedOptions() const {
             LOG_INFO_FMT("  - %s", path.c_str());
         }
     }
-    
+
     // 记录其他选项
     LOG_INFO_FMT("静默模式: %s", options_.quiet ? "是" : "否");
     LOG_INFO_FMT("详细模式: %s", options_.verbose ? "是" : "否");
-    
+
     LOG_INFO("=== 命令行参数记录完成 ===");
 }
 

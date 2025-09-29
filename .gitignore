@@ -36,7 +36,7 @@ Thumbs.db
 *.app
 
 # 生成的报告
-*_report_* 
+*_report_*
 # SpecStory explanation file
 .specstory/.what-is-this.md
 
@@ -55,3 +55,5 @@ dlogcover_*.changes
 dlogcover_*.tar.gz
 dlogcover_*.dsc
 .specstory/history/*2025-07-03_06-15Z*
+
+.cache/

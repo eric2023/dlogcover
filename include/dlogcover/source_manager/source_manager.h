@@ -29,7 +29,7 @@ struct SourceFileInfo {
 
 /**
  * @brief 源文件管理器类
- * 
+ *
  * 负责收集、管理和提供源文件信息
  */
 class SourceManager {
@@ -83,6 +83,13 @@ private:
     bool shouldExclude(const std::string& path) const;
 
     /**
+     * @brief 检查文件是否匹配include_patterns
+     * @param path 文件路径
+     * @return 如果应包含返回true，否则返回false
+     */
+    bool shouldInclude(const std::string& path) const;
+
+    /**
      * @brief 检查文件类型是否被支持
      * @param path 文件路径
      * @return 如果支持返回true，否则返回false
@@ -108,4 +115,4 @@ private:
 } // namespace source_manager
 } // namespace dlogcover
 
-#endif // DLOGCOVER_SOURCE_MANAGER_SOURCE_MANAGER_H 
+#endif // DLOGCOVER_SOURCE_MANAGER_SOURCE_MANAGER_H

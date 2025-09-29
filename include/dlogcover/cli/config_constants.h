@@ -34,6 +34,8 @@ namespace cli {
     constexpr const char* OPTION_OUTPUT_LONG = "--output";
     constexpr const char* OPTION_CONFIG_SHORT = "-c";
     constexpr const char* OPTION_CONFIG_LONG = "--config";
+    constexpr const char* OPTION_INCLUDE_SHORT = "-i";
+    constexpr const char* OPTION_INCLUDE_LONG = "--include";
     constexpr const char* OPTION_EXCLUDE_SHORT = "-e";
     constexpr const char* OPTION_EXCLUDE_LONG = "--exclude";
     constexpr const char* OPTION_LOG_LEVEL_SHORT = "-l";
@@ -124,4 +126,4 @@ namespace env {
 } // namespace config
 } // namespace dlogcover
 
-#endif // DLOGCOVER_CLI_CONFIG_CONSTANTS_H 
+#endif // DLOGCOVER_CLI_CONFIG_CONSTANTS_H

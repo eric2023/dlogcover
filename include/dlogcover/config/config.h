@@ -30,6 +30,7 @@ struct ScanConfig {
     std::vector<std::string> directories;    ///< 扫描目录列表（相对于项目根目录）
     std::vector<std::string> file_extensions; ///< 文件扩展名列表
     std::vector<std::string> exclude_patterns; ///< 排除模式列表
+    std::vector<std::string> include_patterns; ///< 仅扫描模式列表（新增）
 };
 
 /**

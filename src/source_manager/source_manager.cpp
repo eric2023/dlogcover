@@ -31,6 +31,47 @@ core::ast_analyzer::Result<bool> SourceManager::collectSourceFiles() {
         sourceFiles_.clear();
         pathToIndex_.clear();
 
+        // 优先处理include_patterns，支持glob匹配
+        if (!config_.scan.include_patterns.empty()) {
+            LOG_INFO_FMT("仅扫描include_patterns指定的文件/目录（支持glob），数量: %zu",
+                         config_.scan.include_patterns.size());
+            size_t includeCount = 0;
+            std::vector<std::string> allFiles;
+            // 遍历所有扫描目录，收集所有支持的文件
+            for (const auto& directory : config_.scan.directories) {
+                if (!utils::FileUtils::directoryExists(directory)) {
+                    LOG_WARNING_FMT("目录不存在，跳过: %s", directory.c_str());
+                    continue;
+                }
+                std::vector<std::string> files = utils::FileUtils::listFiles(
+                    directory, [this](const std::string& path) { return isSupportedFileType(path); }, "", true);
+                allFiles.insert(allFiles.end(), files.begin(), files.end());
+            }
+            // 对所有文件做shouldInclude判断
+            for (const auto& filePath : allFiles) {
+                if (!shouldInclude(filePath))
+                    continue;
+                SourceFileInfo fileInfo;
+                fileInfo.path = filePath;
+                fileInfo.relativePath = filePath;  // 可根据需要调整为相对路径
+                fileInfo.size = utils::FileUtils::getFileSize(filePath);
+                fileInfo.isHeader = utils::FileUtils::hasExtension(filePath, ".h") ||
+                                    utils::FileUtils::hasExtension(filePath, ".hpp") ||
+                                    utils::FileUtils::hasExtension(filePath, ".hxx");
+                if (!readFileContent(filePath, fileInfo.content)) {
+                    LOG_WARNING_FMT("无法读取文件内容: %s", filePath.c_str());
+                    continue;
+                }
+                sourceFiles_.push_back(fileInfo);
+                pathToIndex_[filePath] = sourceFiles_.size() - 1;
+                ++includeCount;
+                LOG_DEBUG_FMT("添加include文件: %s, 大小: %lu bytes", filePath.c_str(), fileInfo.size);
+            }
+            LOG_INFO_FMT("include_patterns count: %d, 扫描所有支持的源文件", config_.scan.include_patterns.size());
+            LOG_INFO_FMT("共收集到 %zu 个include文件", includeCount);
+            return core::ast_analyzer::makeSuccess(!sourceFiles_.empty());
+        }
+
         std::vector<std::string> processedDirectories;
 
         // 遍历所有扫描目录
@@ -93,7 +134,7 @@ core::ast_analyzer::Result<bool> SourceManager::collectSourceFiles() {
                 "所有扫描目录都不存在: " + allDirs);
         }
 
-        LOG_INFO_FMT("成功扫描了 %zu 个目录，共收集到 %lu 个源文件", 
+        LOG_INFO_FMT("成功扫描了 %zu 个目录，共收集到 %lu 个源文件",
                      processedDirectories.size(), sourceFiles_.size());
         return core::ast_analyzer::makeSuccess(!sourceFiles_.empty());
     } catch (const std::exception& e) {
@@ -131,7 +172,7 @@ const SourceFileInfo* SourceManager::getSourceFile(const std::string& path) cons
 std::string SourceManager::globToRegex(const std::string& glob) const {
     std::string regex;
     regex.reserve(glob.size() * 2);
-    
+
     for (size_t i = 0; i < glob.size(); ++i) {
         char c = glob[i];
         switch (c) {
@@ -182,8 +223,29 @@ std::string SourceManager::globToRegex(const std::string& glob) const {
                 break;
         }
     }
-    
+
     return regex;
+}
+
+// 仿照shouldExclude实现shouldInclude，支持glob匹配
+bool SourceManager::shouldInclude(const std::string& path) const {
+    for (const auto& pattern : config_.scan.include_patterns) {
+        std::string regexPattern = globToRegex(pattern);
+        try {
+            std::regex regex(regexPattern, std::regex::extended);
+            if (std::regex_search(path, regex)) {
+                LOG_DEBUG_FMT("包含文件: %s, 匹配模式: %s", path.c_str(), pattern.c_str());
+                return true;
+            }
+        } catch (const std::regex_error& e) {
+            LOG_WARNING_FMT("include正则表达式错误，模式: %s, 错误: %s", pattern.c_str(), e.what());
+            if (path.find(pattern) != std::string::npos) {
+                LOG_DEBUG_FMT("包含文件: %s, 简单匹配模式: %s", path.c_str(), pattern.c_str());
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool SourceManager::shouldExclude(const std::string& path) const {
@@ -191,7 +253,7 @@ bool SourceManager::shouldExclude(const std::string& path) const {
     for (const auto& pattern : config_.scan.exclude_patterns) {
         // 将glob模式转换为正则表达式
         std::string regexPattern = globToRegex(pattern);
-        
+
         try {
             std::regex regex(regexPattern, std::regex::extended);
             if (std::regex_search(path, regex)) {
